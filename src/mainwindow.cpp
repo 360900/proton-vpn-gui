@@ -1,5 +1,6 @@
 #include "mainwindow.h"
 
+#include <QApplication>
 #include <QHBoxLayout>
 #include <QVBoxLayout>
 #include <QLabel>
@@ -160,7 +161,38 @@ MainWindow::MainWindow(QWidget *parent)
     connect(m_manager, &VpnManager::connectionStateChanged, this,
             [this](VpnState state, const QString &info) {
         m_vpnPage->onStateChanged(state, info);
+        updateTrayIcon(state);
     });
+
+    // System tray icon
+    m_trayIcon = new QSystemTrayIcon(this);
+    auto *trayMenu = new QMenu(this);
+    trayMenu->addAction(QStringLiteral("Show"), this, [this]() {
+        showNormal();
+        raise();
+        activateWindow();
+    });
+    trayMenu->addSeparator();
+    m_trayConnectAction = trayMenu->addAction(QStringLiteral("Connect"), this, [this]() {
+        const VpnState state = m_manager->currentState();
+        if (state == VpnState::Connected)
+            m_manager->disconnectVpn();
+        else if (state == VpnState::Disconnected || state == VpnState::Error)
+            m_manager->connectVpn();
+    });
+    trayMenu->addSeparator();
+    trayMenu->addAction(QStringLiteral("Quit"), qApp, &QApplication::quit);
+    m_trayIcon->setContextMenu(trayMenu);
+    connect(m_trayIcon, &QSystemTrayIcon::activated, this,
+            [this](QSystemTrayIcon::ActivationReason reason) {
+        if (reason == QSystemTrayIcon::Trigger) {
+            showNormal();
+            raise();
+            activateWindow();
+        }
+    });
+    updateTrayIcon(VpnState::Unknown);
+    m_trayIcon->show();
 
     // Start
     showPage(Page::Loading);
@@ -231,5 +263,56 @@ void MainWindow::setNavActive(QToolButton *btn)
 void MainWindow::startupCheck()
 {
     m_manager->checkInstalled();
+}
+
+void MainWindow::updateTrayIcon(VpnState state)
+{
+    // Render the appropriate SVG into a 22×22 icon (standard tray size).
+    const QSize sz(22, 22);
+    QPixmap pix(sz);
+    pix.fill(Qt::transparent);
+    QPainter p(&pix);
+
+    const QString asset = (state == VpnState::Connected)
+        ? QStringLiteral(":/assets/state-connected.svg")
+        : QStringLiteral(":/assets/state-disconnected.svg");
+    QSvgRenderer renderer(asset);
+    renderer.render(&p);
+    p.end();
+
+    m_trayIcon->setIcon(QIcon(pix));
+
+    switch (state) {
+    case VpnState::Connected:
+        m_trayIcon->setToolTip(QStringLiteral("ProtonVPN – Connected"));
+        m_trayConnectAction->setText(QStringLiteral("Disconnect"));
+        m_trayConnectAction->setEnabled(true);
+        break;
+    case VpnState::Connecting:
+        m_trayIcon->setToolTip(QStringLiteral("ProtonVPN – Connecting…"));
+        m_trayConnectAction->setText(QStringLiteral("Connecting…"));
+        m_trayConnectAction->setEnabled(false);
+        break;
+    case VpnState::Disconnecting:
+        m_trayIcon->setToolTip(QStringLiteral("ProtonVPN – Disconnecting…"));
+        m_trayConnectAction->setText(QStringLiteral("Disconnecting…"));
+        m_trayConnectAction->setEnabled(false);
+        break;
+    case VpnState::Error:
+        m_trayIcon->setToolTip(QStringLiteral("ProtonVPN – Error"));
+        m_trayConnectAction->setText(QStringLiteral("Connect"));
+        m_trayConnectAction->setEnabled(true);
+        break;
+    case VpnState::Disconnected:
+        m_trayIcon->setToolTip(QStringLiteral("ProtonVPN – Disconnected"));
+        m_trayConnectAction->setText(QStringLiteral("Connect"));
+        m_trayConnectAction->setEnabled(true);
+        break;
+    default:  // Unknown — still checking
+        m_trayIcon->setToolTip(QStringLiteral("ProtonVPN – Checking…"));
+        m_trayConnectAction->setText(QStringLiteral("Connect"));
+        m_trayConnectAction->setEnabled(false);
+        break;
+    }
 }
 

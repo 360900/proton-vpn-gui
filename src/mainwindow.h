@@ -3,6 +3,8 @@
 #include <QWidget>
 #include <QStackedWidget>
 #include <QToolButton>
+#include <QSystemTrayIcon>
+#include <QMenu>
 #include "vpnmanager.h"
 
 class VpnPage;
@@ -46,5 +48,9 @@ private:
     void setupSidebar();
     void setNavActive(QToolButton *btn);
     void startupCheck();
+    void updateTrayIcon(VpnState state);
+
+    QSystemTrayIcon *m_trayIcon;
+    QAction *m_trayConnectAction;
 };
 
