@@ -47,6 +47,7 @@ MainWindow::MainWindow(QWidget *parent)
     m_sidebar->setObjectName(QStringLiteral("sidebar"));
     m_sidebar->setFixedWidth(64);
     setupSidebar();
+    m_sidebar->setEnabled(false);  // disabled until startup checks complete
     rootLayout->addWidget(m_sidebar);
 
     // Vertical divider
