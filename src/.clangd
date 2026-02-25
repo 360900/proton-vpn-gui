@@ -1,0 +1,8 @@
+CompileFlags:
+  Add:
+    - -I/usr/include/qt6/QtSvg
+    - -I/usr/include/qt6/QtSvgWidgets
+
+CompileDatabase: cmake-build-debug
+
+

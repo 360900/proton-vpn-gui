@@ -1,0 +1,45 @@
+#pragma once
+
+#include <QWidget>
+#include <QLineEdit>
+#include <QPushButton>
+#include <QLabel>
+#include <QStackedWidget>
+
+class LoginPage : public QWidget
+{
+    Q_OBJECT
+public:
+    explicit LoginPage(QWidget *parent = nullptr);
+
+    void setError(const QString &error);
+    void setLoading(bool loading);
+    void show2FAPrompt();   // called when VpnManager emits twoFactorRequired()
+    void reset();           // return to username/password view
+
+signals:
+    void loginRequested(const QString &username, const QString &password);
+    void twoFASubmitted(const QString &token);
+
+private:
+    // --- credentials view ---
+    QWidget      *m_credsWidget;
+    QLineEdit    *m_usernameEdit;
+    QLineEdit    *m_passwordEdit;
+    QPushButton  *m_togglePasswordBtn;
+    QPushButton  *m_loginBtn;
+
+    // --- 2FA view ---
+    QWidget      *m_tfaWidget;
+    QLineEdit    *m_tfaEdit;
+    QPushButton  *m_tfaSubmitBtn;
+
+    // shared
+    QStackedWidget *m_stack;
+    QLabel         *m_errorLabel;
+
+    bool m_passwordVisible = false;
+    void togglePasswordVisibility();
+    void buildCredsWidget();
+    void buildTFAWidget();
+};
