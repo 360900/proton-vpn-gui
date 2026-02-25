@@ -229,11 +229,15 @@ void VpnManager::fetchCountries()
         //   ----------------------  ------
         //   Afghanistan             AF
         // Skip the header + separator (first 2 non-empty lines).
+        // Also defensively skip any line that looks like a separator (starts
+        // with "--") in case blank-line counting is off.
         int dataRow = 0;
         for (const QString &line : lines) {
             if (line.trimmed().isEmpty())
                 continue;
             if (++dataRow <= 2)
+                continue;
+            if (line.trimmed().startsWith(QStringLiteral("--")))
                 continue;
             // Name and code are separated by 2+ spaces.
             const QStringList parts = line.split(QStringLiteral("  "), Qt::SkipEmptyParts);
@@ -267,6 +271,8 @@ void VpnManager::fetchCities(const QString &countryCode)
             if (line.trimmed().isEmpty())
                 continue;
             if (++dataRow <= 3)
+                continue;
+            if (line.trimmed().startsWith(QStringLiteral("--")))
                 continue;
             // City and Features are separated by 2+ spaces.
             const QStringList parts = line.split(QStringLiteral("  "), Qt::SkipEmptyParts);
