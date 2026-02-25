@@ -40,13 +40,14 @@ jobs:
       - name: Generate release tag
         id: tag
         run: |
-          echo "TAG=release-$(date -u +'%Y%m%d')-${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+          echo "TAG=release-$(date -u +'%m-%d-%Y')-${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+          echo "NAME=Release $(date -u +'%m-%d-%Y') (${GITHUB_SHA::7})" >> "$GITHUB_OUTPUT"
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.tag.outputs.TAG }}
-          name: ${{ steps.tag.outputs.TAG }}
+          name: ${{ steps.tag.outputs.NAME }}
           body: |
             Automated release built from commit ${{ github.sha }}.
 
