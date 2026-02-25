@@ -1,0 +1,66 @@
+name: Release
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write   # needed to create releases and upload assets
+
+jobs:
+  build-and-release:
+    name: Build & Release (Ubuntu)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Qt 6 and build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            cmake ninja-build \
+            qt6-base-dev qt6-svg-dev libqt6svg6-dev \
+            libgl1-mesa-dev
+
+      - name: Configure
+        run: cmake -S src -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build
+        run: cmake --build build --parallel
+
+      - name: Package
+        run: |
+          mkdir -p dist
+          cp build/proton_vpn_qt dist/
+          tar -czf proton-vpn-qt-app-linux-x86_64.tar.gz -C dist proton_vpn_qt
+
+      - name: Generate release tag
+        id: tag
+        run: |
+          echo "TAG=release-$(date -u +'%Y%m%d')-${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.tag.outputs.TAG }}
+          name: ${{ steps.tag.outputs.TAG }}
+          body: |
+            Automated release built from commit ${{ github.sha }}.
+
+            **Commit message:** ${{ github.event.head_commit.message }}
+
+            ## Installation
+            Download `proton-vpn-qt-app-linux-x86_64.tar.gz`, extract it, and run the `proton_vpn_qt` binary.
+
+            ```bash
+            tar -xzf proton-vpn-qt-app-linux-x86_64.tar.gz
+            ./proton_vpn_qt
+            ```
+
+            > This is a community build. See the [README](https://github.com/${{ github.repository }}/blob/main/README.md) for requirements and usage.
+          files: proton-vpn-qt-app-linux-x86_64.tar.gz
+          make_latest: true
+
