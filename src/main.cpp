@@ -1,6 +1,9 @@
 #include <QApplication>
 #include <QStyleFactory>
 #include <QColor>
+#include <QLockFile>
+#include <QDir>
+#include <QMessageBox>
 #include "mainwindow.h"
 
 int main(int argc, char* argv[])
@@ -9,6 +12,18 @@ int main(int argc, char* argv[])
     QApplication::setApplicationName(QStringLiteral("ProtonVPN"));
     QApplication::setApplicationDisplayName(QStringLiteral("ProtonVPN"));
     QApplication::setApplicationVersion(QStringLiteral("1.0.0"));
+
+    // Single-instance guard — prevent multiple copies running at the same time.
+    const QString lockPath = QDir::tempPath() + QStringLiteral("/proton-vpn-qt-app.lock");
+    QLockFile lockFile(lockPath);
+    lockFile.setStaleLockTime(0); // never treat a lock as stale
+    if (!lockFile.tryLock(100)) {
+        QMessageBox::warning(
+            nullptr,
+            QStringLiteral("Already Running"),
+            QStringLiteral("ProtonVPN is already running.\n\nCheck your system tray or taskbar."));
+        return 1;
+    }
 
     // Use Breeze style on KDE Plasma if available, else Fusion
     const QStringList availableStyles = QStyleFactory::keys();
