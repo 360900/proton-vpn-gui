@@ -1,4 +1,5 @@
 #include "settingspage.h"
+#include "../appconfig.h"
 
 #include <QVBoxLayout>
 #include <QHBoxLayout>
@@ -12,8 +13,13 @@
 #include <QTextBrowser>
 #include <QMessageBox>
 #include <QFile>
+#include <QDir>
+#include <QStandardPaths>
+#include <QProcess>
+#include <QCoreApplication>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QDebug>
 
 // ============================================================
 // ToggleSwitch
@@ -160,8 +166,134 @@ QWidget *SettingsPage::makeComboRow(QWidget *parent, const QString &label,
 }
 
 // ============================================================
+// Auto-start helpers (systemd user service)
+// ============================================================
+
+// Easy-to-change constant: directory where the .service file lives.
+static const QString kSystemdUserServiceDir =
+    QDir::homePath() + QStringLiteral("/.config/systemd/user");
+static const QString kServiceName = QStringLiteral("proton-vpn-qt.service");
+
+// In debug builds, skip actual systemd/file operations so the toggle can be
+// tested without installing a real service. Flip to false to test for real.
+#ifdef QT_DEBUG
+static constexpr bool kDryRun = true;
+#else
+static constexpr bool kDryRun = false;
+#endif
+
+QString SettingsPage::serviceFilePath()
+{
+    return kSystemdUserServiceDir + QLatin1Char('/') + kServiceName;
+}
+
+bool SettingsPage::systemdAvailable()
+{
+    // Check once whether systemctl is on PATH by trying to start it with --version.
+    static int cached = -1; // -1 = unchecked, 0 = absent, 1 = present
+    if (cached != -1) return cached == 1;
+
+    QProcess p;
+    p.start(QStringLiteral("systemctl"), {QStringLiteral("--version")});
+    cached = (p.waitForStarted(2000) && p.waitForFinished(2000)) ? 1 : 0;
+    return cached == 1;
+}
+
+bool SettingsPage::autoStartEnabled()
+{
+    if (kDryRun)             return false; // dry-run: always report disabled
+    if (!systemdAvailable()) return false;
+
+    // Ask systemd whether the service is enabled. Exit code 0 = enabled.
+    QProcess p;
+    p.start(QStringLiteral("systemctl"),
+            {QStringLiteral("--user"), QStringLiteral("is-enabled"), kServiceName});
+    if (!p.waitForFinished(3000)) return false;
+    const QString out = QString::fromUtf8(p.readAllStandardOutput()).trimmed().toLower();
+    return out == QStringLiteral("enabled") || out == QStringLiteral("static");
+}
+
+bool SettingsPage::setAutoStart(bool enable, QString &errorOut)
+{
+    if (kDryRun) {
+        qDebug("[DryRun] setAutoStart(%s) — skipping real systemd operations.",
+               enable ? "true" : "false");
+        return true; // pretend success
+    }
+
+    if (enable) {
+        // Resolve the path to the currently running executable.
+        const QString exe = QCoreApplication::applicationFilePath();
+
+        // Create the systemd user service directory if it doesn't exist.
+        QDir dir;
+        if (!dir.mkpath(kSystemdUserServiceDir)) {
+            errorOut = QStringLiteral("Could not create directory: ") + kSystemdUserServiceDir;
+            return false;
+        }
+
+        // Write the .service file.
+        const QString serviceContent =
+            QStringLiteral("[Unit]\n"
+                           "Description=ProtonVPN Qt App\n"
+                           "After=graphical-session.target\n"
+                           "PartOf=graphical-session.target\n"
+                           "\n"
+                           "[Service]\n"
+                           "Type=simple\n"
+                           "ExecStart=%1\n"
+                           "Restart=on-failure\n"
+                           "Environment=DISPLAY=:0\n"
+                           "\n"
+                           "[Install]\n"
+                           "WantedBy=graphical-session.target\n").arg(exe);
+
+        QFile f(serviceFilePath());
+        if (!f.open(QIODevice::WriteOnly | QIODevice::Text)) {
+            errorOut = QStringLiteral("Could not write service file: ") + serviceFilePath();
+            return false;
+        }
+        f.write(serviceContent.toUtf8());
+        f.close();
+
+        // Enable the service (creates the symlink so it starts automatically).
+        QProcess p;
+        p.start(QStringLiteral("systemctl"),
+                {QStringLiteral("--user"), QStringLiteral("enable"), kServiceName});
+        p.waitForFinished(5000);
+        if (p.exitCode() != 0) {
+            errorOut = QString::fromUtf8(p.readAllStandardError()).trimmed();
+            if (errorOut.isEmpty())
+                errorOut = QStringLiteral("systemctl --user enable failed (exit %1)").arg(p.exitCode());
+            return false;
+        }
+    } else {
+        // Disable and remove.
+        QProcess p;
+        p.start(QStringLiteral("systemctl"),
+                {QStringLiteral("--user"), QStringLiteral("disable"), kServiceName});
+        p.waitForFinished(5000);
+
+        QFile::remove(serviceFilePath());
+    }
+    return true;
+}
+
+// ============================================================
 // SettingsPage constructor
 // ============================================================
+
+void SettingsPage::updateAutoConnectRowVisibility()
+{
+    if (!m_autoConnectRow) return;
+    const bool show = m_autoStartToggle && m_autoStartToggle->isOn();
+    m_autoConnectRow->setVisible(show);
+    // If auto-start is turned off, also disable auto-connect and persist that.
+    if (!show && m_autoConnectToggle && m_autoConnectToggle->isOn()) {
+        m_autoConnectToggle->setOn(false, false);
+        AppConfig::instance().setAutoConnect(false);
+    }
+}
 
 SettingsPage::SettingsPage(VpnManager *manager, QWidget *parent)
     : QWidget(parent), m_manager(manager)
@@ -207,6 +339,54 @@ SettingsPage::SettingsPage(VpnManager *manager, QWidget *parent)
         first = false;
         cardLayout->addWidget(w);
     };
+
+    // ── Auto-start (systemd user service) ────────────────────
+    // Only show this row if systemd is available on this system.
+    if (systemdAvailable()) {
+        m_autoStartRow = new QWidget(card);
+        auto *rl = new QHBoxLayout(m_autoStartRow);
+        rl->setContentsMargins(16, 12, 16, 12);
+        rl->addLayout(makeTextCol(m_autoStartRow,
+            QStringLiteral("Launch on Startup"),
+            QStringLiteral("Automatically start the app in the background when you log in "
+                           "(installs a systemd user service).")));
+        rl->addStretch();
+        m_autoStartToggle = new ToggleSwitch(m_autoStartRow);
+        m_autoStartToggle->setOn(autoStartEnabled(), false);
+        connect(m_autoStartToggle, &ToggleSwitch::toggled, this, [this](bool on) {
+            QString err;
+            if (!setAutoStart(on, err)) {
+                m_autoStartToggle->setOn(!on, false);
+                QMessageBox::warning(this,
+                    QStringLiteral("Auto-start Error"),
+                    QStringLiteral("Failed to %1 auto-start:\n%2")
+                        .arg(on ? QStringLiteral("enable") : QStringLiteral("disable"), err));
+            } else {
+                updateAutoConnectRowVisibility();
+            }
+        });
+        rl->addWidget(m_autoStartToggle);
+        add(m_autoStartRow);
+
+        // ── Auto-connect on startup ───────────────────────────
+        // Shown indented beneath auto-start, only when auto-start is on.
+        m_autoConnectRow = new QWidget(card);
+        auto *acRl = new QHBoxLayout(m_autoConnectRow);
+        acRl->setContentsMargins(32, 8, 16, 12); // extra left indent
+        acRl->addLayout(makeTextCol(m_autoConnectRow,
+            QStringLiteral("Auto-connect on Startup"),
+            QStringLiteral("Automatically connect to the VPN when the app starts.")));
+        acRl->addStretch();
+        m_autoConnectToggle = new ToggleSwitch(m_autoConnectRow);
+        m_autoConnectToggle->setOn(AppConfig::instance().autoConnect(), false);
+        connect(m_autoConnectToggle, &ToggleSwitch::toggled, this, [](bool on) {
+            AppConfig::instance().setAutoConnect(on);
+        });
+        acRl->addWidget(m_autoConnectToggle);
+        cardLayout->addWidget(m_autoConnectRow); // added directly, not via add() — shares divider with autostart
+
+        updateAutoConnectRowVisibility();
+    }
 
     // ── Anonymous Crash Reports (on/off) ──────────────────────
     add(makeToggleRow(card,
@@ -364,8 +544,9 @@ void SettingsPage::setLoading(bool loading)
     }
     for (const auto &r : std::as_const(m_toggleRows)) r.toggle->setEnabled(!loading);
     for (const auto &r : std::as_const(m_comboRows))  r.combo->setEnabled(!loading);
-    if (m_dnsToggle)   m_dnsToggle->setEnabled(!loading);
-    if (m_dnsApplyBtn) m_dnsApplyBtn->setEnabled(!loading);
+    if (m_autoStartToggle) m_autoStartToggle->setEnabled(!loading);
+    if (m_dnsToggle)       m_dnsToggle->setEnabled(!loading);
+    if (m_dnsApplyBtn)     m_dnsApplyBtn->setEnabled(!loading);
 }
 
 void SettingsPage::onSettingsReady(const QMap<QString, QString> &info)

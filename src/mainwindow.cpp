@@ -18,6 +18,7 @@
 #include "pages/countriespage.h"
 #include "pages/accountpage.h"
 #include "pages/settingspage.h"
+#include "appconfig.h"
 
 static QIcon svgNavIcon(const QString &path, const QSize &size = {24, 24}, bool tintInDarkMode = true)
 {
@@ -145,6 +146,9 @@ MainWindow::MainWindow(QWidget *parent)
             m_sidebar->setEnabled(true);
             showPage(Page::Vpn);
             m_manager->fetchCountries();
+            // Mark that we should auto-connect once the initial status check resolves.
+            if (AppConfig::instance().autoConnect())
+                m_startupAutoConnectPending = true;
         } else {
             m_sidebar->setEnabled(false);
             showPage(Page::Login);
@@ -181,6 +185,13 @@ MainWindow::MainWindow(QWidget *parent)
             [this](VpnState state, const QString &info) {
         m_vpnPage->onStateChanged(state, info);
         updateTrayIcon(state);
+
+        // Auto-connect: if we flagged a pending connect and we just confirmed
+        // the VPN is disconnected, initiate the connection now.
+        if (m_startupAutoConnectPending && state == VpnState::Disconnected) {
+            m_startupAutoConnectPending = false;
+            m_manager->connectVpn();
+        }
     });
 
     // System tray icon

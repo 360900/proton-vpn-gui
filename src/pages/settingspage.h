@@ -71,9 +71,17 @@ private:
     QList<ComboRow>    m_comboRows;
 
     // Custom DNS widgets
-    ToggleSwitch      *m_dnsToggle    = nullptr;
-    QLineEdit         *m_dnsEdit      = nullptr;
-    QPushButton       *m_dnsApplyBtn  = nullptr;
+    ToggleSwitch      *m_dnsToggle      = nullptr;
+    QLineEdit         *m_dnsEdit        = nullptr;
+    QPushButton       *m_dnsApplyBtn    = nullptr;
+
+    // Auto-start (systemd user service)
+    ToggleSwitch      *m_autoStartToggle  = nullptr;
+    QWidget           *m_autoStartRow     = nullptr;
+
+    // Auto-connect on startup (shown only when auto-start is on)
+    ToggleSwitch      *m_autoConnectToggle = nullptr;
+    QWidget           *m_autoConnectRow    = nullptr;
 
     QPushButton       *m_refreshBtn;
     QLabel            *m_statusLabel;
@@ -89,6 +97,13 @@ private:
                           const QStringList &cliValues, bool needsReconnect);
     void addDivider(QVBoxLayout *layout, QWidget *parent);
     void maybeWarnReconnect(bool needsReconnect);
+
+    // Auto-start helpers
+    static QString serviceFilePath();
+    static bool    systemdAvailable();
+    static bool    autoStartEnabled();
+    static bool    setAutoStart(bool enable, QString &errorOut);
+    void           updateAutoConnectRowVisibility();
 
     void onSettingsReady(const QMap<QString, QString> &settings);
     void showAboutDialog();

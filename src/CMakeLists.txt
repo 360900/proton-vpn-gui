@@ -18,6 +18,8 @@ find_package(Qt6 COMPONENTS
 
 set(SOURCES
         main.cpp
+        appconfig.h
+        appconfig.cpp
         vpnmanager.h
         vpnmanager.cpp
         mainwindow.h
