@@ -9,7 +9,9 @@
         <file alias="maintenance-icon.svg">assets/maintenance-icon.svg</file>
         <file alias="no-app-icon.svg">assets/no-app-icon.svg</file>
         <file alias="security-key.svg">assets/security-key.svg</file>
+        <file alias="person-lines-fill.svg">assets/person-lines-fill.svg</file>
         <file alias="power.svg">assets/power.svg</file>
+        <file alias="gear.svg">assets/gear.svg</file>
         <file alias="eye-hide.svg">assets/eye/hide.svg</file>
         <file alias="eye-show.svg">assets/eye/show.svg</file>
         <file alias="server-p2p.svg">assets/servers/p2p.svg</file>

@@ -32,6 +32,8 @@ set(SOURCES
         pages/countriespage.cpp
         pages/accountpage.h
         pages/accountpage.cpp
+        pages/settingspage.h
+        pages/settingspage.cpp
         resources.qrc
 )
 

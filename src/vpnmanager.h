@@ -34,6 +34,9 @@ public:
     void fetchCountries();
     void fetchCities(const QString &countryCode);
     void fetchInfo();
+    void fetchSettings();
+    void applyConfig(const QString &key, bool enabled);
+    void applyConfigValue(const QString &key, const QString &value);
     void checkConnectionStatus();
 
     VpnState currentState() const { return m_state; }
@@ -48,6 +51,7 @@ signals:
     void countriesReady(const QMap<QString, QString> &countries);  // name → code
     void citiesReady(const QString &countryCode, const QList<QPair<QString, QString>> &cities);  // (city, features)
     void infoReady(const QMap<QString, QString> &info);
+    void settingsReady(const QMap<QString, QString> &settings);
     void errorOccurred(const QString &error);
 
 private:

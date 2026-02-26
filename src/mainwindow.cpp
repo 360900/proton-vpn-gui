@@ -17,6 +17,7 @@
 #include "pages/vpnpage.h"
 #include "pages/countriespage.h"
 #include "pages/accountpage.h"
+#include "pages/settingspage.h"
 
 static QIcon svgNavIcon(const QString &path, const QSize &size = {24, 24})
 {
@@ -25,6 +26,15 @@ static QIcon svgNavIcon(const QString &path, const QSize &size = {24, 24})
     QPainter p(&pix);
     QSvgRenderer renderer(path);
     renderer.render(&p);
+
+    // Tint white in dark mode so icons are visible on the dark sidebar
+    const QColor windowColor = QApplication::palette().color(QPalette::Window);
+    if (windowColor.lightness() < 128) {
+        p.setCompositionMode(QPainter::CompositionMode_SourceIn);
+        p.fillRect(pix.rect(), Qt::white);
+    }
+
+    p.end();
     return QIcon(pix);
 }
 
@@ -32,6 +42,7 @@ MainWindow::MainWindow(QWidget *parent)
     : QWidget(parent)
 {
     setWindowTitle(QStringLiteral("ProtonVPN"));
+    setWindowIcon(svgNavIcon(QStringLiteral(":/assets/proton-vpn-sign.svg"), {64, 64}));
     setMinimumSize(490, 560);
     resize(490, 600);
 
@@ -110,6 +121,10 @@ MainWindow::MainWindow(QWidget *parent)
     connect(m_accountPage, &AccountPage::signOutRequested, this, [this]() {
         m_manager->signOut();
     });
+
+    // Settings page (index 6)
+    m_settingsPage = new SettingsPage(m_manager);
+    m_stack->addWidget(m_settingsPage);  // index 6
 
     // VpnManager signals
     connect(m_manager, &VpnManager::installedResult, this, [this](bool installed) {
@@ -232,7 +247,7 @@ void MainWindow::setupSidebar()
 
     m_vpnNavBtn = makeNavBtn(QStringLiteral("VPN"), QStringLiteral(":/assets/state-disconnected.svg"));
     m_countriesNavBtn = makeNavBtn(QStringLiteral("Countries"), QStringLiteral(":/assets/server-smart-routing.svg"));
-    m_accountNavBtn = makeNavBtn(QStringLiteral("Account"), QStringLiteral(":/assets/security-key.svg"));
+    m_accountNavBtn = makeNavBtn(QStringLiteral("Account"), QStringLiteral(":/assets/person-lines-fill.svg"));
 
     connect(m_vpnNavBtn, &QToolButton::clicked, this, [this]() { showPage(Page::Vpn); });
     connect(m_countriesNavBtn, &QToolButton::clicked, this, [this]() { showPage(Page::Countries); });
@@ -242,23 +257,29 @@ void MainWindow::setupSidebar()
     });
 
     layout->addStretch();
+
+    // Settings button pinned to the bottom of the sidebar
+    m_settingsNavBtn = makeNavBtn(QStringLiteral("Settings"), QStringLiteral(":/assets/gear.svg"));
+    connect(m_settingsNavBtn, &QToolButton::clicked, this, [this]() {
+        showPage(Page::Settings);
+        m_settingsPage->refresh();
+    });
 }
 
 void MainWindow::showPage(Page page)
 {
     m_stack->setCurrentIndex(static_cast<int>(page));
 
-    // Update nav highlights
     m_vpnNavBtn->setChecked(page == Page::Vpn);
     m_countriesNavBtn->setChecked(page == Page::Countries);
     m_accountNavBtn->setChecked(page == Page::Account);
+    m_settingsNavBtn->setChecked(page == Page::Settings);
 }
 
 void MainWindow::setNavActive(QToolButton *btn)
 {
-    for (auto *b : {m_vpnNavBtn, m_countriesNavBtn, m_accountNavBtn}) {
+    for (auto *b : {m_vpnNavBtn, m_countriesNavBtn, m_accountNavBtn, m_settingsNavBtn})
         b->setChecked(b == btn);
-    }
 }
 
 void MainWindow::startupCheck()
@@ -268,20 +289,30 @@ void MainWindow::startupCheck()
 
 void MainWindow::updateTrayIcon(VpnState state)
 {
-    // Render the appropriate SVG into a 22×22 icon (standard tray size).
-    const QSize sz(22, 22);
-    QPixmap pix(sz);
-    pix.fill(Qt::transparent);
-    QPainter p(&pix);
+    // Choose asset based on state
+    QString asset;
+    switch (state) {
+    case VpnState::Connected:
+        asset = QStringLiteral(":/assets/state-connected.svg");    break;
+    case VpnState::Error:
+        asset = QStringLiteral(":/assets/state-error.svg");        break;
+    default:
+        asset = QStringLiteral(":/assets/state-disconnected.svg"); break;
+    }
 
-    const QString asset = (state == VpnState::Connected)
-        ? QStringLiteral(":/assets/state-connected.svg")
-        : QStringLiteral(":/assets/state-disconnected.svg");
-    QSvgRenderer renderer(asset);
-    renderer.render(&p);
-    p.end();
+    // Render into a pixmap (use a larger size for the window icon, smaller for tray)
+    auto makeIcon = [&](int sz) {
+        QPixmap pix(sz, sz);
+        pix.fill(Qt::transparent);
+        QPainter p(&pix);
+        QSvgRenderer renderer(asset);
+        renderer.render(&p);
+        return QIcon(pix);
+    };
 
-    m_trayIcon->setIcon(QIcon(pix));
+    const QIcon icon = makeIcon(64);
+    m_trayIcon->setIcon(makeIcon(22));
+    setWindowIcon(icon);
 
     switch (state) {
     case VpnState::Connected:
