@@ -4,8 +4,49 @@
 #include <QLabel>
 #include <QPushButton>
 #include <QTimer>
+#include <QColor>
+#include <QPropertyAnimation>
 #include "../vpnmanager.h"
 
+// ---------------------------------------------------------------------------
+// PowerButton – circular power-icon button with an animated ring
+// ---------------------------------------------------------------------------
+class PowerButton : public QWidget
+{
+    Q_OBJECT
+    Q_PROPERTY(qreal spinAngle READ spinAngle WRITE setSpinAngle)
+public:
+    explicit PowerButton(QWidget *parent = nullptr);
+
+    enum class RingState { Unknown, Connected, Disconnected, Spinning };
+
+    void setState(RingState s);
+
+    qreal spinAngle() const { return m_spinAngle; }
+    void  setSpinAngle(qreal a) { m_spinAngle = a; update(); }
+
+signals:
+    void clicked();
+
+protected:
+    void paintEvent(QPaintEvent *) override;
+    void mousePressEvent(QMouseEvent *) override;
+    void enterEvent(QEnterEvent *) override;
+    void leaveEvent(QEvent *) override;
+
+private:
+    RingState          m_state      = RingState::Unknown;
+    qreal              m_spinAngle  = 0.0;
+    bool               m_hovered    = false;
+    QPropertyAnimation *m_anim      = nullptr;
+
+    void startSpin();
+    void stopSpin();
+};
+
+// ---------------------------------------------------------------------------
+// VpnPage
+// ---------------------------------------------------------------------------
 class VpnPage : public QWidget
 {
     Q_OBJECT
@@ -21,15 +62,14 @@ signals:
 private:
     VpnManager *m_manager;
 
-    QLabel *m_stateIconLabel;
-    QLabel *m_statusLabel;
-    QLabel *m_infoLabel;
-    QPushButton *m_connectBtn;
-    QLabel *m_timerLabel;
-    QTimer *m_elapsedTimer;
-    QTimer *m_checkingSpinnerTimer;
-    int m_elapsedSeconds = 0;
-    int m_checkingSpinnerFrame = 0;
+    PowerButton *m_powerBtn;
+    QLabel      *m_statusLabel;
+    QLabel      *m_infoLabel;
+    QLabel      *m_timerLabel;
+    QTimer      *m_elapsedTimer;
+    QTimer      *m_checkingSpinnerTimer;
+    int          m_elapsedSeconds    = 0;
+    int          m_checkingSpinnerFrame = 0;
 
     VpnState m_currentState = VpnState::Unknown;
 

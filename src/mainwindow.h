@@ -12,6 +12,7 @@ class LoginPage;
 class CountriesPage;
 class AccountPage;
 class NotInstalledPage;
+class SettingsPage;
 
 class MainWindow : public QWidget
 {
@@ -26,7 +27,8 @@ private:
         Login,
         Vpn,
         Countries,
-        Account
+        Account,
+        Settings
     };
 
     VpnManager *m_manager;
@@ -37,12 +39,14 @@ private:
     QToolButton *m_vpnNavBtn;
     QToolButton *m_countriesNavBtn;
     QToolButton *m_accountNavBtn;
+    QToolButton *m_settingsNavBtn;
 
     NotInstalledPage *m_notInstalledPage;
-    LoginPage *m_loginPage;
-    VpnPage *m_vpnPage;
-    CountriesPage *m_countriesPage;
-    AccountPage *m_accountPage;
+    LoginPage        *m_loginPage;
+    VpnPage          *m_vpnPage;
+    CountriesPage    *m_countriesPage;
+    AccountPage      *m_accountPage;
+    SettingsPage     *m_settingsPage;
 
     void showPage(Page page);
     void setupSidebar();

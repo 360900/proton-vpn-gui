@@ -2,41 +2,240 @@
 
 #include <QVBoxLayout>
 #include <QHBoxLayout>
-#include <QPixmap>
 #include <QPainter>
+#include <QPainterPath>
 #include <QSvgRenderer>
+#include <QPropertyAnimation>
+#include <QMouseEvent>
+#include <QEnterEvent>
+#include <QConicalGradient>
+#include <cmath>
 
-static QPixmap renderSvg(const QString &path, const QSize &size)
+// ============================================================
+// PowerButton implementation
+// ============================================================
+
+static constexpr int  BTN_SIZE     = 160;   // outer widget size (px)
+static constexpr int  RING_WIDTH   = 7;     // ring stroke width
+static constexpr int  ICON_SIZE    = 80;    // power SVG render size
+
+PowerButton::PowerButton(QWidget *parent) : QWidget(parent)
 {
-    QPixmap pix(size);
-    pix.fill(Qt::transparent);
-    QPainter p(&pix);
-    QSvgRenderer renderer(path);
-    renderer.render(&p);
-    return pix;
+    setFixedSize(BTN_SIZE, BTN_SIZE);
+    setCursor(Qt::PointingHandCursor);
+    setAttribute(Qt::WA_TranslucentBackground);
+
+    // Clip the widget to a circle so the background/hover area isn't a square
+    QRegion mask(0, 0, BTN_SIZE, BTN_SIZE, QRegion::Ellipse);
+    setMask(mask);
+
+    m_anim = new QPropertyAnimation(this, "spinAngle", this);
+    m_anim->setStartValue(0.0);
+    m_anim->setEndValue(360.0);
+    m_anim->setDuration(900);
+    m_anim->setLoopCount(-1); // infinite
 }
+
+void PowerButton::setState(RingState s)
+{
+    if (m_state == s) return;
+    m_state = s;
+    if (s == RingState::Spinning)
+        startSpin();
+    else
+        stopSpin();
+    update();
+}
+
+void PowerButton::startSpin()
+{
+    if (m_anim->state() != QAbstractAnimation::Running)
+        m_anim->start();
+}
+
+void PowerButton::stopSpin()
+{
+    m_anim->stop();
+    m_spinAngle = 0.0;
+}
+
+void PowerButton::paintEvent(QPaintEvent *)
+{
+    QPainter p(this);
+    p.setRenderHint(QPainter::Antialiasing);
+
+    const QRectF widgetRect = rect();
+    const qreal  margin     = RING_WIDTH / 2.0 + 4.0;
+    const QRectF ringRect   = widgetRect.adjusted(margin, margin, -margin, -margin);
+
+    // ── ring / arc ──────────────────────────────────────────
+    QPen ringPen;
+    ringPen.setWidth(RING_WIDTH);
+    ringPen.setCapStyle(Qt::RoundCap);
+
+    if (m_state == RingState::Spinning) {
+        // Draw a 270° arc that rotates
+        QColor arcColor(0xa0, 0xa0, 0xa0);
+        ringPen.setColor(arcColor);
+        p.setPen(ringPen);
+        // Qt angles: 0 = 3 o'clock, counter-clockwise positive
+        // We want clockwise animation, so use negative span
+        const int startAngle = static_cast<int>((90.0 - m_spinAngle) * 16.0); // top → rotates cw
+        const int spanAngle  = -270 * 16;
+        p.drawArc(ringRect, startAngle, spanAngle);
+    } else {
+        QColor ringColor;
+        if (m_state == RingState::Connected)
+            ringColor = QColor(0x1a, 0x9c, 0x5b); // green
+        else if (m_state == RingState::Disconnected)
+            ringColor = QColor(0xd6, 0x3f, 0x3f); // red
+        else
+            ringColor = QColor(0x55, 0x55, 0x77); // unknown – dim purple
+
+        ringPen.setColor(ringColor);
+        p.setPen(ringPen);
+        p.drawEllipse(ringRect);
+    }
+
+    // ── hover glow ──────────────────────────────────────────
+    if (m_hovered) {
+        QColor glow(0xff, 0xff, 0xff, 18);
+        p.setBrush(glow);
+        p.setPen(Qt::NoPen);
+        p.drawEllipse(widgetRect.adjusted(margin + RING_WIDTH / 2,
+                                          margin + RING_WIDTH / 2,
+                                          -(margin + RING_WIDTH / 2),
+                                          -(margin + RING_WIDTH / 2)));
+    }
+
+    // ── power SVG ───────────────────────────────────────────
+    const QRectF iconRect(
+        (BTN_SIZE - ICON_SIZE) / 2.0,
+        (BTN_SIZE - ICON_SIZE) / 2.0,
+        ICON_SIZE,
+        ICON_SIZE
+    );
+
+    // Render SVG into a pixmap, then tint it white when in dark mode
+    const bool darkMode = palette().color(QPalette::Window).lightness() < 128;
+    QPixmap iconPix(ICON_SIZE, ICON_SIZE);
+    iconPix.fill(Qt::transparent);
+    {
+        QPainter ip(&iconPix);
+        QSvgRenderer renderer(QStringLiteral(":/assets/power.svg"));
+        renderer.render(&ip);
+        if (darkMode) {
+            ip.setCompositionMode(QPainter::CompositionMode_SourceIn);
+            ip.fillRect(iconPix.rect(), Qt::white);
+        }
+    }
+    p.drawPixmap(iconRect.toRect(), iconPix);
+}
+
+void PowerButton::mousePressEvent(QMouseEvent *e)
+{
+    if (e->button() == Qt::LeftButton)
+        emit clicked();
+    QWidget::mousePressEvent(e);
+}
+
+void PowerButton::enterEvent(QEnterEvent *e)
+{
+    m_hovered = true;
+    update();
+    QWidget::enterEvent(e);
+}
+
+void PowerButton::leaveEvent(QEvent *e)
+{
+    m_hovered = false;
+    update();
+    QWidget::leaveEvent(e);
+}
+
+// ============================================================
+// VpnPage implementation
+// ============================================================
+// SvgBanner – responsive SVG widget that maintains a fixed aspect ratio
+// and always fills its parent's width.
+// ============================================================
+
+class SvgBanner : public QWidget
+{
+public:
+    // aspectRatio = width / height  (e.g. 4.0 for a 4:1 banner)
+    explicit SvgBanner(const QString &resource, qreal aspectRatio, QWidget *parent = nullptr)
+        : QWidget(parent), m_renderer(resource), m_aspect(aspectRatio)
+    {
+        setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+        setMaximumWidth(1000);
+    }
+
+    QSize sizeHint() const override
+    {
+        const int w = qMin(parentWidget() ? parentWidget()->width() : 320, 1000);
+        return { w, qRound(w / m_aspect) };
+    }
+
+    int heightForWidth(int w) const override { return qRound(w / m_aspect); }
+    bool hasHeightForWidth() const override { return true; }
+
+protected:
+    void paintEvent(QPaintEvent *) override
+    {
+        QPainter p(this);
+        p.setRenderHint(QPainter::Antialiasing);
+        m_renderer.render(&p, QRectF(rect()));
+    }
+
+    void resizeEvent(QResizeEvent *e) override
+    {
+        QWidget::resizeEvent(e);
+        // Keep height in sync with width
+        const int h = qRound(width() / m_aspect);
+        if (height() != h)
+            setFixedHeight(h);
+    }
+
+private:
+    QSvgRenderer m_renderer;
+    qreal        m_aspect;
+};
+
+// ============================================================
 
 VpnPage::VpnPage(VpnManager *manager, QWidget *parent)
     : QWidget(parent), m_manager(manager)
 {
     auto *layout = new QVBoxLayout(this);
-    layout->setAlignment(Qt::AlignCenter);
     layout->setSpacing(24);
     layout->setContentsMargins(40, 40, 40, 40);
 
-    // State icon (big SVG)
-    m_stateIconLabel = new QLabel(this);
-    m_stateIconLabel->setAlignment(Qt::AlignCenter);
-    m_stateIconLabel->setFixedSize(140, 140);
-    layout->addWidget(m_stateIconLabel, 0, Qt::AlignCenter);
+    // Proton VPN logo banner – pinned to top, fills available width at 4:1 aspect ratio (max 1000px, centered)
+    auto *logoWidget = new SvgBanner(QStringLiteral(":/assets/proton-vpn-logo.svg"), 4.0, this);
+    auto *logoRow = new QHBoxLayout();
+    logoRow->setContentsMargins(0, 0, 0, 0);
+    logoRow->addStretch(1);
+    logoRow->addWidget(logoWidget);
+    logoRow->addStretch(1);
+    layout->addLayout(logoRow);
+
+    // Push the rest of the content to vertical centre
+    layout->addStretch(1);
+
+    // Power button
+    m_powerBtn = new PowerButton(this);
+    connect(m_powerBtn, &PowerButton::clicked, this, [this]() {
+        if (m_currentState == VpnState::Connected)
+            emit disconnectRequested();
+        else if (m_currentState == VpnState::Disconnected || m_currentState == VpnState::Error)
+            emit connectRequested();
+    });
+    layout->addWidget(m_powerBtn, 0, Qt::AlignCenter);
 
     // Status text
     m_statusLabel = new QLabel(QStringLiteral("Checking…"), this);
     m_statusLabel->setObjectName(QStringLiteral("vpnStatusLabel"));
-    QFont statusFont = m_statusLabel->font();
-    statusFont.setPointSize(20);
-    statusFont.setBold(true);
-    m_statusLabel->setFont(statusFont);
     m_statusLabel->setAlignment(Qt::AlignCenter);
     layout->addWidget(m_statusLabel, 0, Qt::AlignCenter);
 
@@ -52,21 +251,11 @@ VpnPage::VpnPage(VpnManager *manager, QWidget *parent)
     m_infoLabel->setObjectName(QStringLiteral("infoLabel"));
     m_infoLabel->setAlignment(Qt::AlignCenter);
     m_infoLabel->setWordWrap(true);
-    layout->addWidget(m_infoLabel, 0, Qt::AlignCenter);
+    m_infoLabel->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
+    layout->addWidget(m_infoLabel);
 
-    // Connect / Disconnect button
-    m_connectBtn = new QPushButton(this);
-    m_connectBtn->setObjectName(QStringLiteral("connectButton"));
-    m_connectBtn->setFixedSize(160, 48);
-    m_connectBtn->setCursor(Qt::PointingHandCursor);
-    connect(m_connectBtn, &QPushButton::clicked, this, [this]() {
-        if (m_currentState == VpnState::Connected) {
-            emit disconnectRequested();
-        } else {
-            emit connectRequested();
-        }
-    });
-    layout->addWidget(m_connectBtn, 0, Qt::AlignCenter);
+    // Balance the stretch so the content block sits in the middle of the remaining space
+    layout->addStretch(1);
 
     // Elapsed timer
     m_elapsedTimer = new QTimer(this);
@@ -104,33 +293,17 @@ void VpnPage::updateUi(VpnState state, const QString &info)
 {
     const VpnState prevState = m_currentState;
     m_currentState = state;
-    const QSize iconSize(140, 140);
 
     if (state != VpnState::Unknown)
         m_checkingSpinnerTimer->stop();
 
     switch (state) {
     case VpnState::Connected:
-        m_stateIconLabel->setPixmap(renderSvg(QStringLiteral(":/assets/state-connected.svg"), iconSize));
+        m_powerBtn->setState(PowerButton::RingState::Connected);
+        m_powerBtn->setEnabled(true);
         m_statusLabel->setText(QStringLiteral("Connected"));
-        m_statusLabel->setStyleSheet(QStringLiteral("color: #1a9c5b;"));
+        m_statusLabel->setStyleSheet(QStringLiteral("color: #1a9c5b; font-size: 16pt; font-weight: bold; letter-spacing: 1px;"));
         m_infoLabel->setText(info.isEmpty() ? QString() : info);
-        m_connectBtn->setText(QStringLiteral("Disconnect"));
-        m_connectBtn->setObjectName(QStringLiteral("disconnectButton"));
-        m_connectBtn->setStyleSheet(QStringLiteral(
-            "QPushButton#disconnectButton {"
-            "  background-color: #d63f3f;"
-            "  color: white;"
-            "  border-radius: 6px;"
-            "  font-weight: bold;"
-            "  font-size: 14px;"
-            "}"
-            "QPushButton#disconnectButton:hover { background-color: #c03030; }"
-        ));
-        m_connectBtn->setEnabled(true);
-        // Only start the elapsed timer if we know the connection just happened
-        // (i.e. we were Connecting). If already connected on launch the elapsed
-        // time is unknown, so hide the timer instead.
         if (prevState == VpnState::Connecting)
             startElapsedTimer();
         else
@@ -138,62 +311,46 @@ void VpnPage::updateUi(VpnState state, const QString &info)
         break;
 
     case VpnState::Disconnected:
-        m_stateIconLabel->setPixmap(renderSvg(QStringLiteral(":/assets/state-disconnected.svg"), iconSize));
+        m_powerBtn->setState(PowerButton::RingState::Disconnected);
+        m_powerBtn->setEnabled(true);
         m_statusLabel->setText(QStringLiteral("Disconnected"));
-        m_statusLabel->setStyleSheet(QStringLiteral("color: #888888;"));
+        m_statusLabel->setStyleSheet(QStringLiteral("color: #888888; font-size: 16pt; font-weight: bold; letter-spacing: 1px;"));
         m_infoLabel->setText(info.isEmpty() ? QString() : info);
-        m_connectBtn->setText(QStringLiteral("Connect"));
-        m_connectBtn->setObjectName(QStringLiteral("connectButton"));
-        m_connectBtn->setStyleSheet(QStringLiteral(
-            "QPushButton#connectButton {"
-            "  background-color: #6d4aff;"
-            "  color: white;"
-            "  border-radius: 6px;"
-            "  font-weight: bold;"
-            "  font-size: 14px;"
-            "}"
-            "QPushButton#connectButton:hover { background-color: #5a3de0; }"
-        ));
-        m_connectBtn->setEnabled(true);
         stopElapsedTimer();
         break;
 
     case VpnState::Connecting:
-        m_stateIconLabel->setPixmap(renderSvg(QStringLiteral(":/assets/state-disconnected.svg"), iconSize));
+        m_powerBtn->setState(PowerButton::RingState::Spinning);
+        m_powerBtn->setEnabled(false);
         m_statusLabel->setText(QStringLiteral("Connecting…"));
-        m_statusLabel->setStyleSheet(QStringLiteral("color: #f5a623;"));
+        m_statusLabel->setStyleSheet(QStringLiteral("color: #f5a623; font-size: 16pt; font-weight: bold; letter-spacing: 1px;"));
         m_infoLabel->setText(QString());
-        m_connectBtn->setText(QStringLiteral("Connecting…"));
-        m_connectBtn->setEnabled(false);
         stopElapsedTimer();
         break;
 
     case VpnState::Disconnecting:
-        m_stateIconLabel->setPixmap(renderSvg(QStringLiteral(":/assets/state-disconnected.svg"), iconSize));
+        m_powerBtn->setState(PowerButton::RingState::Spinning);
+        m_powerBtn->setEnabled(false);
         m_statusLabel->setText(QStringLiteral("Disconnecting…"));
-        m_statusLabel->setStyleSheet(QStringLiteral("color: #f5a623;"));
-        m_connectBtn->setText(QStringLiteral("Disconnecting…"));
-        m_connectBtn->setEnabled(false);
+        m_statusLabel->setStyleSheet(QStringLiteral("color: #f5a623; font-size: 16pt; font-weight: bold; letter-spacing: 1px;"));
         stopElapsedTimer();
         break;
 
     case VpnState::Error:
-        m_stateIconLabel->setPixmap(renderSvg(QStringLiteral(":/assets/state-error.svg"), iconSize));
+        m_powerBtn->setState(PowerButton::RingState::Disconnected);
+        m_powerBtn->setEnabled(true);
         m_statusLabel->setText(QStringLiteral("Error"));
-        m_statusLabel->setStyleSheet(QStringLiteral("color: #d63f3f;"));
+        m_statusLabel->setStyleSheet(QStringLiteral("color: #d63f3f; font-size: 16pt; font-weight: bold; letter-spacing: 1px;"));
         m_infoLabel->setText(info);
-        m_connectBtn->setText(QStringLiteral("Try Again"));
-        m_connectBtn->setEnabled(true);
         stopElapsedTimer();
         break;
 
-    default:
-        m_stateIconLabel->setPixmap(renderSvg(QStringLiteral(":/assets/state-disconnected.svg"), iconSize));
+    default: // Unknown
+        m_powerBtn->setState(PowerButton::RingState::Unknown);
+        m_powerBtn->setEnabled(false);
         m_statusLabel->setText(QStringLiteral("⠋ Checking…"));
-        m_statusLabel->setStyleSheet(QStringLiteral("color: #9999bb;"));
+        m_statusLabel->setStyleSheet(QStringLiteral("color: #9999bb; font-size: 16pt; font-weight: bold; letter-spacing: 1px;"));
         m_infoLabel->setText(QString());
-        m_connectBtn->setText(QStringLiteral("Connect"));
-        m_connectBtn->setEnabled(false);
         stopElapsedTimer();
         break;
     }

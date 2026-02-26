@@ -2,7 +2,18 @@
 
 #include <QProcess>
 #include <QRegularExpression>
+#include <QFile>
+#include <QDir>
+#include <QJsonDocument>
+#include <QJsonObject>
+#include <QJsonArray>
+#include <QStandardPaths>
 #include <functional>
+
+// Path to the ProtonVPN settings file, relative to the user's home directory.
+// Change this constant if the CLI ever moves the file.
+static const QString kSettingsPath =
+    QDir::homePath() + QStringLiteral("/.config/Proton/VPN/settings.json");
 
 VpnManager::VpnManager(QObject *parent)
     : QObject(parent)
@@ -193,7 +204,19 @@ void VpnManager::connectVpn(const QString &country, const QString &city)
     runCommand(args, [this](int exitCode, const QString &out, const QString &err) {
         if (exitCode == 0) {
             m_state = VpnState::Connected;
-            emit connectionStateChanged(m_state, out);
+            // Strip any "server list is outdated" / "updating" noise lines the
+            // CLI sometimes prepends before the actual connection info.
+            QStringList lines = out.split(QLatin1Char('\n'));
+            lines.erase(std::remove_if(lines.begin(), lines.end(), [](const QString &l) {
+                const QString ll = l.toLower();
+                return ll.contains(QLatin1String("outdated")) ||
+                       ll.contains(QLatin1String("updating")) ||
+                       ll.contains(QLatin1String("this may take"));
+            }), lines.end());
+            // Remove leading/trailing blank lines left after filtering
+            while (!lines.isEmpty() && lines.first().trimmed().isEmpty())
+                lines.removeFirst();
+            emit connectionStateChanged(m_state, lines.join(QLatin1Char('\n')));
         } else {
             m_state = VpnState::Error;
             emit connectionStateChanged(m_state, err.isEmpty() ? out : err);
@@ -393,3 +416,119 @@ QMap<QString, QString> VpnManager::parseDictOutput(const QString &output)
     return result;
 }
 
+// ---------------------------------------------------------------------------
+// Settings
+// ---------------------------------------------------------------------------
+
+void VpnManager::fetchSettings()
+{
+    QMap<QString, QString> settings;
+
+    QFile f(kSettingsPath);
+    if (!f.open(QIODevice::ReadOnly)) {
+        // File not found or unreadable — emit empty map so the UI
+        // can still display (all defaults / unknown state).
+        emit settingsReady(settings);
+        return;
+    }
+
+    const QJsonDocument doc = QJsonDocument::fromJson(f.readAll());
+    f.close();
+
+    if (!doc.isObject()) {
+        emit settingsReady(settings);
+        return;
+    }
+
+    const QJsonObject root = doc.object();
+
+    // Helper: convert a JSON value to a normalised string ("on"/"off"/value).
+    auto boolStr = [](bool b) -> QString {
+        return b ? QStringLiteral("on") : QStringLiteral("off");
+    };
+
+    // ── top-level keys ────────────────────────────────────────────────────
+    // killswitch: 0 = off, 1 = standard, 2 = permanent/full
+    if (root.contains(QStringLiteral("killswitch"))) {
+        const int ks = root[QStringLiteral("killswitch")].toInt(0);
+        QString ksVal;
+        switch (ks) {
+        case 1:  ksVal = QStringLiteral("standard"); break;
+        case 2:  ksVal = QStringLiteral("full");     break;
+        default: ksVal = QStringLiteral("off");      break;
+        }
+        settings.insert(QStringLiteral("kill-switch"), ksVal);
+    }
+
+    if (root.contains(QStringLiteral("ipv6")))
+        settings.insert(QStringLiteral("ipv6"),
+                        boolStr(root[QStringLiteral("ipv6")].toBool()));
+
+    if (root.contains(QStringLiteral("anonymous_crash_reports")))
+        settings.insert(QStringLiteral("anonymous-crash-reports"),
+                        boolStr(root[QStringLiteral("anonymous_crash_reports")].toBool()));
+
+    // ── custom_dns ────────────────────────────────────────────────────────
+    if (root.contains(QStringLiteral("custom_dns"))) {
+        const QJsonObject dns = root[QStringLiteral("custom_dns")].toObject();
+        const bool dnsEnabled = dns[QStringLiteral("enabled")].toBool(false);
+        if (dnsEnabled) {
+            const QJsonArray ipList = dns[QStringLiteral("ip_list")].toArray();
+            QStringList ips;
+            for (const auto &v : ipList) ips << v.toString();
+            settings.insert(QStringLiteral("custom-dns"),
+                            ips.isEmpty() ? QStringLiteral("on") : ips.join(QLatin1Char(',')));
+        } else {
+            settings.insert(QStringLiteral("custom-dns"), QStringLiteral("off"));
+        }
+    }
+
+    // ── features object ───────────────────────────────────────────────────
+    if (root.contains(QStringLiteral("features"))) {
+        const QJsonObject feat = root[QStringLiteral("features")].toObject();
+
+        // netshield: 0 = off, 1 = malware-only, 2 = malware-ads-trackers
+        if (feat.contains(QStringLiteral("netshield"))) {
+            const int ns = feat[QStringLiteral("netshield")].toInt(0);
+            QString nsVal;
+            switch (ns) {
+            case 1:  nsVal = QStringLiteral("malware-only");         break;
+            case 2:  nsVal = QStringLiteral("malware-ads-trackers"); break;
+            default: nsVal = QStringLiteral("off");                  break;
+            }
+            settings.insert(QStringLiteral("netshield"), nsVal);
+        }
+
+        if (feat.contains(QStringLiteral("moderate_nat")))
+            settings.insert(QStringLiteral("moderate-nat"),
+                            boolStr(feat[QStringLiteral("moderate_nat")].toBool()));
+
+        if (feat.contains(QStringLiteral("vpn_accelerator")))
+            settings.insert(QStringLiteral("vpn-accelerator"),
+                            boolStr(feat[QStringLiteral("vpn_accelerator")].toBool()));
+
+        if (feat.contains(QStringLiteral("port_forwarding")))
+            settings.insert(QStringLiteral("port-forwarding"),
+                            boolStr(feat[QStringLiteral("port_forwarding")].toBool()));
+    }
+
+    emit settingsReady(settings);
+}
+
+void VpnManager::applyConfig(const QString &key, bool enabled)
+{
+    applyConfigValue(key, enabled ? QStringLiteral("on") : QStringLiteral("off"));
+}
+
+void VpnManager::applyConfigValue(const QString &key, const QString &value)
+{
+    // Split value on whitespace so callers can pass e.g. "--dns 1.1.1.1 on"
+    // and have each token become a separate CLI argument.
+    QStringList args{QStringLiteral("config"), QStringLiteral("set"), key};
+    const QStringList valueParts = value.split(QLatin1Char(' '), Qt::SkipEmptyParts);
+    args << valueParts;
+
+    runCommand(args, [](int, const QString &, const QString &) {
+        // fire-and-forget; errors will surface in the UI via the next refresh
+    });
+}

@@ -23,7 +23,7 @@ jobs:
           sudo apt-get install -y \
             cmake ninja-build \
             qt6-base-dev qt6-svg-dev libqt6svg6-dev \
-            libgl1-mesa-dev
+            libgl1-mesa-dev jq
 
       - name: Configure
         run: cmake -S src -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
@@ -37,16 +37,19 @@ jobs:
           cp build/proton_vpn_qt dist/
           tar -czf proton-vpn-qt-app-linux-x86_64.tar.gz -C dist proton_vpn_qt
 
-      - name: Generate release tag
+      - name: Read version
         id: tag
         run: |
-          echo "TAG=release-$(date -u +'%Y%m%d')-${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+          VERSION=$(jq -r '.app_version' src/version.json)
+          echo "VERSION=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "TAG=v$VERSION" >> "$GITHUB_OUTPUT"
+          echo "NAME=v$VERSION" >> "$GITHUB_OUTPUT"
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.tag.outputs.TAG }}
-          name: ${{ steps.tag.outputs.TAG }}
+          name: ${{ steps.tag.outputs.NAME }}
           body: |
             Automated release built from commit ${{ github.sha }}.
 
