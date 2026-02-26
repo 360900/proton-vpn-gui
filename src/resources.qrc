@@ -20,5 +20,8 @@
         <file alias="server-streaming.svg">assets/servers/streaming.svg</file>
         <file alias="server-tor.svg">assets/servers/tor.svg</file>
     </qresource>
+    <qresource prefix="/">
+        <file>version.json</file>
+    </qresource>
 </RCC>
 

@@ -4,6 +4,9 @@
 #include <QLockFile>
 #include <QDir>
 #include <QMessageBox>
+#include <QFile>
+#include <QJsonDocument>
+#include <QJsonObject>
 #include "mainwindow.h"
 
 int main(int argc, char* argv[])
@@ -11,7 +14,17 @@ int main(int argc, char* argv[])
     QApplication app(argc, argv);
     QApplication::setApplicationName(QStringLiteral("ProtonVPN"));
     QApplication::setApplicationDisplayName(QStringLiteral("ProtonVPN"));
-    QApplication::setApplicationVersion(QStringLiteral("1.0.0"));
+
+    // Read version from the embedded version.json so there is a single source of truth.
+    QString appVersion = QStringLiteral("1.0.0");
+    QFile vf(QStringLiteral(":/version.json"));
+    if (vf.open(QIODevice::ReadOnly)) {
+        const QJsonObject obj = QJsonDocument::fromJson(vf.readAll()).object();
+        vf.close();
+        if (obj.contains(QStringLiteral("app_version")))
+            appVersion = obj[QStringLiteral("app_version")].toString();
+    }
+    QApplication::setApplicationVersion(appVersion);
 
     // Single-instance guard — prevent multiple copies running at the same time.
     const QString lockPath = QDir::tempPath() + QStringLiteral("/proton-vpn-qt-app.lock");

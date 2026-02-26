@@ -11,6 +11,9 @@
 #include <QDialogButtonBox>
 #include <QTextBrowser>
 #include <QMessageBox>
+#include <QFile>
+#include <QJsonDocument>
+#include <QJsonObject>
 
 // ============================================================
 // ToggleSwitch
@@ -406,6 +409,19 @@ void SettingsPage::onSettingsReady(const QMap<QString, QString> &info)
 
 void SettingsPage::showAboutDialog()
 {
+    // Load versions from the embedded version.json resource
+    QString appVersion = QStringLiteral("unknown");
+    QString cliVersion = QStringLiteral("unknown");
+    QFile vf(QStringLiteral(":/version.json"));
+    if (vf.open(QIODevice::ReadOnly)) {
+        const QJsonObject obj = QJsonDocument::fromJson(vf.readAll()).object();
+        vf.close();
+        if (obj.contains(QStringLiteral("app_version")))
+            appVersion = obj[QStringLiteral("app_version")].toString();
+        if (obj.contains(QStringLiteral("cli_version_tested")))
+            cliVersion = obj[QStringLiteral("cli_version_tested")].toString();
+    }
+
     auto *dlg = new QDialog(this);
     dlg->setWindowTitle(QStringLiteral("About ProtonVPN Qt App"));
     dlg->setMinimumSize(520, 400);
@@ -419,6 +435,10 @@ void SettingsPage::showAboutDialog()
     browser->setHtml(QStringLiteral(R"(
 <h2 style="margin-bottom:4px;">ProtonVPN Qt App</h2>
 <p style="color:#888;margin-top:0;">A community-built Qt 6 front-end for the Proton VPN CLI.</p>
+<table style="margin-bottom:8px;">
+  <tr><td><b>App version:&nbsp;</b></td><td>%1</td></tr>
+  <tr><td><b>Tested against CLI:&nbsp;</b></td><td>%2</td></tr>
+</table>
 <p><b>⚠ Disclaimer:</b> This project is <b>not affiliated with, endorsed by, or
 supported by Proton AG</b> in any way. ProtonVPN and the Proton logo are
 trademarks of Proton AG.</p>
@@ -438,7 +458,7 @@ trademarks of Proton AG.</p>
 <p style="color:#888;font-size:small;">
   This software is provided as-is, without warranty of any kind. Use at your own risk.
 </p>
-)"));
+)").arg(appVersion, cliVersion));
     layout->addWidget(browser);
 
     auto *btns = new QDialogButtonBox(QDialogButtonBox::Close, dlg);
