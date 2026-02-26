@@ -19,6 +19,14 @@ A community-built Qt GUI front-end for the [Proton VPN Linux CLI](https://proton
 - Animated spinners during all loading states
 - Dark Proton-branded color scheme
 
+## Screenshots
+<img width="494" height="590" alt="Screenshot_20260225_205650" src="https://github.com/user-attachments/assets/47ab639d-f368-4586-8123-f757d5f0b9cb" />
+<img width="494" height="590" alt="Screenshot_20260225_205715" src="https://github.com/user-attachments/assets/377a0a4f-af3a-4e12-a598-f9587db30340" />
+<img width="494" height="590" alt="Screenshot_20260225_205728" src="https://github.com/user-attachments/assets/62384065-472e-4a36-a979-8a46143dd18d" />
+<img width="494" height="819" alt="Screenshot_20260225_205756" src="https://github.com/user-attachments/assets/a00fa381-2dfb-46ff-b581-cd374c254f28" />
+
+
+
 ## Requirements
 
 | Dependency | Purpose |
