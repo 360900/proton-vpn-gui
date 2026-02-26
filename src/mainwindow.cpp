@@ -19,7 +19,7 @@
 #include "pages/accountpage.h"
 #include "pages/settingspage.h"
 
-static QIcon svgNavIcon(const QString &path, const QSize &size = {24, 24})
+static QIcon svgNavIcon(const QString &path, const QSize &size = {24, 24}, bool tintInDarkMode = true)
 {
     QPixmap pix(size);
     pix.fill(Qt::transparent);
@@ -27,11 +27,14 @@ static QIcon svgNavIcon(const QString &path, const QSize &size = {24, 24})
     QSvgRenderer renderer(path);
     renderer.render(&p);
 
-    // Tint white in dark mode so icons are visible on the dark sidebar
-    const QColor windowColor = QApplication::palette().color(QPalette::Window);
-    if (windowColor.lightness() < 128) {
-        p.setCompositionMode(QPainter::CompositionMode_SourceIn);
-        p.fillRect(pix.rect(), Qt::white);
+    // Tint white in dark mode so monochrome icons are visible on the dark sidebar.
+    // Pass tintInDarkMode=false for logos/icons that carry their own colors.
+    if (tintInDarkMode) {
+        const QColor windowColor = QApplication::palette().color(QPalette::Window);
+        if (windowColor.lightness() < 128) {
+            p.setCompositionMode(QPainter::CompositionMode_SourceIn);
+            p.fillRect(pix.rect(), Qt::white);
+        }
     }
 
     p.end();
@@ -42,7 +45,7 @@ MainWindow::MainWindow(QWidget *parent)
     : QWidget(parent)
 {
     setWindowTitle(QStringLiteral("ProtonVPN"));
-    setWindowIcon(svgNavIcon(QStringLiteral(":/assets/proton-vpn-sign.svg"), {64, 64}));
+    setWindowIcon(svgNavIcon(QStringLiteral(":/assets/proton-vpn-sign.svg"), {64, 64}, false));
     setMinimumSize(490, 560);
     resize(490, 600);
 
@@ -221,9 +224,11 @@ void MainWindow::setupSidebar()
     layout->setContentsMargins(0, 8, 0, 8);
     layout->setSpacing(4);
 
-    // Logo at top
-    auto *logoLabel = new QSvgWidget(QStringLiteral(":/assets/proton-vpn-sign.svg"), m_sidebar);
+    // Logo at top — use a QLabel with a transparent pixmap so no background shows
+    auto *logoLabel = new QLabel(m_sidebar);
+    logoLabel->setPixmap(svgNavIcon(QStringLiteral(":/assets/proton-vpn-sign.svg"), {40, 40}, false).pixmap(40, 40));
     logoLabel->setFixedSize(40, 40);
+    logoLabel->setAttribute(Qt::WA_TranslucentBackground);
     layout->addWidget(logoLabel, 0, Qt::AlignHCenter);
 
     layout->addSpacing(12);

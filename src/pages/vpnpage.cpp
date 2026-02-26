@@ -251,7 +251,8 @@ VpnPage::VpnPage(VpnManager *manager, QWidget *parent)
     m_infoLabel->setObjectName(QStringLiteral("infoLabel"));
     m_infoLabel->setAlignment(Qt::AlignCenter);
     m_infoLabel->setWordWrap(true);
-    layout->addWidget(m_infoLabel, 0, Qt::AlignCenter);
+    m_infoLabel->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
+    layout->addWidget(m_infoLabel);
 
     // Balance the stretch so the content block sits in the middle of the remaining space
     layout->addStretch(1);
