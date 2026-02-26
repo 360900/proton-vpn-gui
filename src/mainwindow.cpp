@@ -32,8 +32,8 @@ MainWindow::MainWindow(QWidget *parent)
     : QWidget(parent)
 {
     setWindowTitle(QStringLiteral("ProtonVPN"));
-    setMinimumSize(480, 560);
-    resize(480, 600);
+    setMinimumSize(490, 560);
+    resize(490, 600);
 
     m_manager = new VpnManager(this);
 

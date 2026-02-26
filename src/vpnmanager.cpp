@@ -193,7 +193,19 @@ void VpnManager::connectVpn(const QString &country, const QString &city)
     runCommand(args, [this](int exitCode, const QString &out, const QString &err) {
         if (exitCode == 0) {
             m_state = VpnState::Connected;
-            emit connectionStateChanged(m_state, out);
+            // Strip any "server list is outdated" / "updating" noise lines the
+            // CLI sometimes prepends before the actual connection info.
+            QStringList lines = out.split(QLatin1Char('\n'));
+            lines.erase(std::remove_if(lines.begin(), lines.end(), [](const QString &l) {
+                const QString ll = l.toLower();
+                return ll.contains(QLatin1String("outdated")) ||
+                       ll.contains(QLatin1String("updating")) ||
+                       ll.contains(QLatin1String("this may take"));
+            }), lines.end());
+            // Remove leading/trailing blank lines left after filtering
+            while (!lines.isEmpty() && lines.first().trimmed().isEmpty())
+                lines.removeFirst();
+            emit connectionStateChanged(m_state, lines.join(QLatin1Char('\n')));
         } else {
             m_state = VpnState::Error;
             emit connectionStateChanged(m_state, err.isEmpty() ? out : err);
