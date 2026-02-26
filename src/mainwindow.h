@@ -55,6 +55,7 @@ private:
     void updateTrayIcon(VpnState state);
 
     QSystemTrayIcon *m_trayIcon;
-    QAction *m_trayConnectAction;
+    QAction         *m_trayConnectAction;
+    bool             m_startupAutoConnectPending = false; // fire auto-connect once on first Disconnected state
 };
 
