@@ -1,6 +1,6 @@
 # proton-vpn-qt-app
 
-A community-built Qt GUI front-end for the [Proton VPN Linux CLI](https://protonvpn.com/support/linux-vpn-tool/).
+A community-built Qt 6 GUI front-end for the [Proton VPN Linux CLI](https://protonvpn.com/support/linux-vpn-tool/).
 
 > **Disclaimer:** This project is an independent community effort and is in no way affiliated with, endorsed by, or associated with Proton AG or any of its products. "Proton" and "ProtonVPN" are trademarks of Proton AG.
 
@@ -8,16 +8,20 @@ A community-built Qt GUI front-end for the [Proton VPN Linux CLI](https://proton
 
 ## Features
 
-- Sign in with your Proton VPN credentials, including two-factor authentication (2FA)
-- Detects whether the VPN is already connected on launch (via `ip a` / `proton0` interface)
-- Displays the active server name (via `nmcli`) and your current public IP (via `curl ifconfig.me`) when already connected
-- Browse and search the full country list
-- Browse cities per country with feature tags (P2P, Tor, Secure Core, etc.)
-- Connect to the fastest server, or pick a specific country/city
-- Connection elapsed timer (only shown when you connect through the app)
-- Account page showing your username
-- Animated spinners during all loading states
-- Dark Proton-branded color scheme
+## Features
+
+- One-click **connect / disconnect** with a large power button and system tray controls
+- Automatic connection detection on launch with active server and public IP display
+- Secure login with **interactive 2FA support** and inline validation
+- Browse and search countries and cities with feature tags (P2P, Tor, Secure Core, Streaming, etc.)
+- Connect to the fastest server or choose a specific location
+- Account page with username display and sign-out
+- Startup options including **launch on login** (systemd user service) and optional auto-connect
+- Single-instance protection to prevent duplicate launches
+- Proton-inspired dark theme with KDE Breeze (when available) or Fusion styling
+- About dialog with version and CLI compatibility information
+
+---
 
 ## Screenshots
 <img width="494" height="590" alt="Screenshot_20260225_205650" src="https://github.com/user-attachments/assets/47ab639d-f368-4586-8123-f757d5f0b9cb" />
@@ -34,33 +38,38 @@ A community-built Qt GUI front-end for the [Proton VPN Linux CLI](https://proton
 | `protonvpn` CLI | Core VPN control (sign in, connect, disconnect, country/city lists) |
 | Qt 6 (Core, Gui, Widgets, Svg, SvgWidgets) | UI framework |
 | `ip` (`iproute2`) | Detecting whether the VPN tunnel is active |
-| `nmcli` (NetworkManager, optional) | Showing the active server name on launch |
-| `curl` (optional) | Fetching your public IP address on launch |
+| `nmcli` (NetworkManager) | **Optional** — shows the active server name when already connected on launch |
+| `curl` | **Optional** — fetches your public IP address when already connected on launch |
+| `systemd` (user session) | **Optional** — required for the "Launch on Startup" feature |
 
-The app will work without `nmcli` and `curl` — those features simply degrade gracefully.
+The app works without `nmcli` and `curl`; those features degrade gracefully.
+
+---
 
 ## Building
 
 ```bash
-git clone https://github.com/your-username/proton-vpn-qt-app.git
+git clone https://github.com/wheat32/proton-vpn-qt-app.git
 cd proton-vpn-qt-app/src
-cmake -B build
-cmake --build build
+cmake -B build -DCMAKE_BUILD_TYPE=Release
+cmake --build build --parallel
 ```
 
 The resulting binary is `build/proton_vpn_qt`.
 
-### Dependencies (Arch Linux)
+### Dependencies — Arch Linux
 
 ```bash
-sudo pacman -S qt6-base qt6-svg
+sudo pacman -S qt6-base qt6-svg cmake ninja
 ```
 
-### Dependencies (Ubuntu/Debian)
+### Dependencies — Ubuntu / Debian
 
 ```bash
-sudo apt install qt6-base-dev qt6-svg-dev libqt6svg6-dev cmake
+sudo apt install qt6-base-dev qt6-svg-dev libqt6svg6-dev cmake ninja-build
 ```
+
+---
 
 ## Usage
 
@@ -70,9 +79,36 @@ sudo apt install qt6-base-dev qt6-svg-dev libqt6svg6-dev cmake
 
 The app requires the `protonvpn` CLI to be installed and accessible in your `PATH`. See the [Proton VPN Linux documentation](https://protonvpn.com/support/linux-vpn-tool/) for installation instructions.
 
+---
+
+## CI / Releases
+
+- **Pull requests** to `main` automatically trigger a build via GitHub Actions to verify the code compiles.
+- **Pushes to `main`** automatically build a release binary and publish a [GitHub Release](../../releases) tagged with the version from `src/version.json` (e.g. `v1.1.0`).
+
+The release archive (`proton-vpn-qt-app-linux-x86_64.tar.gz`) contains the single `proton_vpn_qt` binary:
+
+```bash
+tar -xzf proton-vpn-qt-app-linux-x86_64.tar.gz
+./proton_vpn_qt
+```
+
+---
+
+## Author & Credits
+
+- **Nicholas Page** ([wheat32](https://github.com/wheat32)) — author
+- Icons from [Bootstrap Icons](https://icons.getbootstrap.com/) (MIT License)
+- Built with [Qt 6](https://www.qt.io/)
+- Uses the [ProtonVPN Linux CLI](https://protonvpn.com/support/linux-vpn-tool/)
+
+---
+
 ## Contributing
 
 Pull requests and issues are welcome. Please note that this project has no access to Proton VPN's internal APIs — it can only do what the public `protonvpn` CLI exposes.
+
+---
 
 ## License
 
