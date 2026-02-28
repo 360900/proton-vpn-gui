@@ -302,48 +302,53 @@ SettingsPage::SettingsPage(VpnManager *manager, QWidget *parent)
     outerLayout->setContentsMargins(16, 16, 16, 16);
     outerLayout->setSpacing(12);
 
-    // Header
-    auto *headerRow = new QHBoxLayout();
+    // Title
     auto *titleLabel = new QLabel(QStringLiteral("Settings"), this);
     titleLabel->setObjectName(QStringLiteral("sectionTitle"));
-    headerRow->addWidget(titleLabel);
-    headerRow->addStretch();
-    m_refreshBtn = new QPushButton(QStringLiteral("↻ Refresh"), this);
-    m_refreshBtn->setObjectName(QStringLiteral("secondaryButton"));
-    m_refreshBtn->setFixedHeight(30);
-    connect(m_refreshBtn, &QPushButton::clicked, this, &SettingsPage::refresh);
-    headerRow->addWidget(m_refreshBtn);
-    outerLayout->addLayout(headerRow);
+    outerLayout->addWidget(titleLabel);
 
-    // Spinner/status label
-    m_statusLabel = new QLabel(this);
-    m_statusLabel->setAlignment(Qt::AlignCenter);
-    m_statusLabel->setObjectName(QStringLiteral("settingsStatusLabel"));
-    m_statusLabel->setVisible(false);
-    outerLayout->addWidget(m_statusLabel);
+    // ── Tab widget ────────────────────────────────────────────
+    auto *tabs = new QTabWidget(this);
+    tabs->setObjectName(QStringLiteral("settingsTabs"));
+    outerLayout->addWidget(tabs, 1);
 
-    // Scrollable card
-    auto *scrollArea = new QScrollArea(this);
-    scrollArea->setWidgetResizable(true);
-    scrollArea->setFrameShape(QFrame::NoFrame);
+    // Helper: build a scrollable card inside a tab page and return its QVBoxLayout.
+    // The bool pointer `firstOut` tracks divider insertion for that card.
+    auto makeCard = [&](QWidget *tabPage) -> std::pair<QWidget *, QVBoxLayout *> {
+        auto *scroll = new QScrollArea(tabPage);
+        scroll->setWidgetResizable(true);
+        scroll->setFrameShape(QFrame::NoFrame);
+        auto *pageLayout = new QVBoxLayout(tabPage);
+        pageLayout->setContentsMargins(0, 8, 0, 0);
+        pageLayout->setSpacing(8);
+        pageLayout->addWidget(scroll, 1);
 
-    auto *card = new QWidget();
-    card->setObjectName(QStringLiteral("infoCard"));
-    auto *cardLayout = new QVBoxLayout(card);
-    cardLayout->setContentsMargins(0, 0, 0, 0);
-    cardLayout->setSpacing(0);
-
-    bool first = true;
-    auto add = [&](QWidget *w) {
-        if (!first) addDivider(cardLayout, card);
-        first = false;
-        cardLayout->addWidget(w);
+        auto *card = new QWidget();
+        card->setObjectName(QStringLiteral("infoCard"));
+        auto *cardLayout = new QVBoxLayout(card);
+        cardLayout->setContentsMargins(0, 0, 0, 0);
+        cardLayout->setSpacing(0);
+        scroll->setWidget(card);
+        return {card, cardLayout};
     };
 
-    // ── Auto-start (systemd user service) ────────────────────
-    // Only show this row if systemd is available on this system.
+    // ============================================================
+    // TAB 1 – App
+    // ============================================================
+    auto *appTab = new QWidget();
+    auto [appCard, appCardLayout] = makeCard(appTab);
+    tabs->addTab(appTab, QStringLiteral("App"));
+
+    bool appFirst = true;
+    auto addApp = [&](QWidget *w) {
+        if (!appFirst) addDivider(appCardLayout, appCard);
+        appFirst = false;
+        appCardLayout->addWidget(w);
+    };
+
+    // ── Launch on Startup ─────────────────────────────────────
     if (systemdAvailable()) {
-        m_autoStartRow = new QWidget(card);
+        m_autoStartRow = new QWidget(appCard);
         auto *rl = new QHBoxLayout(m_autoStartRow);
         rl->setContentsMargins(16, 12, 16, 12);
         rl->addLayout(makeTextCol(m_autoStartRow,
@@ -366,13 +371,12 @@ SettingsPage::SettingsPage(VpnManager *manager, QWidget *parent)
             }
         });
         rl->addWidget(m_autoStartToggle);
-        add(m_autoStartRow);
+        addApp(m_autoStartRow);
 
-        // ── Auto-connect on startup ───────────────────────────
-        // Shown indented beneath auto-start, only when auto-start is on.
-        m_autoConnectRow = new QWidget(card);
+        // ── Auto-connect on startup (indented, only when auto-start is on) ──
+        m_autoConnectRow = new QWidget(appCard);
         auto *acRl = new QHBoxLayout(m_autoConnectRow);
-        acRl->setContentsMargins(32, 8, 16, 12); // extra left indent
+        acRl->setContentsMargins(32, 8, 16, 12);
         acRl->addLayout(makeTextCol(m_autoConnectRow,
             QStringLiteral("Auto-connect on Startup"),
             QStringLiteral("Automatically connect to the VPN when the app starts.")));
@@ -383,14 +387,15 @@ SettingsPage::SettingsPage(VpnManager *manager, QWidget *parent)
             AppConfig::instance().setAutoConnect(on);
         });
         acRl->addWidget(m_autoConnectToggle);
-        cardLayout->addWidget(m_autoConnectRow); // added directly, not via add() — shares divider with autostart
+        // Added directly so it shares a visual group with autostart (no extra divider above it)
+        appCardLayout->addWidget(m_autoConnectRow);
 
         updateAutoConnectRowVisibility();
     }
 
     // ── Desktop Notifications ─────────────────────────────────
     {
-        auto *row = new QWidget(card);
+        auto *row = new QWidget(appCard);
         auto *rl  = new QHBoxLayout(row);
         rl->setContentsMargins(16, 12, 16, 12);
         rl->addLayout(makeTextCol(row,
@@ -404,29 +409,77 @@ SettingsPage::SettingsPage(VpnManager *manager, QWidget *parent)
             AppConfig::instance().setNotifications(on);
         });
         rl->addWidget(m_notificationsToggle);
-        add(row);
+        addApp(row);
     }
 
-    // ── Anonymous Crash Reports (on/off) ──────────────────────
-    add(makeToggleRow(card,
+    appCardLayout->addStretch();
+
+    // ── About button – sits inside the App tab, below the card ──
+    {
+        auto *appPageLayout = qobject_cast<QVBoxLayout *>(appTab->layout());
+        auto *aboutBtn = new QPushButton(QStringLiteral("About"), appTab);
+        aboutBtn->setObjectName(QStringLiteral("secondaryButton"));
+        aboutBtn->setCursor(Qt::PointingHandCursor);
+        connect(aboutBtn, &QPushButton::clicked, this, &SettingsPage::showAboutDialog);
+        appPageLayout->addWidget(aboutBtn);
+    }
+
+    // ============================================================
+    // TAB 2 – VPN
+    // ============================================================
+    auto *vpnTab = new QWidget();
+    auto [vpnCard, vpnCardLayout] = makeCard(vpnTab);
+
+    // Refresh button + spinner live inside the VPN tab's page layout
+    {
+        auto *vpnPageLayout = qobject_cast<QVBoxLayout *>(vpnTab->layout());
+
+        auto *headerRow = new QHBoxLayout();
+        m_refreshBtn = new QPushButton(QStringLiteral("↻ Refresh"), vpnTab);
+        m_refreshBtn->setObjectName(QStringLiteral("secondaryButton"));
+        m_refreshBtn->setFixedHeight(30);
+        connect(m_refreshBtn, &QPushButton::clicked, this, &SettingsPage::refresh);
+        headerRow->addStretch();
+        headerRow->addWidget(m_refreshBtn);
+        // Insert the header row above the scroll area (which was inserted as item 0)
+        vpnPageLayout->insertLayout(0, headerRow);
+
+        m_statusLabel = new QLabel(vpnTab);
+        m_statusLabel->setAlignment(Qt::AlignCenter);
+        m_statusLabel->setObjectName(QStringLiteral("settingsStatusLabel"));
+        m_statusLabel->setVisible(false);
+        vpnPageLayout->insertWidget(1, m_statusLabel);
+    }
+
+    tabs->addTab(vpnTab, QStringLiteral("VPN"));
+
+    bool vpnFirst = true;
+    auto addVpn = [&](QWidget *w) {
+        if (!vpnFirst) addDivider(vpnCardLayout, vpnCard);
+        vpnFirst = false;
+        vpnCardLayout->addWidget(w);
+    };
+
+    // ── Anonymous Crash Reports ───────────────────────────────
+    addVpn(makeToggleRow(vpnCard,
         QStringLiteral("Anonymous Crash Reports"),
         QStringLiteral("Send anonymous crash reports to Proton for the VPN CLI tool — not this Qt app."),
         QStringLiteral("anonymous-crash-reports"), false));
 
-    // ── IPv6 (on/off, reconnect) ──────────────────────────────
-    add(makeToggleRow(card,
+    // ── IPv6 ─────────────────────────────────────────────────
+    addVpn(makeToggleRow(vpnCard,
         QStringLiteral("IPv6"),
         QStringLiteral("Enable IPv6 support over the VPN tunnel."),
         QStringLiteral("ipv6"), true));
 
-    // ── Moderate NAT (on/off, reconnect) ─────────────────────
-    add(makeToggleRow(card,
+    // ── Moderate NAT ──────────────────────────────────────────
+    addVpn(makeToggleRow(vpnCard,
         QStringLiteral("Moderate NAT"),
         QStringLiteral("Use NAT Type 2 for better compatibility with games and P2P."),
         QStringLiteral("moderate-nat"), true));
 
-    // ── Kill Switch (off / standard / full) ──────────────────
-    add(makeComboRow(card,
+    // ── Kill Switch ───────────────────────────────────────────
+    addVpn(makeComboRow(vpnCard,
         QStringLiteral("Kill Switch"),
         QStringLiteral("Block traffic if the VPN connection drops. "
                        "\"Standard\" only blocks while reconnecting; "
@@ -436,14 +489,14 @@ SettingsPage::SettingsPage(VpnManager *manager, QWidget *parent)
         {QStringLiteral("off"), QStringLiteral("standard"), QStringLiteral("full")},
         false));
 
-    // ── VPN Accelerator (on/off, reconnect) ──────────────────
-    add(makeToggleRow(card,
+    // ── VPN Accelerator ───────────────────────────────────────
+    addVpn(makeToggleRow(vpnCard,
         QStringLiteral("VPN Accelerator"),
         QStringLiteral("Boost connection speeds using advanced protocol techniques."),
         QStringLiteral("vpn-accelerator"), true));
 
-    // ── NetShield (off / malware / malware+ads) ───────────────
-    add(makeComboRow(card,
+    // ── NetShield ─────────────────────────────────────────────
+    addVpn(makeComboRow(vpnCard,
         QStringLiteral("NetShield Ad-blocker"),
         QStringLiteral("Block malware, ads, and trackers at the DNS level."),
         QStringLiteral("netshield"),
@@ -455,8 +508,8 @@ SettingsPage::SettingsPage(VpnManager *manager, QWidget *parent)
          QStringLiteral("malware-ads-trackers")},
         true));
 
-    // ── Port Forwarding (on/off, reconnect) ──────────────────
-    add(makeToggleRow(card,
+    // ── Port Forwarding ───────────────────────────────────────
+    addVpn(makeToggleRow(vpnCard,
         QStringLiteral("Port Forwarding"),
         QStringLiteral("Allow incoming connections through the VPN. "
                        "Reconnect after enabling for changes to take effect."),
@@ -464,10 +517,9 @@ SettingsPage::SettingsPage(VpnManager *manager, QWidget *parent)
 
     // ── Custom DNS ────────────────────────────────────────────
     {
-        addDivider(cardLayout, card);
+        addDivider(vpnCardLayout, vpnCard);
 
-        // Top sub-row: label + toggle
-        auto *dnsRow = new QWidget(card);
+        auto *dnsRow = new QWidget(vpnCard);
         auto *dnsRl  = new QHBoxLayout(dnsRow);
         dnsRl->setContentsMargins(16, 12, 16, 4);
         dnsRl->addLayout(makeTextCol(dnsRow,
@@ -477,10 +529,9 @@ SettingsPage::SettingsPage(VpnManager *manager, QWidget *parent)
         dnsRl->addStretch();
         m_dnsToggle = new ToggleSwitch(dnsRow);
         dnsRl->addWidget(m_dnsToggle);
-        cardLayout->addWidget(dnsRow);
+        vpnCardLayout->addWidget(dnsRow);
 
-        // Bottom sub-row: address field + Apply (only visible when toggle is on)
-        auto *dnsAddrRow = new QWidget(card);
+        auto *dnsAddrRow = new QWidget(vpnCard);
         dnsAddrRow->setVisible(false);
         auto *dnsAddrRl  = new QHBoxLayout(dnsAddrRow);
         dnsAddrRl->setContentsMargins(16, 0, 16, 12);
@@ -492,9 +543,8 @@ SettingsPage::SettingsPage(VpnManager *manager, QWidget *parent)
         m_dnsApplyBtn->setObjectName(QStringLiteral("secondaryButton"));
         m_dnsApplyBtn->setFixedHeight(28);
         dnsAddrRl->addWidget(m_dnsApplyBtn);
-        cardLayout->addWidget(dnsAddrRow);
+        vpnCardLayout->addWidget(dnsAddrRow);
 
-        // Wiring
         connect(m_dnsToggle, &ToggleSwitch::toggled, this, [this, dnsAddrRow](bool on) {
             dnsAddrRow->setVisible(on);
             if (!on) {
@@ -512,16 +562,8 @@ SettingsPage::SettingsPage(VpnManager *manager, QWidget *parent)
         });
     }
 
-    cardLayout->addStretch();
-    scrollArea->setWidget(card);
-    outerLayout->addWidget(scrollArea, 1);
+    vpnCardLayout->addStretch();
 
-    // About button
-    auto *aboutBtn = new QPushButton(QStringLiteral("About"), this);
-    aboutBtn->setObjectName(QStringLiteral("secondaryButton"));
-    aboutBtn->setCursor(Qt::PointingHandCursor);
-    connect(aboutBtn, &QPushButton::clicked, this, &SettingsPage::showAboutDialog);
-    outerLayout->addWidget(aboutBtn);
 
     // VpnManager signal
     connect(m_manager, &VpnManager::settingsReady, this, &SettingsPage::onSettingsReady);

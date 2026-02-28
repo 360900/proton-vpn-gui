@@ -8,6 +8,7 @@
 #include <QVBoxLayout>
 #include <QTimer>
 #include <QMap>
+#include <QTabWidget>
 #include "../vpnmanager.h"
 
 // ---------------------------------------------------------------------------

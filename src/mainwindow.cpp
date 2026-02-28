@@ -347,7 +347,6 @@ void MainWindow::updateTrayIcon(VpnState state)
 
     const QIcon icon = makeIcon(64);
     m_trayIcon->setIcon(makeIcon(22));
-    setWindowIcon(icon);
 
     switch (state) {
     case VpnState::Connected:
