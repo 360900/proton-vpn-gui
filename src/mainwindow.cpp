@@ -303,6 +303,22 @@ void MainWindow::startupCheck()
     m_manager->checkInstalled();
 }
 
+void MainWindow::sendNotification(const QString &title, const QString &message)
+{
+    if (!AppConfig::instance().notifications())
+        return;
+
+    // Render the ProtonVPN sign SVG into a pixmap to use as the notification icon.
+    QPixmap iconPix(64, 64);
+    iconPix.fill(Qt::transparent);
+    QPainter p(&iconPix);
+    QSvgRenderer renderer(QStringLiteral(":/assets/proton-vpn-sign.svg"));
+    renderer.render(&p);
+    p.end();
+
+    m_trayIcon->showMessage(title, message, QIcon(iconPix), 4000 /*ms*/);
+}
+
 void MainWindow::updateTrayIcon(VpnState state)
 {
     // Choose asset based on state
@@ -364,6 +380,35 @@ void MainWindow::updateTrayIcon(VpnState state)
         m_trayConnectAction->setText(QStringLiteral("Connect"));
         m_trayConnectAction->setEnabled(false);
         break;
+    }
+
+    // Send a desktop notification on meaningful state transitions (avoid re-notifying same state)
+    if (state != m_lastNotifiedState) {
+        switch (state) {
+        case VpnState::Connecting:
+            sendNotification(QStringLiteral("ProtonVPN – Connecting"),
+                             QStringLiteral("Establishing a secure VPN connection…"));
+            break;
+        case VpnState::Disconnecting:
+            sendNotification(QStringLiteral("ProtonVPN – Disconnecting"),
+                             QStringLiteral("Closing the VPN connection…"));
+            break;
+        case VpnState::Connected:
+            sendNotification(QStringLiteral("ProtonVPN – Connected"),
+                             QStringLiteral("You are now protected by ProtonVPN."));
+            break;
+        case VpnState::Disconnected:
+            // Only notify on disconnect if we were previously connected/connecting
+            if (m_lastNotifiedState == VpnState::Connected ||
+                m_lastNotifiedState == VpnState::Disconnecting) {
+                sendNotification(QStringLiteral("ProtonVPN – Disconnected"),
+                                 QStringLiteral("The VPN connection has been closed."));
+            }
+            break;
+        default:
+            break;
+        }
+        m_lastNotifiedState = state;
     }
 }
 

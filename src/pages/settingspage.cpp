@@ -388,6 +388,25 @@ SettingsPage::SettingsPage(VpnManager *manager, QWidget *parent)
         updateAutoConnectRowVisibility();
     }
 
+    // ── Desktop Notifications ─────────────────────────────────
+    {
+        auto *row = new QWidget(card);
+        auto *rl  = new QHBoxLayout(row);
+        rl->setContentsMargins(16, 12, 16, 12);
+        rl->addLayout(makeTextCol(row,
+            QStringLiteral("Desktop Notifications"),
+            QStringLiteral("Show a system notification when the VPN is connecting, "
+                           "connected, disconnecting, or disconnected.")));
+        rl->addStretch();
+        m_notificationsToggle = new ToggleSwitch(row);
+        m_notificationsToggle->setOn(AppConfig::instance().notifications(), false);
+        connect(m_notificationsToggle, &ToggleSwitch::toggled, this, [](bool on) {
+            AppConfig::instance().setNotifications(on);
+        });
+        rl->addWidget(m_notificationsToggle);
+        add(row);
+    }
+
     // ── Anonymous Crash Reports (on/off) ──────────────────────
     add(makeToggleRow(card,
         QStringLiteral("Anonymous Crash Reports"),
@@ -544,9 +563,10 @@ void SettingsPage::setLoading(bool loading)
     }
     for (const auto &r : std::as_const(m_toggleRows)) r.toggle->setEnabled(!loading);
     for (const auto &r : std::as_const(m_comboRows))  r.combo->setEnabled(!loading);
-    if (m_autoStartToggle) m_autoStartToggle->setEnabled(!loading);
-    if (m_dnsToggle)       m_dnsToggle->setEnabled(!loading);
-    if (m_dnsApplyBtn)     m_dnsApplyBtn->setEnabled(!loading);
+    if (m_autoStartToggle)      m_autoStartToggle->setEnabled(!loading);
+    if (m_notificationsToggle)  m_notificationsToggle->setEnabled(!loading);
+    if (m_dnsToggle)            m_dnsToggle->setEnabled(!loading);
+    if (m_dnsApplyBtn)          m_dnsApplyBtn->setEnabled(!loading);
 }
 
 void SettingsPage::onSettingsReady(const QMap<QString, QString> &info)

@@ -53,9 +53,11 @@ private:
     void setNavActive(QToolButton *btn);
     void startupCheck();
     void updateTrayIcon(VpnState state);
+    void sendNotification(const QString &title, const QString &message);
 
     QSystemTrayIcon *m_trayIcon;
     QAction         *m_trayConnectAction;
     bool             m_startupAutoConnectPending = false; // fire auto-connect once on first Disconnected state
+    VpnState         m_lastNotifiedState = VpnState::Unknown;
 };
 

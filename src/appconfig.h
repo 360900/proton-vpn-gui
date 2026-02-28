@@ -17,9 +17,11 @@ public:
 
     // Getters
     bool autoConnect() const;
+    bool notifications() const;
 
     // Setters – immediately persist to disk.
     void setAutoConnect(bool value);
+    void setNotifications(bool value);
 
 private:
     AppConfig();  // use instance()
@@ -27,6 +29,7 @@ private:
     void load();
     bool save() const;
 
-    bool m_autoConnect = false;
+    bool m_autoConnect    = false;
+    bool m_notifications  = true;
 };
 

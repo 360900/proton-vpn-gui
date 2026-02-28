@@ -83,6 +83,9 @@ private:
     ToggleSwitch      *m_autoConnectToggle = nullptr;
     QWidget           *m_autoConnectRow    = nullptr;
 
+    // Desktop notifications
+    ToggleSwitch      *m_notificationsToggle = nullptr;
+
     QPushButton       *m_refreshBtn;
     QLabel            *m_statusLabel;
     QTimer            *m_spinnerTimer;
