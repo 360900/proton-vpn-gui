@@ -2,6 +2,7 @@
 
 #include <QProcess>
 #include <QDir>
+#include <QJsonDocument> // Ignore unused include warning; we do use QJsonDocument
 #include <QJsonObject>
 #include <QJsonArray>
 #include <QStandardPaths>
