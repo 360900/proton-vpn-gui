@@ -310,6 +310,9 @@ void MainWindow::updateTrayIcon(VpnState state)
     switch (state) {
     case VpnState::Connected:
         asset = QStringLiteral(":/assets/state-connected.svg");    break;
+    case VpnState::Connecting:
+    case VpnState::Disconnecting:
+        asset = QStringLiteral(":/assets/state-connecting.svg");   break;
     case VpnState::Error:
         asset = QStringLiteral(":/assets/state-error.svg");        break;
     default:
