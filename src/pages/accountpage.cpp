@@ -1,8 +1,6 @@
 #include "accountpage.h"
 
-#include <QVBoxLayout>
 #include <QHBoxLayout>
-#include <QFrame>
 #include <QSvgWidget>
 
 static QWidget* makeInfoRow(const QString& labelText, QLabel*& valueLabel, QWidget* parent)
@@ -47,14 +45,6 @@ AccountPage::AccountPage(VpnManager* manager, QWidget* parent)
     auto* cardLayout = new QVBoxLayout(card);
     cardLayout->setContentsMargins(0, 0, 0, 0);
     cardLayout->setSpacing(0);
-
-    auto addDivider = [&]()
-    {
-        auto* line = new QFrame(card);
-        line->setFrameShape(QFrame::HLine);
-        line->setObjectName(QStringLiteral("divider"));
-        cardLayout->addWidget(line);
-    };
 
     cardLayout->addWidget(makeInfoRow(QStringLiteral("Username"), m_nameLabel, card));
 
