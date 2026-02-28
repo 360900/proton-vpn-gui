@@ -6,11 +6,11 @@
 #include <QJsonObject>
 
 // ── Easy-to-change config location ──────────────────────────────────────────
-static const QString kConfigDir  = QDir::homePath() + QStringLiteral("/.config/ProtonVPN-Qt");
+static const QString kConfigDir = QDir::homePath() + QStringLiteral("/.config/ProtonVPN-Qt");
 static const QString kConfigFile = kConfigDir + QStringLiteral("/app.json");
 // ────────────────────────────────────────────────────────────────────────────
 
-AppConfig &AppConfig::instance()
+AppConfig& AppConfig::instance()
 {
     static AppConfig inst;
     return inst;
@@ -30,7 +30,7 @@ void AppConfig::load()
     const QJsonObject obj = QJsonDocument::fromJson(f.readAll()).object();
     f.close();
 
-    m_autoConnect  = obj.value(QStringLiteral("auto_connect")).toBool(false);
+    m_autoConnect = obj.value(QStringLiteral("auto_connect")).toBool(false);
     m_notifications = obj.value(QStringLiteral("notifications")).toBool(true);
 }
 
@@ -41,7 +41,7 @@ bool AppConfig::save() const
         return false;
 
     QJsonObject obj;
-    obj[QStringLiteral("auto_connect")]  = m_autoConnect;
+    obj[QStringLiteral("auto_connect")] = m_autoConnect;
     obj[QStringLiteral("notifications")] = m_notifications;
 
     QFile f(kConfigFile);

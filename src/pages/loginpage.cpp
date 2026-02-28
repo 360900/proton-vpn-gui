@@ -1,6 +1,5 @@
 #include "loginpage.h"
 
-#include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QSvgWidget>
@@ -8,7 +7,7 @@
 #include <QSvgRenderer>
 #include <QPainter>
 
-static QIcon svgIcon(const QString &path, const QSize &size = {20, 20})
+static QIcon svgIcon(const QString& path, const QSize& size = {20, 20})
 {
     QPixmap pix(size);
     pix.fill(Qt::transparent);
@@ -18,17 +17,17 @@ static QIcon svgIcon(const QString &path, const QSize &size = {20, 20})
     return QIcon(pix);
 }
 
-LoginPage::LoginPage(QWidget *parent)
+LoginPage::LoginPage(QWidget* parent)
     : QWidget(parent)
 {
-    auto *outerLayout = new QVBoxLayout(this);
+    auto* outerLayout = new QVBoxLayout(this);
     outerLayout->setAlignment(Qt::AlignCenter);
 
-    auto *card = new QWidget(this);
+    auto* card = new QWidget(this);
     card->setObjectName(QStringLiteral("loginCard"));
     card->setFixedWidth(360);
 
-    auto *cardLayout = new QVBoxLayout(card);
+    auto* cardLayout = new QVBoxLayout(card);
     cardLayout->setSpacing(0);
     cardLayout->setContentsMargins(0, 0, 0, 0);
 
@@ -38,8 +37,8 @@ LoginPage::LoginPage(QWidget *parent)
     buildCredsWidget();
     buildTFAWidget();
 
-    m_stack->addWidget(m_credsWidget);   // index 0
-    m_stack->addWidget(m_tfaWidget);     // index 1
+    m_stack->addWidget(m_credsWidget); // index 0
+    m_stack->addWidget(m_tfaWidget); // index 1
     cardLayout->addWidget(m_stack);
 
     // Shared error label below the stack
@@ -56,18 +55,18 @@ LoginPage::LoginPage(QWidget *parent)
 void LoginPage::buildCredsWidget()
 {
     m_credsWidget = new QWidget();
-    auto *layout = new QVBoxLayout(m_credsWidget);
+    auto* layout = new QVBoxLayout(m_credsWidget);
     layout->setSpacing(16);
     layout->setContentsMargins(32, 32, 32, 24);
 
     // Logo
-    auto *logo = new QSvgWidget(QStringLiteral(":/assets/proton-vpn-logo.svg"), m_credsWidget);
+    auto* logo = new QSvgWidget(QStringLiteral(":/assets/proton-vpn-logo.svg"), m_credsWidget);
     logo->setFixedSize(180, 40);
     layout->addWidget(logo, 0, Qt::AlignCenter);
 
     layout->addSpacing(8);
 
-    auto *titleLabel = new QLabel(QStringLiteral("Sign in to Proton VPN"), m_credsWidget);
+    auto* titleLabel = new QLabel(QStringLiteral("Sign in to Proton VPN"), m_credsWidget);
     titleLabel->setObjectName(QStringLiteral("sectionTitle"));
     titleLabel->setAlignment(Qt::AlignCenter);
     layout->addWidget(titleLabel);
@@ -75,7 +74,7 @@ void LoginPage::buildCredsWidget()
     layout->addSpacing(4);
 
     // Username
-    auto *usernameLabel = new QLabel(QStringLiteral("Username"), m_credsWidget);
+    auto* usernameLabel = new QLabel(QStringLiteral("Username"), m_credsWidget);
     usernameLabel->setObjectName(QStringLiteral("fieldLabel"));
     layout->addWidget(usernameLabel);
 
@@ -85,11 +84,11 @@ void LoginPage::buildCredsWidget()
     layout->addWidget(m_usernameEdit);
 
     // Password
-    auto *passwordLabel = new QLabel(QStringLiteral("Password"), m_credsWidget);
+    auto* passwordLabel = new QLabel(QStringLiteral("Password"), m_credsWidget);
     passwordLabel->setObjectName(QStringLiteral("fieldLabel"));
     layout->addWidget(passwordLabel);
 
-    auto *passwordRow = new QHBoxLayout();
+    auto* passwordRow = new QHBoxLayout();
     m_passwordEdit = new QLineEdit(m_credsWidget);
     m_passwordEdit->setObjectName(QStringLiteral("inputField"));
     m_passwordEdit->setPlaceholderText(QStringLiteral("Enter your password"));
@@ -104,7 +103,8 @@ void LoginPage::buildCredsWidget()
     m_togglePasswordBtn->setCheckable(true);
     m_togglePasswordBtn->setToolTip(QStringLiteral("Show/hide password"));
     m_togglePasswordBtn->setCursor(Qt::PointingHandCursor);
-    connect(m_togglePasswordBtn, &QPushButton::toggled, this, [this](bool checked) {
+    connect(m_togglePasswordBtn, &QPushButton::toggled, this, [this](bool checked)
+    {
         m_passwordVisible = checked;
         togglePasswordVisibility();
     });
@@ -115,7 +115,8 @@ void LoginPage::buildCredsWidget()
     m_loginBtn = new QPushButton(QStringLiteral("Sign In"), m_credsWidget);
     m_loginBtn->setObjectName(QStringLiteral("primaryButton"));
     m_loginBtn->setCursor(Qt::PointingHandCursor);
-    connect(m_loginBtn, &QPushButton::clicked, this, [this]() {
+    connect(m_loginBtn, &QPushButton::clicked, this, [this]()
+    {
         emit loginRequested(m_usernameEdit->text().trimmed(), m_passwordEdit->text());
     });
     connect(m_passwordEdit, &QLineEdit::returnPressed, m_loginBtn, &QPushButton::click);
@@ -127,23 +128,23 @@ void LoginPage::buildCredsWidget()
 void LoginPage::buildTFAWidget()
 {
     m_tfaWidget = new QWidget();
-    auto *layout = new QVBoxLayout(m_tfaWidget);
+    auto* layout = new QVBoxLayout(m_tfaWidget);
     layout->setSpacing(16);
     layout->setContentsMargins(32, 32, 32, 24);
 
     // Logo
-    auto *logo = new QSvgWidget(QStringLiteral(":/assets/proton-vpn-logo.svg"), m_tfaWidget);
+    auto* logo = new QSvgWidget(QStringLiteral(":/assets/proton-vpn-logo.svg"), m_tfaWidget);
     logo->setFixedSize(180, 40);
     layout->addWidget(logo, 0, Qt::AlignCenter);
 
     layout->addSpacing(8);
 
-    auto *titleLabel = new QLabel(QStringLiteral("Two-Factor Authentication"), m_tfaWidget);
+    auto* titleLabel = new QLabel(QStringLiteral("Two-Factor Authentication"), m_tfaWidget);
     titleLabel->setObjectName(QStringLiteral("sectionTitle"));
     titleLabel->setAlignment(Qt::AlignCenter);
     layout->addWidget(titleLabel);
 
-    auto *descLabel = new QLabel(
+    auto* descLabel = new QLabel(
         QStringLiteral("Enter the 6-digit code from your authenticator app."),
         m_tfaWidget);
     descLabel->setObjectName(QStringLiteral("fieldLabel"));
@@ -153,20 +154,21 @@ void LoginPage::buildTFAWidget()
 
     layout->addSpacing(4);
 
-    auto *tfaLabel = new QLabel(QStringLiteral("2FA Token"), m_tfaWidget);
+    auto* tfaLabel = new QLabel(QStringLiteral("2FA Token"), m_tfaWidget);
     tfaLabel->setObjectName(QStringLiteral("fieldLabel"));
     layout->addWidget(tfaLabel);
 
     m_tfaEdit = new QLineEdit(m_tfaWidget);
     m_tfaEdit->setObjectName(QStringLiteral("inputField"));
     m_tfaEdit->setPlaceholderText(QStringLiteral("e.g. 123456"));
-    m_tfaEdit->setMaxLength(8);   // TOTP codes are 6 digits; allow 8 for recovery codes
+    m_tfaEdit->setMaxLength(8); // TOTP codes are 6 digits; allow 8 for recovery codes
     layout->addWidget(m_tfaEdit);
 
     m_tfaSubmitBtn = new QPushButton(QStringLiteral("Verify"), m_tfaWidget);
     m_tfaSubmitBtn->setObjectName(QStringLiteral("primaryButton"));
     m_tfaSubmitBtn->setCursor(Qt::PointingHandCursor);
-    connect(m_tfaSubmitBtn, &QPushButton::clicked, this, [this]() {
+    connect(m_tfaSubmitBtn, &QPushButton::clicked, this, [this]()
+    {
         emit twoFASubmitted(m_tfaEdit->text().trimmed());
     });
     connect(m_tfaEdit, &QLineEdit::returnPressed, m_tfaSubmitBtn, &QPushButton::click);
@@ -197,37 +199,46 @@ void LoginPage::reset()
     m_togglePasswordBtn->setEnabled(true);
 }
 
-void LoginPage::setError(const QString &error)
+void LoginPage::setError(const QString& error) const
 {
-    if (error.isEmpty()) {
+    if (error.isEmpty())
+    {
         m_errorLabel->setVisible(false);
-    } else {
+    }
+    else
+    {
         m_errorLabel->setText(error);
         m_errorLabel->setVisible(true);
     }
 }
 
-void LoginPage::setLoading(bool loading)
+void LoginPage::setLoading(const bool loading) const
 {
-    if (m_stack->currentIndex() == 0) {
+    if (m_stack->currentIndex() == 0)
+    {
         m_loginBtn->setEnabled(!loading);
         m_loginBtn->setText(loading ? QStringLiteral("Signing in…") : QStringLiteral("Sign In"));
         m_usernameEdit->setEnabled(!loading);
         m_passwordEdit->setEnabled(!loading);
         m_togglePasswordBtn->setEnabled(!loading);
-    } else {
+    }
+    else
+    {
         m_tfaSubmitBtn->setEnabled(!loading);
         m_tfaSubmitBtn->setText(loading ? QStringLiteral("Verifying…") : QStringLiteral("Verify"));
         m_tfaEdit->setEnabled(!loading);
     }
 }
 
-void LoginPage::togglePasswordVisibility()
+void LoginPage::togglePasswordVisibility() const
 {
-    if (m_passwordVisible) {
+    if (m_passwordVisible)
+    {
         m_passwordEdit->setEchoMode(QLineEdit::Normal);
         m_togglePasswordBtn->setIcon(svgIcon(QStringLiteral(":/assets/eye-hide.svg")));
-    } else {
+    }
+    else
+    {
         m_passwordEdit->setEchoMode(QLineEdit::Password);
         m_togglePasswordBtn->setIcon(svgIcon(QStringLiteral(":/assets/eye-show.svg")));
     }

@@ -5,13 +5,13 @@
 #include <QFrame>
 #include <QSvgWidget>
 
-static QWidget* makeInfoRow(const QString &labelText, QLabel *&valueLabel, QWidget *parent)
+static QWidget* makeInfoRow(const QString& labelText, QLabel*& valueLabel, QWidget* parent)
 {
-    auto *row = new QWidget(parent);
+    auto* row = new QWidget(parent);
     row->setObjectName(QStringLiteral("infoRow"));
-    auto *layout = new QHBoxLayout(row);
+    auto* layout = new QHBoxLayout(row);
     layout->setContentsMargins(16, 10, 16, 10);
-    auto *label = new QLabel(labelText, row);
+    auto* label = new QLabel(labelText, row);
     label->setObjectName(QStringLiteral("infoKey"));
     layout->addWidget(label);
     layout->addStretch();
@@ -21,16 +21,16 @@ static QWidget* makeInfoRow(const QString &labelText, QLabel *&valueLabel, QWidg
     return row;
 }
 
-AccountPage::AccountPage(VpnManager *manager, QWidget *parent)
+AccountPage::AccountPage(VpnManager* manager, QWidget* parent)
     : QWidget(parent), m_manager(manager)
 {
-    auto *layout = new QVBoxLayout(this);
+    auto* layout = new QVBoxLayout(this);
     layout->setContentsMargins(16, 16, 16, 16);
     layout->setSpacing(12);
 
     // Header
-    auto *headerRow = new QHBoxLayout();
-    auto *titleLabel = new QLabel(QStringLiteral("Account"), this);
+    auto* headerRow = new QHBoxLayout();
+    auto* titleLabel = new QLabel(QStringLiteral("Account"), this);
     titleLabel->setObjectName(QStringLiteral("sectionTitle"));
     headerRow->addWidget(titleLabel);
     headerRow->addStretch();
@@ -42,14 +42,15 @@ AccountPage::AccountPage(VpnManager *manager, QWidget *parent)
     layout->addLayout(headerRow);
 
     // Info card
-    auto *card = new QWidget(this);
+    auto* card = new QWidget(this);
     card->setObjectName(QStringLiteral("infoCard"));
-    auto *cardLayout = new QVBoxLayout(card);
+    auto* cardLayout = new QVBoxLayout(card);
     cardLayout->setContentsMargins(0, 0, 0, 0);
     cardLayout->setSpacing(0);
 
-    auto addDivider = [&]() {
-        auto *line = new QFrame(card);
+    auto addDivider = [&]()
+    {
+        auto* line = new QFrame(card);
         line->setFrameShape(QFrame::HLine);
         line->setObjectName(QStringLiteral("divider"));
         cardLayout->addWidget(line);
@@ -61,7 +62,7 @@ AccountPage::AccountPage(VpnManager *manager, QWidget *parent)
     layout->addStretch();
 
     // Sign out button
-    auto *signOutBtn = new QPushButton(QStringLiteral("Sign Out"), this);
+    auto* signOutBtn = new QPushButton(QStringLiteral("Sign Out"), this);
     signOutBtn->setObjectName(QStringLiteral("dangerButton"));
     signOutBtn->setCursor(Qt::PointingHandCursor);
     connect(signOutBtn, &QPushButton::clicked, this, &AccountPage::signOutRequested);
@@ -69,11 +70,12 @@ AccountPage::AccountPage(VpnManager *manager, QWidget *parent)
 
     connect(m_manager, &VpnManager::infoReady, this, &AccountPage::onInfoReady);
 
-    static const char *const frames[] = {"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"};
+    static constexpr const char* frames[] = {"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"};
     static constexpr int frameCount = 10;
     m_spinnerTimer = new QTimer(this);
     m_spinnerTimer->setInterval(200);
-    connect(m_spinnerTimer, &QTimer::timeout, this, [this, frames]() {
+    connect(m_spinnerTimer, &QTimer::timeout, this, [this]()
+    {
         m_spinnerFrame = (m_spinnerFrame + 1) % frameCount;
         m_nameLabel->setText(
             QStringLiteral("%1 Loading…").arg(QString::fromUtf8(frames[m_spinnerFrame])));
@@ -90,13 +92,14 @@ void AccountPage::refresh()
     m_manager->fetchInfo();
 }
 
-void AccountPage::onInfoReady(const QMap<QString, QString> &info)
+void AccountPage::onInfoReady(const QMap<QString, QString>& info) const
 {
     m_spinnerTimer->stop();
     m_refreshBtn->setEnabled(true);
     m_refreshBtn->setText(QStringLiteral("↻ Refresh"));
 
-    auto get = [&](const QString &key) -> QString {
+    auto get = [&](const QString& key) -> QString
+    {
         QString val = info.value(key, QStringLiteral("—"));
         return (val == QStringLiteral("None") || val.isEmpty()) ? QStringLiteral("—") : val;
     };

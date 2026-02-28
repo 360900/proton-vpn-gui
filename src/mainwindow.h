@@ -1,6 +1,5 @@
 #pragma once
 
-#include <QWidget>
 #include <QStackedWidget>
 #include <QToolButton>
 #include <QSystemTrayIcon>
@@ -17,11 +16,13 @@ class SettingsPage;
 class MainWindow : public QWidget
 {
     Q_OBJECT
+
 public:
-    explicit MainWindow(QWidget *parent = nullptr);
+    explicit MainWindow(QWidget* parent = nullptr);
 
 private:
-    enum class Page {
+    enum class Page
+    {
         Loading = 0,
         NotInstalled,
         Login,
@@ -31,33 +32,33 @@ private:
         Settings
     };
 
-    VpnManager *m_manager;
+    VpnManager* m_manager;
 
-    QWidget *m_sidebar;
-    QStackedWidget *m_stack;
+    QWidget* m_sidebar;
+    QStackedWidget* m_stack;
 
-    QToolButton *m_vpnNavBtn;
-    QToolButton *m_countriesNavBtn;
-    QToolButton *m_accountNavBtn;
-    QToolButton *m_settingsNavBtn;
+    QToolButton* m_vpnNavBtn;
+    QToolButton* m_countriesNavBtn;
+    QToolButton* m_accountNavBtn;
+    QToolButton* m_settingsNavBtn;
 
-    NotInstalledPage *m_notInstalledPage;
-    LoginPage        *m_loginPage;
-    VpnPage          *m_vpnPage;
-    CountriesPage    *m_countriesPage;
-    AccountPage      *m_accountPage;
-    SettingsPage     *m_settingsPage;
+    NotInstalledPage* m_notInstalledPage;
+    LoginPage* m_loginPage;
+    VpnPage* m_vpnPage;
+    CountriesPage* m_countriesPage;
+    AccountPage* m_accountPage;
+    SettingsPage* m_settingsPage;
 
-    void showPage(Page page);
+    void showPage(Page page) const;
     void setupSidebar();
-    void setNavActive(QToolButton *btn);
-    void startupCheck();
+    void setNavActive(QToolButton* btn);
+    void startupCheck() const;
     void updateTrayIcon(VpnState state);
-    void sendNotification(const QString &title, const QString &message);
+    void sendNotification(const QString& title, const QString& message) const;
 
-    QSystemTrayIcon *m_trayIcon;
-    QAction         *m_trayConnectAction;
-    bool             m_startupAutoConnectPending = false; // fire auto-connect once on first Disconnected state
-    VpnState         m_lastNotifiedState = VpnState::Unknown;
+    QSystemTrayIcon* m_trayIcon;
+    QAction* m_trayConnectAction;
+    bool m_startupAutoConnectPending = false; // fire auto-connect once on first Disconnected state
+    VpnState m_lastNotifiedState = VpnState::Unknown;
 };
 

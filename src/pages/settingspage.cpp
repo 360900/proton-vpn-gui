@@ -2,22 +2,17 @@
 #include "../appconfig.h"
 
 #include <QVBoxLayout>
-#include <QHBoxLayout>
 #include <QFrame>
 #include <QScrollArea>
 #include <QPainter>
 #include <QPropertyAnimation>
 #include <QMouseEvent>
-#include <QDialog>
-#include <QDialogButtonBox>
 #include <QTextBrowser>
 #include <QMessageBox>
-#include <QFile>
 #include <QDir>
 #include <QStandardPaths>
 #include <QProcess>
 #include <QCoreApplication>
-#include <QJsonDocument>
 #include <QJsonObject>
 #include <QDebug>
 
@@ -25,52 +20,59 @@
 // ToggleSwitch
 // ============================================================
 
-ToggleSwitch::ToggleSwitch(QWidget *parent) : QWidget(parent)
+ToggleSwitch::ToggleSwitch(QWidget* parent) : QWidget(parent)
 {
-    setFixedSize(sizeHint());
+    setFixedSize(ToggleSwitch::sizeHint());
     setCursor(Qt::PointingHandCursor);
     m_anim = new QPropertyAnimation(this, "knobPos", this);
     m_anim->setDuration(150);
     m_anim->setEasingCurve(QEasingCurve::InOutQuad);
 }
 
-void ToggleSwitch::setOn(bool on, bool animate)
+void ToggleSwitch::setOn(const bool on, const bool animate)
 {
     if (m_on == on) return;
     m_on = on;
-    if (animate) {
+    if (animate)
+    {
         m_anim->stop();
         m_anim->setStartValue(m_knobPos);
         m_anim->setEndValue(on ? 1.0 : 0.0);
         m_anim->start();
-    } else {
+    }
+    else
+    {
         m_knobPos = on ? 1.0 : 0.0;
         update();
     }
 }
 
-void ToggleSwitch::paintEvent(QPaintEvent *)
+void ToggleSwitch::paintEvent(QPaintEvent*)
 {
     QPainter p(this);
     p.setRenderHint(QPainter::Antialiasing);
     const int w = width(), h = height(), r = h / 2;
-    const QColor trackOn(0x6d, 0x4a, 0xff), trackOff(0x55, 0x55, 0x66);
+    constexpr QColor trackOn(0x6d, 0x4a, 0xff), trackOff(0x55, 0x55, 0x66);
     QColor track;
-    track.setRed  (int(trackOff.red()   + (trackOn.red()   - trackOff.red())   * m_knobPos));
-    track.setGreen(int(trackOff.green() + (trackOn.green() - trackOff.green()) * m_knobPos));
-    track.setBlue (int(trackOff.blue()  + (trackOn.blue()  - trackOff.blue())  * m_knobPos));
+    track.setRed(static_cast<int>(trackOff.red() + (trackOn.red() - trackOff.red()) * m_knobPos));
+    track.setGreen(static_cast<int>(trackOff.green() + (trackOn.green() - trackOff.green()) * m_knobPos));
+    track.setBlue(static_cast<int>(trackOff.blue() + (trackOn.blue() - trackOff.blue()) * m_knobPos));
     p.setBrush(track);
     p.setPen(Qt::NoPen);
     p.drawRoundedRect(0, 0, w, h, r, r);
     const int knobD = h - 4, knobMin = 2, knobMax = w - knobD - 2;
-    const int knobX = int(knobMin + (knobMax - knobMin) * m_knobPos);
+    const int knobX = static_cast<int>(knobMin + (knobMax - knobMin) * m_knobPos);
     p.setBrush(Qt::white);
     p.drawEllipse(knobX, 2, knobD, knobD);
 }
 
-void ToggleSwitch::mousePressEvent(QMouseEvent *e)
+void ToggleSwitch::mousePressEvent(QMouseEvent* e)
 {
-    if (e->button() == Qt::LeftButton) { setOn(!m_on); emit toggled(m_on); }
+    if (e->button() == Qt::LeftButton)
+    {
+        setOn(!m_on);
+        emit toggled(m_on);
+    }
     QWidget::mousePressEvent(e);
 }
 
@@ -78,22 +80,23 @@ void ToggleSwitch::mousePressEvent(QMouseEvent *e)
 // SettingsPage helpers
 // ============================================================
 
-void SettingsPage::addDivider(QVBoxLayout *layout, QWidget *parent)
+void SettingsPage::addDivider(QVBoxLayout* layout, QWidget* parent)
 {
-    auto *div = new QFrame(parent);
+    auto* div = new QFrame(parent);
     div->setFrameShape(QFrame::HLine);
     div->setObjectName(QStringLiteral("divider"));
     layout->addWidget(div);
 }
 
-static QVBoxLayout *makeTextCol(QWidget *parent, const QString &label, const QString &desc)
+static QVBoxLayout* makeTextCol(QWidget* parent, const QString& label, const QString& desc)
 {
-    auto *col = new QVBoxLayout();
-    auto *nameL = new QLabel(label, parent);
+    auto* col = new QVBoxLayout();
+    auto* nameL = new QLabel(label, parent);
     nameL->setObjectName(QStringLiteral("infoKey"));
     col->addWidget(nameL);
-    if (!desc.isEmpty()) {
-        auto *descL = new QLabel(desc, parent);
+    if (!desc.isEmpty())
+    {
+        auto* descL = new QLabel(desc, parent);
         descL->setObjectName(QStringLiteral("settingsDesc"));
         descL->setWordWrap(true);
         QFont f = descL->font();
@@ -118,19 +121,20 @@ void SettingsPage::maybeWarnReconnect(bool needsReconnect)
     mb.exec();
 }
 
-QWidget *SettingsPage::makeToggleRow(QWidget *parent, const QString &label,
-                                     const QString &desc, const QString &cliKey,
+QWidget* SettingsPage::makeToggleRow(QWidget* parent, const QString& label,
+                                     const QString& desc, const QString& cliKey,
                                      bool needsReconnect)
 {
-    auto *row = new QWidget(parent);
-    auto *rl  = new QHBoxLayout(row);
+    auto* row = new QWidget(parent);
+    auto* rl = new QHBoxLayout(row);
     rl->setContentsMargins(16, 12, 16, 12);
     rl->addLayout(makeTextCol(row, label, desc));
     rl->addStretch();
-    auto *toggle = new ToggleSwitch(row);
+    auto* toggle = new ToggleSwitch(row);
     rl->addWidget(toggle);
 
-    connect(toggle, &ToggleSwitch::toggled, this, [this, cliKey, needsReconnect](bool on) {
+    connect(toggle, &ToggleSwitch::toggled, this, [this, cliKey, needsReconnect](bool on)
+    {
         m_manager->applyConfigValue(cliKey, on ? QStringLiteral("on") : QStringLiteral("off"));
         maybeWarnReconnect(needsReconnect);
     });
@@ -139,27 +143,28 @@ QWidget *SettingsPage::makeToggleRow(QWidget *parent, const QString &label,
     return row;
 }
 
-QWidget *SettingsPage::makeComboRow(QWidget *parent, const QString &label,
-                                    const QString &desc, const QString &cliKey,
-                                    const QStringList &labels, const QStringList &cliValues,
+QWidget* SettingsPage::makeComboRow(QWidget* parent, const QString& label,
+                                    const QString& desc, const QString& cliKey,
+                                    const QStringList& labels, const QStringList& cliValues,
                                     bool needsReconnect)
 {
-    auto *row = new QWidget(parent);
-    auto *rl  = new QHBoxLayout(row);
+    auto* row = new QWidget(parent);
+    auto* rl = new QHBoxLayout(row);
     rl->setContentsMargins(16, 12, 16, 12);
     rl->addLayout(makeTextCol(row, label, desc));
     rl->addStretch();
-    auto *combo = new QComboBox(row);
-    for (const auto &l : labels) combo->addItem(l);
+    auto* combo = new QComboBox(row);
+    for (const auto& l : labels) combo->addItem(l);
     combo->setMinimumWidth(160);
     rl->addWidget(combo);
 
     connect(combo, QOverload<int>::of(&QComboBox::currentIndexChanged),
-            this, [this, cliKey, cliValues, needsReconnect](int idx) {
-        if (idx < 0 || idx >= cliValues.size()) return;
-        m_manager->applyConfigValue(cliKey, cliValues[idx]);
-        maybeWarnReconnect(needsReconnect);
-    });
+            this, [this, cliKey, cliValues, needsReconnect](int idx)
+            {
+                if (idx < 0 || idx >= cliValues.size()) return;
+                m_manager->applyConfigValue(cliKey, cliValues[idx]);
+                maybeWarnReconnect(needsReconnect);
+            });
 
     m_comboRows.append({cliKey, combo, cliValues, needsReconnect});
     return row;
@@ -201,7 +206,7 @@ bool SettingsPage::systemdAvailable()
 
 bool SettingsPage::autoStartEnabled()
 {
-    if (kDryRun)             return false; // dry-run: always report disabled
+    if (kDryRun) return false; // dry-run: always report disabled
     if (!systemdAvailable()) return false;
 
     // Ask systemd whether the service is enabled. Exit code 0 = enabled.
@@ -213,21 +218,24 @@ bool SettingsPage::autoStartEnabled()
     return out == QStringLiteral("enabled") || out == QStringLiteral("static");
 }
 
-bool SettingsPage::setAutoStart(bool enable, QString &errorOut)
+bool SettingsPage::setAutoStart(const bool enable, QString& errorOut)
 {
-    if (kDryRun) {
+    if (kDryRun)
+    {
         qDebug("[DryRun] setAutoStart(%s) — skipping real systemd operations.",
                enable ? "true" : "false");
         return true; // pretend success
     }
 
-    if (enable) {
+    if (enable)
+    {
         // Resolve the path to the currently running executable.
         const QString exe = QCoreApplication::applicationFilePath();
 
         // Create the systemd user service directory if it doesn't exist.
         QDir dir;
-        if (!dir.mkpath(kSystemdUserServiceDir)) {
+        if (!dir.mkpath(kSystemdUserServiceDir))
+        {
             errorOut = QStringLiteral("Could not create directory: ") + kSystemdUserServiceDir;
             return false;
         }
@@ -235,21 +243,22 @@ bool SettingsPage::setAutoStart(bool enable, QString &errorOut)
         // Write the .service file.
         const QString serviceContent =
             QStringLiteral("[Unit]\n"
-                           "Description=ProtonVPN Qt App\n"
-                           "After=graphical-session.target\n"
-                           "PartOf=graphical-session.target\n"
-                           "\n"
-                           "[Service]\n"
-                           "Type=simple\n"
-                           "ExecStart=%1\n"
-                           "Restart=on-failure\n"
-                           "Environment=DISPLAY=:0\n"
-                           "\n"
-                           "[Install]\n"
-                           "WantedBy=graphical-session.target\n").arg(exe);
+                "Description=ProtonVPN Qt App\n"
+                "After=graphical-session.target\n"
+                "PartOf=graphical-session.target\n"
+                "\n"
+                "[Service]\n"
+                "Type=simple\n"
+                "ExecStart=%1\n"
+                "Restart=on-failure\n"
+                "Environment=DISPLAY=:0\n"
+                "\n"
+                "[Install]\n"
+                "WantedBy=graphical-session.target\n").arg(exe);
 
         QFile f(serviceFilePath());
-        if (!f.open(QIODevice::WriteOnly | QIODevice::Text)) {
+        if (!f.open(QIODevice::WriteOnly | QIODevice::Text))
+        {
             errorOut = QStringLiteral("Could not write service file: ") + serviceFilePath();
             return false;
         }
@@ -261,13 +270,16 @@ bool SettingsPage::setAutoStart(bool enable, QString &errorOut)
         p.start(QStringLiteral("systemctl"),
                 {QStringLiteral("--user"), QStringLiteral("enable"), kServiceName});
         p.waitForFinished(5000);
-        if (p.exitCode() != 0) {
+        if (p.exitCode() != 0)
+        {
             errorOut = QString::fromUtf8(p.readAllStandardError()).trimmed();
             if (errorOut.isEmpty())
                 errorOut = QStringLiteral("systemctl --user enable failed (exit %1)").arg(p.exitCode());
             return false;
         }
-    } else {
+    }
+    else
+    {
         // Disable and remove.
         QProcess p;
         p.start(QStringLiteral("systemctl"),
@@ -283,49 +295,51 @@ bool SettingsPage::setAutoStart(bool enable, QString &errorOut)
 // SettingsPage constructor
 // ============================================================
 
-void SettingsPage::updateAutoConnectRowVisibility()
+void SettingsPage::updateAutoConnectRowVisibility() const
 {
     if (!m_autoConnectRow) return;
     const bool show = m_autoStartToggle && m_autoStartToggle->isOn();
     m_autoConnectRow->setVisible(show);
     // If auto-start is turned off, also disable auto-connect and persist that.
-    if (!show && m_autoConnectToggle && m_autoConnectToggle->isOn()) {
+    if (!show && m_autoConnectToggle && m_autoConnectToggle->isOn())
+    {
         m_autoConnectToggle->setOn(false, false);
         AppConfig::instance().setAutoConnect(false);
     }
 }
 
-SettingsPage::SettingsPage(VpnManager *manager, QWidget *parent)
+SettingsPage::SettingsPage(VpnManager* manager, QWidget* parent)
     : QWidget(parent), m_manager(manager)
 {
-    auto *outerLayout = new QVBoxLayout(this);
+    auto* outerLayout = new QVBoxLayout(this);
     outerLayout->setContentsMargins(16, 16, 16, 16);
     outerLayout->setSpacing(12);
 
     // Title
-    auto *titleLabel = new QLabel(QStringLiteral("Settings"), this);
+    auto* titleLabel = new QLabel(QStringLiteral("Settings"), this);
     titleLabel->setObjectName(QStringLiteral("sectionTitle"));
     outerLayout->addWidget(titleLabel);
 
     // ── Tab widget ────────────────────────────────────────────
-    auto *tabs = new QTabWidget(this);
+    auto* tabs = new QTabWidget(this);
     tabs->setObjectName(QStringLiteral("settingsTabs"));
     outerLayout->addWidget(tabs, 1);
 
     // Helper: build a scrollable card inside a tab page and return its QVBoxLayout.
     // The bool pointer `firstOut` tracks divider insertion for that card.
-    auto makeCard = [&](QWidget *tabPage) -> std::pair<QWidget *, QVBoxLayout *> {
-        auto *scroll = new QScrollArea(tabPage);
+    auto makeCard = [&](QWidget* tabPage) -> std::pair<QWidget*, QVBoxLayout*>
+    {
+        auto* scroll = new QScrollArea(tabPage);
         scroll->setWidgetResizable(true);
         scroll->setFrameShape(QFrame::NoFrame);
-        auto *pageLayout = new QVBoxLayout(tabPage);
+        auto* pageLayout = new QVBoxLayout(tabPage);
         pageLayout->setContentsMargins(0, 8, 0, 0);
         pageLayout->setSpacing(8);
         pageLayout->addWidget(scroll, 1);
 
-        auto *card = new QWidget();
+        auto* card = new QWidget();
         card->setObjectName(QStringLiteral("infoCard"));
-        auto *cardLayout = new QVBoxLayout(card);
+        auto* cardLayout = new QVBoxLayout(card);
         cardLayout->setContentsMargins(0, 0, 0, 0);
         cardLayout->setSpacing(0);
         scroll->setWidget(card);
@@ -335,38 +349,44 @@ SettingsPage::SettingsPage(VpnManager *manager, QWidget *parent)
     // ============================================================
     // TAB 1 – App
     // ============================================================
-    auto *appTab = new QWidget();
+    auto* appTab = new QWidget();
     auto [appCard, appCardLayout] = makeCard(appTab);
     tabs->addTab(appTab, QStringLiteral("App"));
 
     bool appFirst = true;
-    auto addApp = [&](QWidget *w) {
+    auto addApp = [&](QWidget* w)
+    {
         if (!appFirst) addDivider(appCardLayout, appCard);
         appFirst = false;
         appCardLayout->addWidget(w);
     };
 
     // ── Launch on Startup ─────────────────────────────────────
-    if (systemdAvailable()) {
+    if (systemdAvailable())
+    {
         m_autoStartRow = new QWidget(appCard);
-        auto *rl = new QHBoxLayout(m_autoStartRow);
+        auto* rl = new QHBoxLayout(m_autoStartRow);
         rl->setContentsMargins(16, 12, 16, 12);
         rl->addLayout(makeTextCol(m_autoStartRow,
-            QStringLiteral("Launch on Startup"),
-            QStringLiteral("Automatically start the app in the background when you log in "
-                           "(installs a systemd user service).")));
+                                  QStringLiteral("Launch on Startup"),
+                                  QStringLiteral("Automatically start the app in the background when you log in "
+                                      "(installs a systemd user service).")));
         rl->addStretch();
         m_autoStartToggle = new ToggleSwitch(m_autoStartRow);
         m_autoStartToggle->setOn(autoStartEnabled(), false);
-        connect(m_autoStartToggle, &ToggleSwitch::toggled, this, [this](bool on) {
+        connect(m_autoStartToggle, &ToggleSwitch::toggled, this, [this](bool on)
+        {
             QString err;
-            if (!setAutoStart(on, err)) {
+            if (!setAutoStart(on, err))
+            {
                 m_autoStartToggle->setOn(!on, false);
                 QMessageBox::warning(this,
-                    QStringLiteral("Auto-start Error"),
-                    QStringLiteral("Failed to %1 auto-start:\n%2")
-                        .arg(on ? QStringLiteral("enable") : QStringLiteral("disable"), err));
-            } else {
+                                     QStringLiteral("Auto-start Error"),
+                                     QStringLiteral("Failed to %1 auto-start:\n%2")
+                                     .arg(on ? QStringLiteral("enable") : QStringLiteral("disable"), err));
+            }
+            else
+            {
                 updateAutoConnectRowVisibility();
             }
         });
@@ -375,15 +395,16 @@ SettingsPage::SettingsPage(VpnManager *manager, QWidget *parent)
 
         // ── Auto-connect on startup (indented, only when auto-start is on) ──
         m_autoConnectRow = new QWidget(appCard);
-        auto *acRl = new QHBoxLayout(m_autoConnectRow);
+        auto* acRl = new QHBoxLayout(m_autoConnectRow);
         acRl->setContentsMargins(32, 8, 16, 12);
         acRl->addLayout(makeTextCol(m_autoConnectRow,
-            QStringLiteral("Auto-connect on Startup"),
-            QStringLiteral("Automatically connect to the VPN when the app starts.")));
+                                    QStringLiteral("Auto-connect on Startup"),
+                                    QStringLiteral("Automatically connect to the VPN when the app starts.")));
         acRl->addStretch();
         m_autoConnectToggle = new ToggleSwitch(m_autoConnectRow);
         m_autoConnectToggle->setOn(AppConfig::instance().autoConnect(), false);
-        connect(m_autoConnectToggle, &ToggleSwitch::toggled, this, [](bool on) {
+        connect(m_autoConnectToggle, &ToggleSwitch::toggled, this, [](bool on)
+        {
             AppConfig::instance().setAutoConnect(on);
         });
         acRl->addWidget(m_autoConnectToggle);
@@ -395,17 +416,18 @@ SettingsPage::SettingsPage(VpnManager *manager, QWidget *parent)
 
     // ── Desktop Notifications ─────────────────────────────────
     {
-        auto *row = new QWidget(appCard);
-        auto *rl  = new QHBoxLayout(row);
+        auto* row = new QWidget(appCard);
+        auto* rl = new QHBoxLayout(row);
         rl->setContentsMargins(16, 12, 16, 12);
         rl->addLayout(makeTextCol(row,
-            QStringLiteral("Desktop Notifications"),
-            QStringLiteral("Show a system notification when the VPN is connecting, "
-                           "connected, disconnecting, or disconnected.")));
+                                  QStringLiteral("Desktop Notifications"),
+                                  QStringLiteral("Show a system notification when the VPN is connecting, "
+                                      "connected, disconnecting, or disconnected.")));
         rl->addStretch();
         m_notificationsToggle = new ToggleSwitch(row);
         m_notificationsToggle->setOn(AppConfig::instance().notifications(), false);
-        connect(m_notificationsToggle, &ToggleSwitch::toggled, this, [](bool on) {
+        connect(m_notificationsToggle, &ToggleSwitch::toggled, this, [](bool on)
+        {
             AppConfig::instance().setNotifications(on);
         });
         rl->addWidget(m_notificationsToggle);
@@ -416,8 +438,8 @@ SettingsPage::SettingsPage(VpnManager *manager, QWidget *parent)
 
     // ── About button – sits inside the App tab, below the card ──
     {
-        auto *appPageLayout = qobject_cast<QVBoxLayout *>(appTab->layout());
-        auto *aboutBtn = new QPushButton(QStringLiteral("About"), appTab);
+        auto* appPageLayout = qobject_cast<QVBoxLayout*>(appTab->layout());
+        auto* aboutBtn = new QPushButton(QStringLiteral("About"), appTab);
         aboutBtn->setObjectName(QStringLiteral("secondaryButton"));
         aboutBtn->setCursor(Qt::PointingHandCursor);
         connect(aboutBtn, &QPushButton::clicked, this, &SettingsPage::showAboutDialog);
@@ -427,14 +449,14 @@ SettingsPage::SettingsPage(VpnManager *manager, QWidget *parent)
     // ============================================================
     // TAB 2 – VPN
     // ============================================================
-    auto *vpnTab = new QWidget();
+    auto* vpnTab = new QWidget();
     auto [vpnCard, vpnCardLayout] = makeCard(vpnTab);
 
     // Refresh button + spinner live inside the VPN tab's page layout
     {
-        auto *vpnPageLayout = qobject_cast<QVBoxLayout *>(vpnTab->layout());
+        auto* vpnPageLayout = qobject_cast<QVBoxLayout*>(vpnTab->layout());
 
-        auto *headerRow = new QHBoxLayout();
+        auto* headerRow = new QHBoxLayout();
         m_refreshBtn = new QPushButton(QStringLiteral("↻ Refresh"), vpnTab);
         m_refreshBtn->setObjectName(QStringLiteral("secondaryButton"));
         m_refreshBtn->setFixedHeight(30);
@@ -454,7 +476,8 @@ SettingsPage::SettingsPage(VpnManager *manager, QWidget *parent)
     tabs->addTab(vpnTab, QStringLiteral("VPN"));
 
     bool vpnFirst = true;
-    auto addVpn = [&](QWidget *w) {
+    auto addVpn = [&](QWidget* w)
+    {
         if (!vpnFirst) addDivider(vpnCardLayout, vpnCard);
         vpnFirst = false;
         vpnCardLayout->addWidget(w);
@@ -462,78 +485,82 @@ SettingsPage::SettingsPage(VpnManager *manager, QWidget *parent)
 
     // ── Anonymous Crash Reports ───────────────────────────────
     addVpn(makeToggleRow(vpnCard,
-        QStringLiteral("Anonymous Crash Reports"),
-        QStringLiteral("Send anonymous crash reports to Proton for the VPN CLI tool — not this Qt app."),
-        QStringLiteral("anonymous-crash-reports"), false));
+                         QStringLiteral("Anonymous Crash Reports"),
+                         QStringLiteral("Send anonymous crash reports to Proton for the VPN CLI tool — not this Qt app."),
+                         QStringLiteral("anonymous-crash-reports"), false));
 
     // ── IPv6 ─────────────────────────────────────────────────
     addVpn(makeToggleRow(vpnCard,
-        QStringLiteral("IPv6"),
-        QStringLiteral("Enable IPv6 support over the VPN tunnel."),
-        QStringLiteral("ipv6"), true));
+                         QStringLiteral("IPv6"),
+                         QStringLiteral("Enable IPv6 support over the VPN tunnel."),
+                         QStringLiteral("ipv6"), true));
 
     // ── Moderate NAT ──────────────────────────────────────────
     addVpn(makeToggleRow(vpnCard,
-        QStringLiteral("Moderate NAT"),
-        QStringLiteral("Use NAT Type 2 for better compatibility with games and P2P."),
-        QStringLiteral("moderate-nat"), true));
+                         QStringLiteral("Moderate NAT"),
+                         QStringLiteral("Use NAT Type 2 for better compatibility with games and P2P."),
+                         QStringLiteral("moderate-nat"), true));
 
     // ── Kill Switch ───────────────────────────────────────────
     addVpn(makeComboRow(vpnCard,
-        QStringLiteral("Kill Switch"),
-        QStringLiteral("Block traffic if the VPN connection drops. "
-                       "\"Standard\" only blocks while reconnecting; "
-                       "\"Permanent\" blocks even when the VPN is off."),
-        QStringLiteral("kill-switch"),
-        {QStringLiteral("Off"), QStringLiteral("Standard"), QStringLiteral("Permanent")},
-        {QStringLiteral("off"), QStringLiteral("standard"), QStringLiteral("full")},
-        false));
+                        QStringLiteral("Kill Switch"),
+                        QStringLiteral("Block traffic if the VPN connection drops. "
+                            "\"Standard\" only blocks while reconnecting; "
+                            "\"Permanent\" blocks even when the VPN is off."),
+                        QStringLiteral("kill-switch"),
+                        {QStringLiteral("Off"), QStringLiteral("Standard"), QStringLiteral("Permanent")},
+                        {QStringLiteral("off"), QStringLiteral("standard"), QStringLiteral("full")},
+                        false));
 
     // ── VPN Accelerator ───────────────────────────────────────
     addVpn(makeToggleRow(vpnCard,
-        QStringLiteral("VPN Accelerator"),
-        QStringLiteral("Boost connection speeds using advanced protocol techniques."),
-        QStringLiteral("vpn-accelerator"), true));
+                         QStringLiteral("VPN Accelerator"),
+                         QStringLiteral("Boost connection speeds using advanced protocol techniques."),
+                         QStringLiteral("vpn-accelerator"), true));
 
     // ── NetShield ─────────────────────────────────────────────
     addVpn(makeComboRow(vpnCard,
-        QStringLiteral("NetShield Ad-blocker"),
-        QStringLiteral("Block malware, ads, and trackers at the DNS level."),
-        QStringLiteral("netshield"),
-        {QStringLiteral("Off"),
-         QStringLiteral("Malware only"),
-         QStringLiteral("Malware, ads & trackers")},
-        {QStringLiteral("off"),
-         QStringLiteral("malware-only"),
-         QStringLiteral("malware-ads-trackers")},
-        true));
+                        QStringLiteral("NetShield Ad-blocker"),
+                        QStringLiteral("Block malware, ads, and trackers at the DNS level."),
+                        QStringLiteral("netshield"),
+                        {
+                            QStringLiteral("Off"),
+                            QStringLiteral("Malware only"),
+                            QStringLiteral("Malware, ads & trackers")
+                        },
+                        {
+                            QStringLiteral("off"),
+                            QStringLiteral("malware-only"),
+                            QStringLiteral("malware-ads-trackers")
+                        },
+                        true));
 
     // ── Port Forwarding ───────────────────────────────────────
     addVpn(makeToggleRow(vpnCard,
-        QStringLiteral("Port Forwarding"),
-        QStringLiteral("Allow incoming connections through the VPN. "
-                       "Reconnect after enabling for changes to take effect."),
-        QStringLiteral("port-forwarding"), true));
+                         QStringLiteral("Port Forwarding"),
+                         QStringLiteral("Allow incoming connections through the VPN. "
+                             "Reconnect after enabling for changes to take effect."),
+                         QStringLiteral("port-forwarding"), true));
 
     // ── Custom DNS ────────────────────────────────────────────
     {
         addDivider(vpnCardLayout, vpnCard);
 
-        auto *dnsRow = new QWidget(vpnCard);
-        auto *dnsRl  = new QHBoxLayout(dnsRow);
+        auto* dnsRow = new QWidget(vpnCard);
+        auto* dnsRl = new QHBoxLayout(dnsRow);
         dnsRl->setContentsMargins(16, 12, 16, 4);
         dnsRl->addLayout(makeTextCol(dnsRow,
-            QStringLiteral("Custom DNS"),
-            QStringLiteral("Override the VPN DNS with your own resolver(s). "
-                           "Separate multiple addresses with a comma.")));
+                                     QStringLiteral("Custom DNS"),
+                                     QStringLiteral("Override the VPN DNS with your own resolver(s). "
+                                         "Separate multiple addresses with a comma.")));
         dnsRl->addStretch();
         m_dnsToggle = new ToggleSwitch(dnsRow);
         dnsRl->addWidget(m_dnsToggle);
         vpnCardLayout->addWidget(dnsRow);
 
-        auto *dnsAddrRow = new QWidget(vpnCard);
+        auto* dnsAddrRow = new QWidget(vpnCard);
         dnsAddrRow->setVisible(false);
-        auto *dnsAddrRl  = new QHBoxLayout(dnsAddrRow);
+        auto* dnsAddrRl = new QHBoxLayout(dnsAddrRow);
         dnsAddrRl->setContentsMargins(16, 0, 16, 12);
         m_dnsEdit = new QLineEdit(dnsAddrRow);
         m_dnsEdit->setPlaceholderText(QStringLiteral("e.g. 1.1.1.1,8.8.8.8"));
@@ -545,14 +572,17 @@ SettingsPage::SettingsPage(VpnManager *manager, QWidget *parent)
         dnsAddrRl->addWidget(m_dnsApplyBtn);
         vpnCardLayout->addWidget(dnsAddrRow);
 
-        connect(m_dnsToggle, &ToggleSwitch::toggled, this, [this, dnsAddrRow](bool on) {
+        connect(m_dnsToggle, &ToggleSwitch::toggled, this, [this, dnsAddrRow](bool on)
+        {
             dnsAddrRow->setVisible(on);
-            if (!on) {
+            if (!on)
+            {
                 m_manager->applyConfigValue(QStringLiteral("custom-dns"), QStringLiteral("off"));
                 maybeWarnReconnect(true);
             }
         });
-        connect(m_dnsApplyBtn, &QPushButton::clicked, this, [this]() {
+        connect(m_dnsApplyBtn, &QPushButton::clicked, this, [this]()
+        {
             const QString dns = m_dnsEdit->text().trimmed();
             if (dns.isEmpty()) return;
             m_manager->applyConfigValue(
@@ -569,11 +599,12 @@ SettingsPage::SettingsPage(VpnManager *manager, QWidget *parent)
     connect(m_manager, &VpnManager::settingsReady, this, &SettingsPage::onSettingsReady);
 
     // Spinner timer
-    static const char *const frames[] = {"⠋","⠙","⠹","⠸","⠼","⠴","⠦","⠧","⠇","⠏"};
+    static constexpr const char* frames[] = {"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"};
     static constexpr int frameCount = 10;
     m_spinnerTimer = new QTimer(this);
     m_spinnerTimer->setInterval(200);
-    connect(m_spinnerTimer, &QTimer::timeout, this, [this, frames]() {
+    connect(m_spinnerTimer, &QTimer::timeout, this, [this]()
+    {
         m_spinnerFrame = (m_spinnerFrame + 1) % frameCount;
         m_statusLabel->setText(
             QStringLiteral("%1 Loading settings…").arg(QString::fromUtf8(frames[m_spinnerFrame])));
@@ -590,46 +621,52 @@ void SettingsPage::refresh()
     m_manager->fetchSettings();
 }
 
-void SettingsPage::setLoading(bool loading)
+void SettingsPage::setLoading(const bool loading)
 {
     m_loading = loading;
     m_refreshBtn->setEnabled(!loading);
     m_refreshBtn->setText(loading ? QStringLiteral("Loading…") : QStringLiteral("↻ Refresh"));
     m_statusLabel->setVisible(loading);
-    if (loading) {
+    if (loading)
+    {
         m_spinnerFrame = 0;
         m_statusLabel->setText(QStringLiteral("⠋ Loading settings…"));
         m_spinnerTimer->start();
-    } else {
+    }
+    else
+    {
         m_spinnerTimer->stop();
     }
-    for (const auto &r : std::as_const(m_toggleRows)) r.toggle->setEnabled(!loading);
-    for (const auto &r : std::as_const(m_comboRows))  r.combo->setEnabled(!loading);
-    if (m_autoStartToggle)      m_autoStartToggle->setEnabled(!loading);
-    if (m_notificationsToggle)  m_notificationsToggle->setEnabled(!loading);
-    if (m_dnsToggle)            m_dnsToggle->setEnabled(!loading);
-    if (m_dnsApplyBtn)          m_dnsApplyBtn->setEnabled(!loading);
+    for (const auto& r : std::as_const(m_toggleRows)) r.toggle->setEnabled(!loading);
+    for (const auto& r : std::as_const(m_comboRows)) r.combo->setEnabled(!loading);
+    if (m_autoStartToggle) m_autoStartToggle->setEnabled(!loading);
+    if (m_notificationsToggle) m_notificationsToggle->setEnabled(!loading);
+    if (m_dnsToggle) m_dnsToggle->setEnabled(!loading);
+    if (m_dnsApplyBtn) m_dnsApplyBtn->setEnabled(!loading);
 }
 
-void SettingsPage::onSettingsReady(const QMap<QString, QString> &info)
+void SettingsPage::onSettingsReady(const QMap<QString, QString>& info)
 {
     setLoading(false);
 
-    auto val = [&](const QString &key) {
+    auto val = [&](const QString& key)
+    {
         return info.value(key).toLower().trimmed();
     };
-    auto isOn = [&](const QString &key) {
+    auto isOn = [&](const QString& key)
+    {
         const QString v = val(key);
         return v == QLatin1String("on") || v == QLatin1String("true")
             || v == QLatin1String("1") || v == QLatin1String("enabled");
     };
 
     // Toggle rows
-    for (const auto &row : std::as_const(m_toggleRows))
+    for (const auto& row : std::as_const(m_toggleRows))
         row.toggle->setOn(isOn(row.cliKey), false);
 
     // Combo rows – find the matching CLI value and select that index
-    for (const auto &row : std::as_const(m_comboRows)) {
+    for (const auto& row : std::as_const(m_comboRows))
+    {
         const QString v = val(row.cliKey);
         int idx = row.cliValues.indexOf(v);
         if (idx < 0) idx = 0;
@@ -641,13 +678,13 @@ void SettingsPage::onSettingsReady(const QMap<QString, QString> &info)
 
     // Custom DNS
     const QString dns = info.value(QStringLiteral("custom-dns")).trimmed();
-    const bool dnsOn  = !dns.isEmpty()
-                     && dns.toLower() != QLatin1String("disabled")
-                     && dns.toLower() != QLatin1String("off")
-                     && dns.toLower() != QLatin1String("none");
+    const bool dnsOn = !dns.isEmpty()
+        && dns.toLower() != QLatin1String("disabled")
+        && dns.toLower() != QLatin1String("off")
+        && dns.toLower() != QLatin1String("none");
     m_dnsToggle->setOn(dnsOn, false);
     if (dnsOn) m_dnsEdit->setText(dns);
-    else       m_dnsEdit->clear();
+    else m_dnsEdit->clear();
 }
 
 void SettingsPage::showAboutDialog()
@@ -656,7 +693,8 @@ void SettingsPage::showAboutDialog()
     QString appVersion = QStringLiteral("unknown");
     QString cliVersion = QStringLiteral("unknown");
     QFile vf(QStringLiteral(":/version.json"));
-    if (vf.open(QIODevice::ReadOnly)) {
+    if (vf.open(QIODevice::ReadOnly))
+    {
         const QJsonObject obj = QJsonDocument::fromJson(vf.readAll()).object();
         vf.close();
         if (obj.contains(QStringLiteral("app_version")))
@@ -665,14 +703,14 @@ void SettingsPage::showAboutDialog()
             cliVersion = obj[QStringLiteral("cli_version_tested")].toString();
     }
 
-    auto *dlg = new QDialog(this);
+    auto* dlg = new QDialog(this);
     dlg->setWindowTitle(QStringLiteral("About ProtonVPN Qt App"));
     dlg->setMinimumSize(520, 400);
 
-    auto *layout = new QVBoxLayout(dlg);
+    auto* layout = new QVBoxLayout(dlg);
     layout->setSpacing(16);
 
-    auto *browser = new QTextBrowser(dlg);
+    auto* browser = new QTextBrowser(dlg);
     browser->setOpenExternalLinks(true);
     browser->setFrameShape(QFrame::NoFrame);
     browser->setHtml(QStringLiteral(R"(
@@ -704,7 +742,7 @@ trademarks of Proton AG.</p>
 )").arg(appVersion, cliVersion));
     layout->addWidget(browser);
 
-    auto *btns = new QDialogButtonBox(QDialogButtonBox::Close, dlg);
+    auto* btns = new QDialogButtonBox(QDialogButtonBox::Close, dlg);
     connect(btns, &QDialogButtonBox::rejected, dlg, &QDialog::accept);
     layout->addWidget(btns);
 
