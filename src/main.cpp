@@ -5,6 +5,7 @@
 #include <QDir>
 #include <QMessageBox>
 #include <QFile>
+#include <QJsonDocument> // Ignore unused include warning; we do use QJsonDocument
 #include <QJsonObject>
 #include "mainwindow.h"
 
