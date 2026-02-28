@@ -1,21 +1,19 @@
 #include "countriespage.h"
 
-#include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QSplitter>
 #include <QLabel>
-#include <QPair>
 
-CountriesPage::CountriesPage(VpnManager *manager, QWidget *parent)
+CountriesPage::CountriesPage(VpnManager* manager, QWidget* parent)
     : QWidget(parent), m_manager(manager)
 {
-    auto *layout = new QVBoxLayout(this);
+    auto* layout = new QVBoxLayout(this);
     layout->setContentsMargins(16, 16, 16, 16);
     layout->setSpacing(12);
 
     // Header row
-    auto *headerRow = new QHBoxLayout();
-    auto *titleLabel = new QLabel(QStringLiteral("Select Server"), this);
+    auto* headerRow = new QHBoxLayout();
+    auto* titleLabel = new QLabel(QStringLiteral("Select Server"), this);
     titleLabel->setObjectName(QStringLiteral("sectionTitle"));
     headerRow->addWidget(titleLabel);
     headerRow->addStretch();
@@ -34,13 +32,13 @@ CountriesPage::CountriesPage(VpnManager *manager, QWidget *parent)
     layout->addWidget(m_searchEdit);
 
     // Splitter for countries / cities
-    auto *splitter = new QSplitter(Qt::Horizontal, this);
+    auto* splitter = new QSplitter(Qt::Horizontal, this);
 
     // Countries list
-    auto *countriesWidget = new QWidget(splitter);
-    auto *countriesLayout = new QVBoxLayout(countriesWidget);
+    auto* countriesWidget = new QWidget(splitter);
+    auto* countriesLayout = new QVBoxLayout(countriesWidget);
     countriesLayout->setContentsMargins(0, 0, 0, 0);
-    auto *countriesLabel = new QLabel(QStringLiteral("Countries"), countriesWidget);
+    auto* countriesLabel = new QLabel(QStringLiteral("Countries"), countriesWidget);
     countriesLabel->setObjectName(QStringLiteral("listHeader"));
     countriesLayout->addWidget(countriesLabel);
     m_countriesList = new QListWidget(countriesWidget);
@@ -50,8 +48,8 @@ CountriesPage::CountriesPage(VpnManager *manager, QWidget *parent)
     splitter->addWidget(countriesWidget);
 
     // Cities panel
-    auto *citiesWidget = new QWidget(splitter);
-    auto *citiesLayout = new QVBoxLayout(citiesWidget);
+    auto* citiesWidget = new QWidget(splitter);
+    auto* citiesLayout = new QVBoxLayout(citiesWidget);
     citiesLayout->setContentsMargins(0, 0, 0, 0);
     citiesLayout->setSpacing(4);
 
@@ -74,17 +72,19 @@ CountriesPage::CountriesPage(VpnManager *manager, QWidget *parent)
     m_connectBtn->setObjectName(QStringLiteral("primaryButton"));
     m_connectBtn->setEnabled(false);
     m_connectBtn->setCursor(Qt::PointingHandCursor);
-    connect(m_connectBtn, &QPushButton::clicked, this, [this]() {
+    connect(m_connectBtn, &QPushButton::clicked, this, [this]()
+    {
         emit connectRequested(m_selectedCode, m_selectedCity);
     });
     layout->addWidget(m_connectBtn);
 
     // Spinner timer — updates the loading label every 200 ms
-    static const char *const frames[] = {"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"};
+    static constexpr const char* frames[] = {"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"};
     static constexpr int frameCount = 10;
     m_spinnerTimer = new QTimer(this);
     m_spinnerTimer->setInterval(200);
-    connect(m_spinnerTimer, &QTimer::timeout, this, [this, frames]() {
+    connect(m_spinnerTimer, &QTimer::timeout, this, [this]()
+    {
         m_spinnerFrame = (m_spinnerFrame + 1) % frameCount;
         if (m_citiesList->count() > 0)
             m_citiesList->item(0)->setText(
@@ -93,7 +93,8 @@ CountriesPage::CountriesPage(VpnManager *manager, QWidget *parent)
 
     m_countriesSpinnerTimer = new QTimer(this);
     m_countriesSpinnerTimer->setInterval(200);
-    connect(m_countriesSpinnerTimer, &QTimer::timeout, this, [this, frames]() {
+    connect(m_countriesSpinnerTimer, &QTimer::timeout, this, [this]()
+    {
         m_countriesSpinnerFrame = (m_countriesSpinnerFrame + 1) % frameCount;
         if (m_countriesList->count() > 0)
             m_countriesList->item(0)->setText(
@@ -117,7 +118,7 @@ void CountriesPage::refresh()
     m_refreshBtn->setText(QStringLiteral("Loading…"));
 
     m_countriesSpinnerFrame = 0;
-    auto *loadingItem = new QListWidgetItem(QStringLiteral("⠋ Loading countries…"));
+    auto* loadingItem = new QListWidgetItem(QStringLiteral("⠋ Loading countries…"));
     loadingItem->setFlags(Qt::NoItemFlags);
     loadingItem->setForeground(QColor(0x99, 0x99, 0xbb));
     m_countriesList->addItem(loadingItem);
@@ -126,7 +127,7 @@ void CountriesPage::refresh()
     m_manager->fetchCountries();
 }
 
-void CountriesPage::onCountriesReady(const QMap<QString, QString> &countries)
+void CountriesPage::onCountriesReady(const QMap<QString, QString>& countries)
 {
     m_countriesSpinnerTimer->stop();
     m_allCountries = countries;
@@ -135,8 +136,8 @@ void CountriesPage::onCountriesReady(const QMap<QString, QString> &countries)
     filterCountries(m_searchEdit->text());
 }
 
-void CountriesPage::onCitiesReady(const QString &countryCode,
-                                   const QList<QPair<QString, QString>> &cities)
+void CountriesPage::onCitiesReady(const QString& countryCode,
+                                  const QList<QPair<QString, QString>>& cities) const
 {
     // Stop spinner
     m_spinnerTimer->stop();
@@ -146,34 +147,36 @@ void CountriesPage::onCitiesReady(const QString &countryCode,
     m_citiesLabel->setText(QStringLiteral("Cities – %1").arg(displayName));
 
     // "Any city" option always first
-    auto *anyItem = new QListWidgetItem(QStringLiteral("Any city"));
+    auto* anyItem = new QListWidgetItem(QStringLiteral("Any city"));
     anyItem->setData(Qt::UserRole, QString());
     m_citiesList->addItem(anyItem);
 
-    for (const auto &[city, features] : cities) {
+    for (const auto& [city, features] : cities)
+    {
         const QString label = features.isEmpty()
-            ? city
-            : QStringLiteral("%1  ·  %2").arg(city, features);
-        auto *item = new QListWidgetItem(label);
+                                  ? city
+                                  : QStringLiteral("%1  ·  %2").arg(city, features);
+        auto* item = new QListWidgetItem(label);
         item->setData(Qt::UserRole, city);
         m_citiesList->addItem(item);
     }
 }
 
-void CountriesPage::onCountrySelected(QListWidgetItem *item)
+void CountriesPage::onCountrySelected(QListWidgetItem* item)
 {
     m_selectedCountry = item->text();
-    m_selectedCode    = item->data(Qt::UserRole).toString();
+    m_selectedCode = item->data(Qt::UserRole).toString();
     m_selectedCity.clear();
     m_citiesList->clear();
     m_citiesLabel->setText(QStringLiteral("Cities – %1").arg(m_selectedCountry));
     m_connectBtn->setEnabled(!m_selectedCode.isEmpty());
     m_connectBtn->setText(QStringLiteral("Connect to %1").arg(m_selectedCountry));
 
-    if (!m_selectedCode.isEmpty()) {
+    if (!m_selectedCode.isEmpty())
+    {
         // Insert a non-selectable spinner item while waiting for cities
         m_spinnerFrame = 0;
-        auto *loadingItem = new QListWidgetItem(QStringLiteral("⠋ Loading cities…"));
+        auto* loadingItem = new QListWidgetItem(QStringLiteral("⠋ Loading cities…"));
         loadingItem->setFlags(Qt::NoItemFlags);
         loadingItem->setForeground(QColor(0x99, 0x99, 0xbb));
         m_citiesList->addItem(loadingItem);
@@ -182,24 +185,29 @@ void CountriesPage::onCountrySelected(QListWidgetItem *item)
     }
 }
 
-void CountriesPage::onCitySelected(QListWidgetItem *item)
+void CountriesPage::onCitySelected(QListWidgetItem* item)
 {
     m_selectedCity = item->data(Qt::UserRole).toString();
-    if (m_selectedCity.isEmpty()) {
+    if (m_selectedCity.isEmpty())
+    {
         m_connectBtn->setText(QStringLiteral("Connect to %1").arg(m_selectedCountry));
-    } else {
+    }
+    else
+    {
         m_connectBtn->setText(QStringLiteral("Connect to %1, %2").arg(m_selectedCountry, m_selectedCity));
     }
 }
 
-void CountriesPage::filterCountries(const QString &text)
+void CountriesPage::filterCountries(const QString& text) const
 {
     m_countriesList->clear();
-    for (auto it = m_allCountries.constBegin(); it != m_allCountries.constEnd(); ++it) {
-        const QString &name = it.key();
-        const QString &code = it.value();
-        if (text.isEmpty() || name.contains(text, Qt::CaseInsensitive)) {
-            auto *item = new QListWidgetItem(name);
+    for (auto it = m_allCountries.constBegin(); it != m_allCountries.constEnd(); ++it)
+    {
+        const QString& name = it.key();
+        const QString& code = it.value();
+        if (text.isEmpty() || name.contains(text, Qt::CaseInsensitive))
+        {
+            auto* item = new QListWidgetItem(name);
             item->setData(Qt::UserRole, code);
             m_countriesList->addItem(item);
         }

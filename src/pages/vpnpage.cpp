@@ -1,32 +1,29 @@
 #include "vpnpage.h"
 
-#include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QPainter>
 #include <QPainterPath>
 #include <QSvgRenderer>
 #include <QPropertyAnimation>
-#include <QMouseEvent>
 #include <QEnterEvent>
-#include <QConicalGradient>
 #include <cmath>
 
 // ============================================================
 // PowerButton implementation
 // ============================================================
 
-static constexpr int  BTN_SIZE     = 160;   // outer widget size (px)
-static constexpr int  RING_WIDTH   = 7;     // ring stroke width
-static constexpr int  ICON_SIZE    = 80;    // power SVG render size
+static constexpr int BTN_SIZE = 160; // outer widget size (px)
+static constexpr int RING_WIDTH = 7; // ring stroke width
+static constexpr int ICON_SIZE = 80; // power SVG render size
 
-PowerButton::PowerButton(QWidget *parent) : QWidget(parent)
+PowerButton::PowerButton(QWidget* parent) : QWidget(parent)
 {
     setFixedSize(BTN_SIZE, BTN_SIZE);
     setCursor(Qt::PointingHandCursor);
     setAttribute(Qt::WA_TranslucentBackground);
 
     // Clip the widget to a circle so the background/hover area isn't a square
-    QRegion mask(0, 0, BTN_SIZE, BTN_SIZE, QRegion::Ellipse);
+    const QRegion mask(0, 0, BTN_SIZE, BTN_SIZE, QRegion::Ellipse);
     setMask(mask);
 
     m_anim = new QPropertyAnimation(this, "spinAngle", this);
@@ -36,7 +33,7 @@ PowerButton::PowerButton(QWidget *parent) : QWidget(parent)
     m_anim->setLoopCount(-1); // infinite
 }
 
-void PowerButton::setState(RingState s)
+void PowerButton::setState(const RingState s)
 {
     if (m_state == s) return;
     m_state = s;
@@ -47,7 +44,7 @@ void PowerButton::setState(RingState s)
     update();
 }
 
-void PowerButton::startSpin()
+void PowerButton::startSpin() const
 {
     if (m_anim->state() != QAbstractAnimation::Running)
         m_anim->start();
@@ -59,21 +56,22 @@ void PowerButton::stopSpin()
     m_spinAngle = 0.0;
 }
 
-void PowerButton::paintEvent(QPaintEvent *)
+void PowerButton::paintEvent(QPaintEvent*)
 {
     QPainter p(this);
     p.setRenderHint(QPainter::Antialiasing);
 
     const QRectF widgetRect = rect();
-    const qreal  margin     = RING_WIDTH / 2.0 + 4.0;
-    const QRectF ringRect   = widgetRect.adjusted(margin, margin, -margin, -margin);
+    constexpr qreal margin = RING_WIDTH / 2.0 + 4.0;
+    const QRectF ringRect = widgetRect.adjusted(margin, margin, -margin, -margin);
 
     // ── ring / arc ──────────────────────────────────────────
     QPen ringPen;
     ringPen.setWidth(RING_WIDTH);
     ringPen.setCapStyle(Qt::RoundCap);
 
-    if (m_state == RingState::Spinning) {
+    if (m_state == RingState::Spinning)
+    {
         // Draw a 270° arc that rotates
         QColor arcColor(0xa0, 0xa0, 0xa0);
         ringPen.setColor(arcColor);
@@ -81,9 +79,11 @@ void PowerButton::paintEvent(QPaintEvent *)
         // Qt angles: 0 = 3 o'clock, counter-clockwise positive
         // We want clockwise animation, so use negative span
         const int startAngle = static_cast<int>((90.0 - m_spinAngle) * 16.0); // top → rotates cw
-        const int spanAngle  = -270 * 16;
+        constexpr int spanAngle = -270 * 16;
         p.drawArc(ringRect, startAngle, spanAngle);
-    } else {
+    }
+    else
+    {
         QColor ringColor;
         if (m_state == RingState::Connected)
             ringColor = QColor(0x1a, 0x9c, 0x5b); // green
@@ -98,7 +98,8 @@ void PowerButton::paintEvent(QPaintEvent *)
     }
 
     // ── hover glow ──────────────────────────────────────────
-    if (m_hovered) {
+    if (m_hovered)
+    {
         QColor glow(0xff, 0xff, 0xff, 18);
         p.setBrush(glow);
         p.setPen(Qt::NoPen);
@@ -109,7 +110,7 @@ void PowerButton::paintEvent(QPaintEvent *)
     }
 
     // ── power SVG ───────────────────────────────────────────
-    const QRectF iconRect(
+    constexpr QRectF iconRect(
         (BTN_SIZE - ICON_SIZE) / 2.0,
         (BTN_SIZE - ICON_SIZE) / 2.0,
         ICON_SIZE,
@@ -124,7 +125,8 @@ void PowerButton::paintEvent(QPaintEvent *)
         QPainter ip(&iconPix);
         QSvgRenderer renderer(QStringLiteral(":/assets/power.svg"));
         renderer.render(&ip);
-        if (darkMode) {
+        if (darkMode)
+        {
             ip.setCompositionMode(QPainter::CompositionMode_SourceIn);
             ip.fillRect(iconPix.rect(), Qt::white);
         }
@@ -132,21 +134,21 @@ void PowerButton::paintEvent(QPaintEvent *)
     p.drawPixmap(iconRect.toRect(), iconPix);
 }
 
-void PowerButton::mousePressEvent(QMouseEvent *e)
+void PowerButton::mousePressEvent(QMouseEvent* e)
 {
     if (e->button() == Qt::LeftButton)
         emit clicked();
     QWidget::mousePressEvent(e);
 }
 
-void PowerButton::enterEvent(QEnterEvent *e)
+void PowerButton::enterEvent(QEnterEvent* e)
 {
     m_hovered = true;
     update();
     QWidget::enterEvent(e);
 }
 
-void PowerButton::leaveEvent(QEvent *e)
+void PowerButton::leaveEvent(QEvent* e)
 {
     m_hovered = false;
     update();
@@ -164,31 +166,31 @@ class SvgBanner : public QWidget
 {
 public:
     // aspectRatio = width / height  (e.g. 4.0 for a 4:1 banner)
-    explicit SvgBanner(const QString &resource, qreal aspectRatio, QWidget *parent = nullptr)
+    explicit SvgBanner(const QString& resource, qreal aspectRatio, QWidget* parent = nullptr)
         : QWidget(parent), m_renderer(resource), m_aspect(aspectRatio)
     {
         setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
         setMaximumWidth(1000);
     }
 
-    QSize sizeHint() const override
+    [[nodiscard]] QSize sizeHint() const override
     {
         const int w = qMin(parentWidget() ? parentWidget()->width() : 320, 1000);
-        return { w, qRound(w / m_aspect) };
+        return {w, qRound(w / m_aspect)};
     }
 
-    int heightForWidth(int w) const override { return qRound(w / m_aspect); }
-    bool hasHeightForWidth() const override { return true; }
+    [[nodiscard]] int heightForWidth(const int w) const override { return qRound(w / m_aspect); }
+    [[nodiscard]] bool hasHeightForWidth() const override { return true; }
 
 protected:
-    void paintEvent(QPaintEvent *) override
+    void paintEvent(QPaintEvent*) override
     {
         QPainter p(this);
         p.setRenderHint(QPainter::Antialiasing);
         m_renderer.render(&p, QRectF(rect()));
     }
 
-    void resizeEvent(QResizeEvent *e) override
+    void resizeEvent(QResizeEvent* e) override
     {
         QWidget::resizeEvent(e);
         // Keep height in sync with width
@@ -199,21 +201,21 @@ protected:
 
 private:
     QSvgRenderer m_renderer;
-    qreal        m_aspect;
+    qreal m_aspect;
 };
 
 // ============================================================
 
-VpnPage::VpnPage(VpnManager *manager, QWidget *parent)
+VpnPage::VpnPage(VpnManager* manager, QWidget* parent)
     : QWidget(parent), m_manager(manager)
 {
-    auto *layout = new QVBoxLayout(this);
+    auto* layout = new QVBoxLayout(this);
     layout->setSpacing(24);
     layout->setContentsMargins(40, 40, 40, 40);
 
     // Proton VPN logo banner – pinned to top, fills available width at 4:1 aspect ratio (max 1000px, centered)
-    auto *logoWidget = new SvgBanner(QStringLiteral(":/assets/proton-vpn-logo.svg"), 4.0, this);
-    auto *logoRow = new QHBoxLayout();
+    auto* logoWidget = new SvgBanner(QStringLiteral(":/assets/proton-vpn-logo.svg"), 4.0, this);
+    auto* logoRow = new QHBoxLayout();
     logoRow->setContentsMargins(0, 0, 0, 0);
     logoRow->addStretch(1);
     logoRow->addWidget(logoWidget);
@@ -225,7 +227,8 @@ VpnPage::VpnPage(VpnManager *manager, QWidget *parent)
 
     // Power button
     m_powerBtn = new PowerButton(this);
-    connect(m_powerBtn, &PowerButton::clicked, this, [this]() {
+    connect(m_powerBtn, &PowerButton::clicked, this, [this]()
+    {
         if (m_currentState == VpnState::Connected)
             emit disconnectRequested();
         else if (m_currentState == VpnState::Disconnected || m_currentState == VpnState::Error)
@@ -260,7 +263,8 @@ VpnPage::VpnPage(VpnManager *manager, QWidget *parent)
     // Elapsed timer
     m_elapsedTimer = new QTimer(this);
     m_elapsedTimer->setInterval(1000);
-    connect(m_elapsedTimer, &QTimer::timeout, this, [this]() {
+    connect(m_elapsedTimer, &QTimer::timeout, this, [this]()
+    {
         m_elapsedSeconds++;
         int h = m_elapsedSeconds / 3600;
         int m = (m_elapsedSeconds % 3600) / 60;
@@ -269,11 +273,12 @@ VpnPage::VpnPage(VpnManager *manager, QWidget *parent)
     });
 
     // Checking spinner — animates the status label while connection state is unknown
-    static const char *const frames[] = {"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"};
+    static const char* const frames[] = {"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"};
     static constexpr int frameCount = 10;
     m_checkingSpinnerTimer = new QTimer(this);
     m_checkingSpinnerTimer->setInterval(200);
-    connect(m_checkingSpinnerTimer, &QTimer::timeout, this, [this]() {
+    connect(m_checkingSpinnerTimer, &QTimer::timeout, this, [this]()
+    {
         m_checkingSpinnerFrame = (m_checkingSpinnerFrame + 1) % frameCount;
         m_statusLabel->setText(
             QStringLiteral("%1 Checking…").arg(QString::fromUtf8(frames[m_checkingSpinnerFrame])));
@@ -284,12 +289,12 @@ VpnPage::VpnPage(VpnManager *manager, QWidget *parent)
     m_checkingSpinnerTimer->start();
 }
 
-void VpnPage::onStateChanged(VpnState state, const QString &info)
+void VpnPage::onStateChanged(VpnState state, const QString& info)
 {
     updateUi(state, info);
 }
 
-void VpnPage::updateUi(VpnState state, const QString &info)
+void VpnPage::updateUi(const VpnState state, const QString& info)
 {
     const VpnState prevState = m_currentState;
     m_currentState = state;
@@ -297,7 +302,8 @@ void VpnPage::updateUi(VpnState state, const QString &info)
     if (state != VpnState::Unknown)
         m_checkingSpinnerTimer->stop();
 
-    switch (state) {
+    switch (state)
+    {
     case VpnState::Connected:
         m_powerBtn->setState(PowerButton::RingState::Connected);
         m_powerBtn->setEnabled(true);
@@ -364,7 +370,7 @@ void VpnPage::startElapsedTimer()
     m_elapsedTimer->start();
 }
 
-void VpnPage::stopElapsedTimer()
+void VpnPage::stopElapsedTimer() const
 {
     m_elapsedTimer->stop();
     m_timerLabel->setVisible(false);

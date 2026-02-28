@@ -1,17 +1,16 @@
 #pragma once
 
-#include <QWidget>
 #include <QLabel>
 #include <QPushButton>
-#include <QMap>
 #include <QTimer>
 #include "../vpnmanager.h"
 
 class AccountPage : public QWidget
 {
     Q_OBJECT
+
 public:
-    explicit AccountPage(VpnManager *manager, QWidget *parent = nullptr);
+    explicit AccountPage(VpnManager* manager, QWidget* parent = nullptr);
 
     void refresh();
 
@@ -19,12 +18,12 @@ signals:
     void signOutRequested();
 
 private:
-    VpnManager *m_manager;
-    QLabel *m_nameLabel;
-    QPushButton *m_refreshBtn;
-    QTimer *m_spinnerTimer;
+    VpnManager* m_manager;
+    QLabel* m_nameLabel;
+    QPushButton* m_refreshBtn;
+    QTimer* m_spinnerTimer;
     int m_spinnerFrame = 0;
 
-    void onInfoReady(const QMap<QString, QString> &info);
+    void onInfoReady(const QMap<QString, QString>& info) const;
 };
 

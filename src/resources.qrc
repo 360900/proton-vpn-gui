@@ -5,6 +5,7 @@
         <file alias="proton-vpn-sign.svg">assets/proton-vpn-sign.svg</file>
         <file alias="state-connected.svg">assets/state-connected.svg</file>
         <file alias="state-disconnected.svg">assets/state-disconnected.svg</file>
+        <file alias="state-connecting.svg">assets/state-connecting.svg</file>
         <file alias="state-error.svg">assets/state-error.svg</file>
         <file alias="maintenance-icon.svg">assets/maintenance-icon.svg</file>
         <file alias="no-app-icon.svg">assets/no-app-icon.svg</file>
