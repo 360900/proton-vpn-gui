@@ -7,12 +7,14 @@
 #include <QPainter>
 #include <QPropertyAnimation>
 #include <QMouseEvent>
+#include <QDialogButtonBox> // ignore unused include warning for QDialogButtonBox
 #include <QTextBrowser>
 #include <QMessageBox>
 #include <QDir>
 #include <QStandardPaths>
 #include <QProcess>
 #include <QCoreApplication>
+#include <QJsonDocument> // Ignore unused include warning; we do use QJsonDocument
 #include <QJsonObject>
 #include <QDebug>
 
