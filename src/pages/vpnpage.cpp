@@ -1,11 +1,17 @@
 #include "vpnpage.h"
 
 #include <QHBoxLayout>
+#include <QVBoxLayout>
 #include <QPainter>
 #include <QPainterPath>
 #include <QSvgRenderer>
 #include <QPropertyAnimation>
 #include <QEnterEvent>
+#include <QDialog>
+#include <QPlainTextEdit>
+#include <QFont>
+#include <QGuiApplication>
+#include <QClipboard>
 #include <cmath>
 
 // ============================================================
@@ -257,6 +263,13 @@ VpnPage::VpnPage(VpnManager* manager, QWidget* parent)
     m_infoLabel->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
     layout->addWidget(m_infoLabel);
 
+    // "View Details" button – shown only on error
+    m_errorDetailsBtn = new QPushButton(QStringLiteral("View Details"), this);
+    m_errorDetailsBtn->setVisible(false);
+    m_errorDetailsBtn->setFixedWidth(140);
+    connect(m_errorDetailsBtn, &QPushButton::clicked, this, &VpnPage::showErrorDetails);
+    layout->addWidget(m_errorDetailsBtn, 0, Qt::AlignCenter);
+
     // Balance the stretch so the content block sits in the middle of the remaining space
     layout->addStretch(1);
 
@@ -302,6 +315,11 @@ void VpnPage::updateUi(const VpnState state, const QString& info)
     if (state != VpnState::Unknown)
         m_checkingSpinnerTimer->stop();
 
+    // Hide the error details button by default; the Error case will re-show it
+    m_errorDetailsBtn->setVisible(false);
+    m_infoLabel->setTextFormat(Qt::AutoText);
+    m_infoLabel->setOpenExternalLinks(false);
+
     switch (state)
     {
     case VpnState::Connected:
@@ -343,13 +361,38 @@ void VpnPage::updateUi(const VpnState state, const QString& info)
         break;
 
     case VpnState::Error:
+    {
         m_powerBtn->setState(PowerButton::RingState::Disconnected);
         m_powerBtn->setEnabled(true);
         m_statusLabel->setText(QStringLiteral("Error"));
         m_statusLabel->setStyleSheet(QStringLiteral("color: #d63f3f; font-size: 16pt; font-weight: bold; letter-spacing: 1px;"));
-        m_infoLabel->setText(info);
         stopElapsedTimer();
+
+        m_rawError = info;
+
+        // Distinguish CLI errors (Python traceback) from app errors
+        const bool isCliError = info.contains(QLatin1String("Traceback (most recent call last)"))
+                             || info.contains(QLatin1String("File \"/usr/bin/protonvpn\""))
+                             || info.contains(QLatin1String("File \"/usr/lib/python"));
+        if (isCliError)
+        {
+            m_infoLabel->setText(QStringLiteral(
+                "An error occurred in the Proton VPN CLI.\n"
+                "Please file a bug report at "
+                "<a href='https://github.com/ProtonVPN/proton-vpn-cli/issues'>github.com/ProtonVPN/proton-vpn-cli/</a>."));
+        }
+        else
+        {
+            m_infoLabel->setText(QStringLiteral(
+                "An error occurred in the ProtonVPN Qt desktop app.\n"
+                "Please file a bug report at "
+                "<a href='https://github.com/wheat32/proton-vpn-qt-app/issues'>github.com/wheat32/proton-vpn-qt-app</a>."));
+        }
+        m_infoLabel->setTextFormat(Qt::RichText);
+        m_infoLabel->setOpenExternalLinks(true);
+        m_errorDetailsBtn->setVisible(!info.trimmed().isEmpty());
         break;
+    }
 
     default: // Unknown
         m_powerBtn->setState(PowerButton::RingState::Unknown);
@@ -374,5 +417,37 @@ void VpnPage::stopElapsedTimer() const
 {
     m_elapsedTimer->stop();
     m_timerLabel->setVisible(false);
+}
+
+void VpnPage::showErrorDetails() const
+{
+    auto* dlg = new QDialog(const_cast<VpnPage*>(this));
+    dlg->setWindowTitle(QStringLiteral("Error Details"));
+    dlg->setMinimumSize(640, 400);
+    dlg->setAttribute(Qt::WA_DeleteOnClose);
+
+    auto* layout = new QVBoxLayout(dlg);
+    layout->setSpacing(10);
+
+    auto* textEdit = new QPlainTextEdit(dlg);
+    textEdit->setReadOnly(true);
+    textEdit->setPlainText(m_rawError);
+    textEdit->setFont(QFont(QStringLiteral("Monospace"), 9));
+    layout->addWidget(textEdit);
+
+    auto* btnRow = new QHBoxLayout();
+    auto* copyBtn = new QPushButton(QStringLiteral("Copy to Clipboard"), dlg);
+    connect(copyBtn, &QPushButton::clicked, dlg, [this]()
+    {
+        QGuiApplication::clipboard()->setText(m_rawError);
+    });
+    auto* closeBtn = new QPushButton(QStringLiteral("Close"), dlg);
+    connect(closeBtn, &QPushButton::clicked, dlg, &QDialog::accept);
+    btnRow->addWidget(copyBtn);
+    btnRow->addStretch();
+    btnRow->addWidget(closeBtn);
+    layout->addLayout(btnRow);
+
+    dlg->exec();
 }
 

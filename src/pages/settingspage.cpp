@@ -101,6 +101,8 @@ static QVBoxLayout* makeTextCol(QWidget* parent, const QString& label, const QSt
         auto* descL = new QLabel(desc, parent);
         descL->setObjectName(QStringLiteral("settingsDesc"));
         descL->setWordWrap(true);
+        descL->setOpenExternalLinks(true);
+        descL->setTextInteractionFlags(Qt::TextBrowserInteraction);
         QFont f = descL->font();
         f.setPointSize(qMax(f.pointSize() - 1, 7));
         descL->setFont(f);
@@ -497,11 +499,20 @@ SettingsPage::SettingsPage(VpnManager* manager, QWidget* parent)
                          QStringLiteral("Enable IPv6 support over the VPN tunnel."),
                          QStringLiteral("ipv6"), true));
 
-    // ── Moderate NAT ──────────────────────────────────────────
-    addVpn(makeToggleRow(vpnCard,
-                         QStringLiteral("Moderate NAT"),
-                         QStringLiteral("Use NAT Type 2 for better compatibility with games and P2P."),
-                         QStringLiteral("moderate-nat"), true));
+    // ── NAT Type ──────────────────────────────────────────────
+    addVpn(makeComboRow(vpnCard,
+                        QStringLiteral("NAT Type"),
+                        QStringLiteral(
+                            "Controls how the VPN server maps your connection. "
+                            "<b>Strict (Type 3)</b> is the default and best for privacy. "
+                            "<b>Moderate (Type 2)</b> improves compatibility for online gaming and WebRTC, "
+                            "at a slight privacy trade-off. Requires a paid plan. "
+                            "<a href='https://protonvpn.com/support/moderate-nat'>Read more</a>"),
+                        QStringLiteral("moderate-nat"),
+                        {QStringLiteral("Strict (Type 3)"),
+                         QStringLiteral("Moderate (Type 2)")},
+                        {QStringLiteral("off"), QStringLiteral("on")},
+                        true));
 
     // ── Kill Switch ───────────────────────────────────────────
     addVpn(makeComboRow(vpnCard,

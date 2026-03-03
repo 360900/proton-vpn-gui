@@ -4,6 +4,10 @@
 #include <QPushButton>
 #include <QTimer>
 #include <QPropertyAnimation>
+#include <QDialog>
+#include <QPlainTextEdit>
+#include <QClipboard>
+#include <QGuiApplication>
 #include "../vpnmanager.h"
 
 // ---------------------------------------------------------------------------
@@ -70,16 +74,19 @@ private:
     PowerButton* m_powerBtn;
     QLabel* m_statusLabel;
     QLabel* m_infoLabel;
+    QPushButton* m_errorDetailsBtn;
     QLabel* m_timerLabel;
     QTimer* m_elapsedTimer;
     QTimer* m_checkingSpinnerTimer;
     int m_elapsedSeconds = 0;
     int m_checkingSpinnerFrame = 0;
+    QString m_rawError;
 
     VpnState m_currentState = VpnState::Unknown;
 
     void updateUi(VpnState state, const QString& info);
     void startElapsedTimer();
     void stopElapsedTimer() const;
+    void showErrorDetails() const;
 };
 
