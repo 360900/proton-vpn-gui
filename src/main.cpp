@@ -116,6 +116,19 @@ int main(int argc, char* argv[])
             background-color: #3a2d7a;
         }
 
+        QToolButton#logoButton {
+            background-color: transparent;
+            border: none;
+            border-radius: 8px;
+            padding: 0px;
+        }
+        QToolButton#logoButton:hover {
+            background-color: #2d2d4a;
+        }
+        QToolButton#logoButton:checked {
+            background-color: #3a2d7a;
+        }
+
         QWidget#loginCard {
             background-color: #25253d;
             border-radius: 12px;

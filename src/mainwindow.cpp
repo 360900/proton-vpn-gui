@@ -259,17 +259,24 @@ void MainWindow::setupSidebar()
     layout->setContentsMargins(0, 8, 0, 8);
     layout->setSpacing(4);
 
-    // Logo at top — use a QLabel with a transparent pixmap so no background shows
-    auto* logoLabel = new QLabel(m_sidebar);
-    logoLabel->setPixmap(svgNavIcon(QStringLiteral(":/assets/proton-vpn-sign.svg"), {40, 40}, false).pixmap(40, 40));
-    logoLabel->setFixedSize(40, 40);
-    logoLabel->setAttribute(Qt::WA_TranslucentBackground);
-    layout->addWidget(logoLabel, 0, Qt::AlignHCenter);
-
-    layout->addSpacing(12);
-
     auto* btnGroup = new QButtonGroup(m_sidebar);
     btnGroup->setExclusive(true);
+
+    // Logo button is part of the exclusive group so clicking it automatically
+    // clears the checked state on all nav buttons.
+    m_logoBtn = new QToolButton(m_sidebar);
+    m_logoBtn->setIcon(svgNavIcon(QStringLiteral(":/assets/proton-vpn-sign.svg"), {40, 40}, false));
+    m_logoBtn->setIconSize({40, 40});
+    m_logoBtn->setFixedSize(40, 40);
+    m_logoBtn->setToolTip(QStringLiteral("VPN"));
+    m_logoBtn->setCursor(Qt::PointingHandCursor);
+    m_logoBtn->setObjectName(QStringLiteral("logoButton"));
+    m_logoBtn->setCheckable(true);
+    btnGroup->addButton(m_logoBtn);
+    layout->addWidget(m_logoBtn, 0, Qt::AlignHCenter);
+    connect(m_logoBtn, &QToolButton::clicked, this, [this]() { showPage(Page::Vpn); });
+
+    layout->addSpacing(12);
 
     auto makeNavBtn = [&](const QString& tooltip, const QString& iconPath) -> QToolButton*
     {
@@ -286,11 +293,9 @@ void MainWindow::setupSidebar()
         return btn;
     };
 
-    m_vpnNavBtn = makeNavBtn(QStringLiteral("VPN"), QStringLiteral(":/assets/state-disconnected.svg"));
     m_countriesNavBtn = makeNavBtn(QStringLiteral("Countries"), QStringLiteral(":/assets/server-smart-routing.svg"));
     m_accountNavBtn = makeNavBtn(QStringLiteral("Account"), QStringLiteral(":/assets/person-lines-fill.svg"));
 
-    connect(m_vpnNavBtn, &QToolButton::clicked, this, [this]() { showPage(Page::Vpn); });
     connect(m_countriesNavBtn, &QToolButton::clicked, this, [this]() { showPage(Page::Countries); });
     connect(m_accountNavBtn, &QToolButton::clicked, this, [this]()
     {
@@ -313,7 +318,7 @@ void MainWindow::showPage(Page page) const
 {
     m_stack->setCurrentIndex(static_cast<int>(page));
 
-    m_vpnNavBtn->setChecked(page == Page::Vpn);
+    m_logoBtn->setChecked(page == Page::Vpn);
     m_countriesNavBtn->setChecked(page == Page::Countries);
     m_accountNavBtn->setChecked(page == Page::Account);
     m_settingsNavBtn->setChecked(page == Page::Settings);
@@ -321,7 +326,7 @@ void MainWindow::showPage(Page page) const
 
 void MainWindow::setNavActive(QToolButton* btn)
 {
-    for (auto* b : {m_vpnNavBtn, m_countriesNavBtn, m_accountNavBtn, m_settingsNavBtn})
+    for (auto* b : {m_logoBtn, m_countriesNavBtn, m_accountNavBtn, m_settingsNavBtn})
         b->setChecked(b == btn);
 }
 
