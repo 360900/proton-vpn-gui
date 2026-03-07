@@ -90,15 +90,19 @@ void SettingsPage::addDivider(QVBoxLayout* layout, QWidget* parent)
     layout->addWidget(div);
 }
 
-static QVBoxLayout* makeTextCol(QWidget* parent, const QString& label, const QString& desc)
+static QWidget* makeTextCol(QWidget* parent, const QString& label, const QString& desc)
 {
-    auto* col = new QVBoxLayout();
-    auto* nameL = new QLabel(label, parent);
+    auto* w = new QWidget(parent);
+    w->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
+    auto* col = new QVBoxLayout(w);
+    col->setContentsMargins(0, 0, 0, 0);
+    col->setSpacing(2);
+    auto* nameL = new QLabel(label, w);
     nameL->setObjectName(QStringLiteral("infoKey"));
     col->addWidget(nameL);
     if (!desc.isEmpty())
     {
-        auto* descL = new QLabel(desc, parent);
+        auto* descL = new QLabel(desc, w);
         descL->setObjectName(QStringLiteral("settingsDesc"));
         descL->setWordWrap(true);
         descL->setOpenExternalLinks(true);
@@ -109,7 +113,7 @@ static QVBoxLayout* makeTextCol(QWidget* parent, const QString& label, const QSt
         descL->setStyleSheet(QStringLiteral("color: #888;"));
         col->addWidget(descL);
     }
-    return col;
+    return w;
 }
 
 void SettingsPage::maybeWarnReconnect(bool needsReconnect)
@@ -132,10 +136,10 @@ QWidget* SettingsPage::makeToggleRow(QWidget* parent, const QString& label,
     auto* row = new QWidget(parent);
     auto* rl = new QHBoxLayout(row);
     rl->setContentsMargins(16, 12, 16, 12);
-    rl->addLayout(makeTextCol(row, label, desc));
-    rl->addStretch();
+    rl->setSpacing(16);
+    rl->addWidget(makeTextCol(row, label, desc), 1);
     auto* toggle = new ToggleSwitch(row);
-    rl->addWidget(toggle);
+    rl->addWidget(toggle, 0);
 
     connect(toggle, &ToggleSwitch::toggled, this, [this, cliKey, needsReconnect](bool on)
     {
@@ -155,12 +159,12 @@ QWidget* SettingsPage::makeComboRow(QWidget* parent, const QString& label,
     auto* row = new QWidget(parent);
     auto* rl = new QHBoxLayout(row);
     rl->setContentsMargins(16, 12, 16, 12);
-    rl->addLayout(makeTextCol(row, label, desc));
-    rl->addStretch();
+    rl->setSpacing(16);
+    rl->addWidget(makeTextCol(row, label, desc), 1);
     auto* combo = new QComboBox(row);
     for (const auto& l : labels) combo->addItem(l);
     combo->setMinimumWidth(160);
-    rl->addWidget(combo);
+    rl->addWidget(combo, 0);
 
     connect(combo, QOverload<int>::of(&QComboBox::currentIndexChanged),
             this, [this, cliKey, cliValues, needsReconnect](int idx)
@@ -371,11 +375,11 @@ SettingsPage::SettingsPage(VpnManager* manager, QWidget* parent)
         m_autoStartRow = new QWidget(appCard);
         auto* rl = new QHBoxLayout(m_autoStartRow);
         rl->setContentsMargins(16, 12, 16, 12);
-        rl->addLayout(makeTextCol(m_autoStartRow,
+        rl->setSpacing(16);
+        rl->addWidget(makeTextCol(m_autoStartRow,
                                   QStringLiteral("Launch on Startup"),
                                   QStringLiteral("Automatically start the app in the background when you log in "
-                                      "(installs a systemd user service).")));
-        rl->addStretch();
+                                      "(installs a systemd user service).")), 1);
         m_autoStartToggle = new ToggleSwitch(m_autoStartRow);
         m_autoStartToggle->setOn(autoStartEnabled(), false);
         connect(m_autoStartToggle, &ToggleSwitch::toggled, this, [this](bool on)
@@ -401,10 +405,10 @@ SettingsPage::SettingsPage(VpnManager* manager, QWidget* parent)
         m_autoConnectRow = new QWidget(appCard);
         auto* acRl = new QHBoxLayout(m_autoConnectRow);
         acRl->setContentsMargins(32, 8, 16, 12);
-        acRl->addLayout(makeTextCol(m_autoConnectRow,
+        acRl->setSpacing(16);
+        acRl->addWidget(makeTextCol(m_autoConnectRow,
                                     QStringLiteral("Auto-connect on Startup"),
-                                    QStringLiteral("Automatically connect to the VPN when the app starts.")));
-        acRl->addStretch();
+                                    QStringLiteral("Automatically connect to the VPN when the app starts.")), 1);
         m_autoConnectToggle = new ToggleSwitch(m_autoConnectRow);
         m_autoConnectToggle->setOn(AppConfig::instance().autoConnect(), false);
         connect(m_autoConnectToggle, &ToggleSwitch::toggled, this, [](bool on)
@@ -423,11 +427,11 @@ SettingsPage::SettingsPage(VpnManager* manager, QWidget* parent)
         auto* row = new QWidget(appCard);
         auto* rl = new QHBoxLayout(row);
         rl->setContentsMargins(16, 12, 16, 12);
-        rl->addLayout(makeTextCol(row,
+        rl->setSpacing(16);
+        rl->addWidget(makeTextCol(row,
                                   QStringLiteral("Desktop Notifications"),
                                   QStringLiteral("Show a system notification when the VPN is connecting, "
-                                      "connected, disconnecting, or disconnected.")));
-        rl->addStretch();
+                                      "connected, disconnecting, or disconnected.")), 1);
         m_notificationsToggle = new ToggleSwitch(row);
         m_notificationsToggle->setOn(AppConfig::instance().notifications(), false);
         connect(m_notificationsToggle, &ToggleSwitch::toggled, this, [](bool on)
@@ -562,11 +566,11 @@ SettingsPage::SettingsPage(VpnManager* manager, QWidget* parent)
         auto* dnsRow = new QWidget(vpnCard);
         auto* dnsRl = new QHBoxLayout(dnsRow);
         dnsRl->setContentsMargins(16, 12, 16, 4);
-        dnsRl->addLayout(makeTextCol(dnsRow,
+        dnsRl->setSpacing(16);
+        dnsRl->addWidget(makeTextCol(dnsRow,
                                      QStringLiteral("Custom DNS"),
                                      QStringLiteral("Override the VPN DNS with your own resolver(s). "
-                                         "Separate multiple addresses with a comma.")));
-        dnsRl->addStretch();
+                                         "Separate multiple addresses with a comma.")), 1);
         m_dnsToggle = new ToggleSwitch(dnsRow);
         dnsRl->addWidget(m_dnsToggle);
         vpnCardLayout->addWidget(dnsRow);
@@ -764,4 +768,7 @@ trademarks of Proton AG.</p>
     dlg->exec();
     dlg->deleteLater();
 }
+
+
+
 
