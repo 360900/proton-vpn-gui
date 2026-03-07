@@ -270,6 +270,15 @@ void VpnManager::disconnectVpn()
     });
 }
 
+void VpnManager::disconnectVpnSync()
+{
+    // Used at application exit — we need the process to complete before the
+    // event loop tears down, so run it synchronously.
+    QProcess process;
+    process.start(QStringLiteral("protonvpn"), QStringList{QStringLiteral("disconnect")});
+    process.waitForFinished(10000); // up to 10 s
+}
+
 void VpnManager::fetchCountries()
 {
     runCommand({QStringLiteral("countries")}, [this](int, const QString& out, const QString&)

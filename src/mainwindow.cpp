@@ -1,13 +1,18 @@
 #include "mainwindow.h"
 
 #include <QApplication>
+#include <QDialog>
+#include <QHBoxLayout>
+#include <QLabel>
 #include <QPixmap>
 #include <QPainter>
+#include <QPushButton>
 #include <QSvgRenderer>
 #include <QSvgWidget>
 #include <QToolButton>
 #include <QButtonGroup>
 #include <QFrame>
+#include <QVBoxLayout>
 
 #include "pages/notinstalledpage.h"
 #include "pages/loginpage.h"
@@ -234,7 +239,82 @@ MainWindow::MainWindow(QWidget* parent)
             m_manager->connectVpn();
     });
     trayMenu->addSeparator();
-    trayMenu->addAction(QStringLiteral("Quit"), qApp, &QApplication::quit);
+    trayMenu->addAction(QStringLiteral("Quit"), this, [this]()
+    {
+        // Only prompt when the VPN is active
+        if (m_manager->currentState() != VpnState::Connected &&
+            m_manager->currentState() != VpnState::Connecting)
+        {
+            QApplication::quit();
+            return;
+        }
+
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle(QStringLiteral("Quit ProtonVPN"));
+        dlg->setAttribute(Qt::WA_DeleteOnClose);
+        dlg->setModal(true);
+        dlg->setMinimumWidth(440);
+
+        auto* layout = new QVBoxLayout(dlg);
+        layout->setSpacing(16);
+        layout->setContentsMargins(24, 24, 24, 20);
+
+        auto* msgLabel = new QLabel(
+            QStringLiteral("The VPN is currently active.<br>"
+                           "What would you like to do before quitting?"), dlg);
+        msgLabel->setWordWrap(true);
+        msgLabel->setTextFormat(Qt::RichText);
+        layout->addWidget(msgLabel);
+
+        auto* btnRow = new QHBoxLayout();
+        btnRow->setSpacing(8);
+
+        auto* cancelBtn = new QPushButton(QStringLiteral("Cancel"), dlg);
+        cancelBtn->setObjectName(QStringLiteral("secondaryButton"));
+
+        auto* leaveOnBtn = new QPushButton(QStringLiteral("Leave VPN on"), dlg);
+        leaveOnBtn->setObjectName(QStringLiteral("leaveVpnOnButton"));
+        leaveOnBtn->setDefault(true);
+
+        auto* disconnectBtn = new QPushButton(QStringLiteral("Disconnect VPN"), dlg);
+        disconnectBtn->setObjectName(QStringLiteral("dangerButton"));
+
+        // Uniform size: same height, equal width via stretch, reduced horizontal
+        // padding so the longest label ("Disconnect VPN") fits without clipping.
+        const QString overridePadding = QStringLiteral("padding-left: 8px; padding-right: 8px;");
+        cancelBtn->setStyleSheet(
+            QStringLiteral("QPushButton#secondaryButton { %1 }").arg(overridePadding));
+        leaveOnBtn->setStyleSheet(
+            QStringLiteral("QPushButton#leaveVpnOnButton { %1 }").arg(overridePadding));
+        disconnectBtn->setStyleSheet(
+            QStringLiteral("QPushButton#dangerButton { %1 }").arg(overridePadding));
+
+        const int btnH = disconnectBtn->sizeHint().height();
+        cancelBtn->setFixedHeight(btnH);
+        leaveOnBtn->setFixedHeight(btnH);
+        disconnectBtn->setFixedHeight(btnH);
+
+        btnRow->addWidget(cancelBtn, 1);
+        btnRow->addWidget(leaveOnBtn, 1);
+        btnRow->addWidget(disconnectBtn, 1);
+        layout->addLayout(btnRow);
+
+        connect(cancelBtn,    &QPushButton::clicked, dlg, &QDialog::reject);
+        connect(leaveOnBtn,   &QPushButton::clicked, dlg, &QDialog::accept);
+        connect(disconnectBtn, &QPushButton::clicked, dlg, [dlg]()
+        {
+            dlg->done(2); // custom result code for "disconnect then quit"
+        });
+
+        const int result = dlg->exec();
+        if (result == QDialog::Rejected)
+            return; // user cancelled — do nothing
+
+        if (result == 2)
+            m_manager->disconnectVpnSync(); // blocks until protonvpn disconnect finishes
+
+        QApplication::quit();
+    });
     m_trayIcon->setContextMenu(trayMenu);
     connect(m_trayIcon, &QSystemTrayIcon::activated, this,
             [this](QSystemTrayIcon::ActivationReason reason)

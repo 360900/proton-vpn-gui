@@ -257,6 +257,17 @@ int main(int argc, char* argv[])
             color: #eaeaea;
         }
 
+        QPushButton#leaveVpnOnButton {
+            background-color: transparent;
+            color: palette(window-text);
+            border: 1px solid palette(window-text);
+            border-radius: 6px;
+            padding: 4px 12px;
+        }
+        QPushButton#leaveVpnOnButton:hover {
+            background-color: rgba(128, 128, 128, 0.15);
+        }
+
         QPushButton#dangerButton {
             background-color: transparent;
             color: #ff6b6b;
