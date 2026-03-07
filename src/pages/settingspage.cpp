@@ -747,6 +747,8 @@ trademarks of Proton AG.</p>
   <li>Uses the <a href="https://protonvpn.com/support/linux-vpn-tool/">ProtonVPN Linux CLI</a></li>
   <li>Icons from <a href="https://icons.getbootstrap.com/">Bootstrap Icons</a>
       (MIT License)</li>
+  <li>Country flag SVGs from <a href="https://github.com/lipis/flag-icons">flag-icons</a>
+      by Panayiotis Lipiridis (MIT License)</li>
 </ul>
 <hr/>
 <p style="color:#888;font-size:small;">

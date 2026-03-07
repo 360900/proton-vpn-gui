@@ -6,7 +6,6 @@
 #include <QLineEdit>
 #include <QMap>
 #include <QTimer>
-#include <QSvgRenderer>
 #include "../vpnmanager.h"
 
 class CountriesPage : public QWidget
@@ -40,16 +39,9 @@ private:
     QMap<QString, QString> m_allCountries; // name → code
     QString m_localCountryCode;            // detected local country (may be empty)
 
-    // Detect the user's country via timezone then locale fallback.
-    // Returns a 2-letter uppercase country code, or empty string on failure.
-    static QString detectUserCountry();
-
     // Build a small icon+tooltip widget for a set of feature tags and add it
     // to the cities list as a custom item widget.
     void addCityItem(const QString& city, const QString& features);
-
-    // Render an SVG resource to a QPixmap at the given size.
-    static QPixmap svgPixmap(const QString& resourcePath, int size = 16);
 
     void onCountriesReady(const QMap<QString, QString>& countries);
     void onCitiesReady(const QString& countryCode, const QList<QPair<QString, QString>>& cities);

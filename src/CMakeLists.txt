@@ -20,6 +20,8 @@ set(SOURCES
         main.cpp
         appconfig.h
         appconfig.cpp
+        geoutils.h
+        geoutils.cpp
         vpnmanager.h
         vpnmanager.cpp
         mainwindow.h
@@ -37,6 +39,7 @@ set(SOURCES
         pages/settingspage.h
         pages/settingspage.cpp
         resources.qrc
+        flags.qrc
 )
 
 add_executable(proton_vpn_qt ${SOURCES})
