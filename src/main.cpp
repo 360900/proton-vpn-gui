@@ -177,6 +177,56 @@ int main(int argc, char* argv[])
             border-color: #6d4aff;
         }
 
+        QFrame#locationPicker {
+            background-color: transparent;
+        }
+        QFrame#locationPickerHeader {
+            background-color: #1a1a2e;
+            border: 1px solid #3a3a55;
+            border-radius: 8px;
+        }
+        QFrame#locationPickerHeader:hover {
+            border-color: #6d4aff;
+        }
+        QLabel#locationPickerTop {
+            color: #9999bb;
+            font-size: 10px;
+        }
+        QLabel#locationPickerBottom {
+            color: #eaeaea;
+            font-size: 13px;
+            font-weight: bold;
+        }
+        QLabel#locationPickerChevron {
+            color: #9999bb;
+            font-size: 12px;
+        }
+        QFrame#locationPickerPopup {
+            background-color: #1a1a2e;
+            border: 1px solid #3a3a55;
+            border-top: none;
+            border-bottom-left-radius: 8px;
+            border-bottom-right-radius: 8px;
+        }
+        QListWidget#locationPickerList {
+            background-color: transparent;
+            border: none;
+            outline: none;
+        }
+        QListWidget#locationPickerList::item {
+            border-bottom: 1px solid #2d2d4a;
+        }
+        QListWidget#locationPickerList::item:selected {
+            background-color: #3a2d7a;
+        }
+        QListWidget#locationPickerList::item:hover {
+            background-color: #2d2d4a;
+        }
+        QLabel#locationPickerItemLabel {
+            color: #eaeaea;
+            font-size: 13px;
+        }
+
         QPushButton#primaryButton {
             background-color: #6d4aff;
             color: white;

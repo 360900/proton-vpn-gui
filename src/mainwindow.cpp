@@ -106,10 +106,11 @@ MainWindow::MainWindow(QWidget* parent)
     // VPN page (index 3)
     m_vpnPage = new VpnPage(m_manager);
     m_stack->addWidget(m_vpnPage); // index 3
-    connect(m_vpnPage, &VpnPage::connectRequested, m_manager, [this]()
-    {
-        m_manager->connectVpn();
-    });
+    connect(m_vpnPage, &VpnPage::connectRequested, m_manager,
+            [this](const QString& country, const QString& city)
+            {
+                m_manager->connectVpn(country, city);
+            });
     connect(m_vpnPage, &VpnPage::disconnectRequested, m_manager, &VpnManager::disconnectVpn);
 
     // Countries page (index 4)

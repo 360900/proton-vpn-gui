@@ -1,4 +1,5 @@
 #include "vpnpage.h"
+#include "../geoutils.h"
 
 #include <QHBoxLayout>
 #include <QVBoxLayout>
@@ -211,9 +212,298 @@ private:
 };
 
 // ============================================================
+// LocationPicker implementation
+// ============================================================
+
+// Feature metadata used to render per-item icons in the popup list
+struct FeatureMeta { QString keyword; QString resource; QString tooltip; };
+static const FeatureMeta kLocationFeatures[] = {
+    { QStringLiteral("p2p"),         QStringLiteral(":/assets/server-p2p.svg"),
+      QStringLiteral("P2P — Optimized for peer-to-peer file sharing") },
+    { QStringLiteral("secure core"), QStringLiteral(":/assets/server-secure-core.svg"),
+      QStringLiteral("Secure Core — Routes traffic through privacy-friendly countries") },
+    { QStringLiteral("tor"),         QStringLiteral(":/assets/server-tor.svg"),
+      QStringLiteral("Tor — Routes traffic through the Tor anonymity network") },
+};
+
+LocationPicker::LocationPicker(const QString& countryCode, QWidget* parent)
+    : QFrame(parent), m_countryCode(countryCode)
+{
+    setObjectName(QStringLiteral("locationPicker"));
+    setFixedWidth(260);
+
+    // ── Header row (always visible, acts as the button) ──────────────────
+    auto* header = new QFrame(this);
+    header->setObjectName(QStringLiteral("locationPickerHeader"));
+    header->setCursor(Qt::PointingHandCursor);
+
+    auto* headerLayout = new QHBoxLayout(header);
+    headerLayout->setContentsMargins(10, 8, 10, 8);
+    headerLayout->setSpacing(10);
+
+    // Flag
+    m_flagLabel = new QLabel(header);
+    m_flagLabel->setFixedSize(28, 21);
+    m_flagLabel->setAlignment(Qt::AlignCenter);
+    if (!countryCode.isEmpty())
+    {
+        const QPixmap pm = GeoUtils::svgPixmap(
+            QStringLiteral(":/flags/") + countryCode.toLower(), 28);
+        if (!pm.isNull())
+            m_flagLabel->setPixmap(pm);
+    }
+    headerLayout->addWidget(m_flagLabel);
+
+    // Two-line text block
+    auto* textCol = new QVBoxLayout();
+    textCol->setSpacing(1);
+    textCol->setContentsMargins(0, 0, 0, 0);
+
+    m_topLine = new QLabel(QStringLiteral("Selected Location"), header);
+    m_topLine->setObjectName(QStringLiteral("locationPickerTop"));
+
+    m_bottomLine = new QLabel(QStringLiteral("⚡  Fastest server"), header);
+    m_bottomLine->setObjectName(QStringLiteral("locationPickerBottom"));
+
+    textCol->addWidget(m_topLine);
+    textCol->addWidget(m_bottomLine);
+    headerLayout->addLayout(textCol);
+    headerLayout->addStretch();
+
+    // Chevron
+    m_chevron = new QLabel(QStringLiteral("▾"), header);
+    m_chevron->setObjectName(QStringLiteral("locationPickerChevron"));
+    headerLayout->addWidget(m_chevron);
+
+    // ── Outer layout — header only, popup is a floating window ───────────
+    auto* outerLayout = new QVBoxLayout(this);
+    outerLayout->setContentsMargins(0, 0, 0, 0);
+    outerLayout->setSpacing(0);
+    outerLayout->addWidget(header);
+
+    // ── Popup — top-level frameless Qt::Popup window ─────────────────────
+    // Qt::Popup gives us: floats above everything, auto-closes on outside click,
+    // no taskbar entry, no frame. Exactly like QComboBox's internal drop-down.
+    m_popup = new QFrame(nullptr, Qt::Popup | Qt::FramelessWindowHint);
+    m_popup->setObjectName(QStringLiteral("locationPickerPopup"));
+    m_popup->setAttribute(Qt::WA_TranslucentBackground, false);
+
+    auto* popupLayout = new QVBoxLayout(m_popup);
+    popupLayout->setContentsMargins(0, 0, 0, 0);
+    popupLayout->setSpacing(0);
+
+    m_list = new QListWidget(m_popup);
+    m_list->setObjectName(QStringLiteral("locationPickerList"));
+    m_list->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    m_list->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
+    popupLayout->addWidget(m_list);
+
+    // Header click toggles popup; Qt::Popup handles outside-click dismissal.
+    // Reset the chevron whenever the popup closes for any reason.
+    header->installEventFilter(this);
+    connect(m_list, &QListWidget::itemClicked, this, &LocationPicker::onItemClicked);
+    m_popup->installEventFilter(this);
+
+    // Start in loading state immediately — visible but not yet populated
+    setLoading(true);
+}
+
+bool LocationPicker::eventFilter(QObject* obj, QEvent* ev)
+{
+    // Popup hidden by Qt (outside click auto-dismiss) → reset chevron
+    if (obj == m_popup && ev->type() == QEvent::Hide)
+    {
+        m_chevron->setText(QStringLiteral("▾"));
+        return false;
+    }
+
+    // Header click → toggle
+    if (obj->isWidgetType() && ev->type() == QEvent::MouseButtonRelease)
+    {
+        auto* w = static_cast<QWidget*>(obj);
+        if (w->objectName() == QLatin1String("locationPickerHeader"))
+        {
+            QWidget* p = w;
+            while (p) { if (p == this) { togglePopup(); return true; } p = p->parentWidget(); }
+        }
+    }
+    return QFrame::eventFilter(obj, ev);
+}
+
+void LocationPicker::togglePopup()
+{
+    if (m_list->count() == 0) return; // don't open while still loading
+
+    if (m_popup->isVisible())
+    {
+        closePopup();
+        return;
+    }
+
+    // Size the list to show all items (up to 8 rows) before showing
+    resizeList();
+
+    // Position the popup flush below the header, aligned to our left edge
+    const QPoint globalBottomLeft = mapToGlobal(QPoint(0, height()));
+    m_popup->setFixedWidth(width());
+    m_popup->move(globalBottomLeft);
+    m_popup->show();
+    m_chevron->setText(QStringLiteral("▴"));
+}
+
+void LocationPicker::closePopup()
+{
+    m_popup->hide();
+    m_chevron->setText(QStringLiteral("▾"));
+}
+
+void LocationPicker::resizeList()
+{
+    const int count = m_list->count();
+    if (count == 0) return;
+    const int rowH = m_list->sizeHintForRow(0);
+    const int rows = qMin(count, 8);
+    m_list->setFixedHeight(rows * rowH + 2);
+    m_popup->adjustSize();
+}
+
+void LocationPicker::onItemClicked(QListWidgetItem* item)
+{
+    const QString clicked = item->data(Qt::UserRole).toString();
+    closePopup();
+
+    if (clicked == m_selectedCity)
+        return; // same selection — no signal, no confirmation dialog
+
+    m_selectedCity = clicked;
+    updateHeader();
+    emit selectionChanged(m_selectedCity);
+}
+
+void LocationPicker::updateHeader()
+{
+    if (m_selectedCity.isEmpty())
+        m_bottomLine->setText(QStringLiteral("⚡  Fastest server"));
+    else
+        m_bottomLine->setText(m_selectedCity);
+}
+
+void LocationPicker::setLoading(bool loading)
+{
+    if (loading)
+    {
+        // Animate the bottom line with braille spinner frames
+        static const char* const frames[] = {"⠋","⠙","⠹","⠸","⠼","⠴","⠦","⠧","⠇","⠏"};
+        if (!m_loadingTimer)
+        {
+            m_loadingTimer = new QTimer(this);
+            m_loadingTimer->setInterval(120);
+            connect(m_loadingTimer, &QTimer::timeout, this, [this]()
+            {
+                m_loadingFrame = (m_loadingFrame + 1) % 10;
+                static const char* const fr[] = {"⠋","⠙","⠹","⠸","⠼","⠴","⠦","⠧","⠇","⠏"};
+                m_bottomLine->setText(
+                    QStringLiteral("%1 Loading locations…")
+                        .arg(QString::fromUtf8(fr[m_loadingFrame])));
+            });
+        }
+        m_bottomLine->setText(
+            QStringLiteral("%1 Loading locations…")
+                .arg(QString::fromUtf8(frames[0])));
+        m_loadingTimer->start();
+        m_chevron->setVisible(false);
+        setVisible(true);
+    }
+    else
+    {
+        if (m_loadingTimer) m_loadingTimer->stop();
+        m_chevron->setVisible(true);
+        updateHeader();
+    }
+}
+
+void LocationPicker::populate(const QList<QPair<QString, QString>>& cities)
+{
+    setLoading(false);
+    m_list->clear();
+
+    // ── Fastest server entry ──────────────────────────────────────────────
+    auto* fastestItem = new QListWidgetItem();
+    fastestItem->setData(Qt::UserRole, QString());
+
+    auto* fastestRow = new QWidget();
+    auto* fbox = new QHBoxLayout(fastestRow);
+    fbox->setContentsMargins(10, 6, 10, 6);
+    fbox->setSpacing(8);
+
+    auto* fIcon = new QLabel(fastestRow);
+    if (!m_countryCode.isEmpty())
+    {
+        const QPixmap pm = GeoUtils::svgPixmap(
+            QStringLiteral(":/flags/") + m_countryCode.toLower(), 20);
+        if (!pm.isNull()) { fIcon->setPixmap(pm); fIcon->setFixedSize(24, 18); }
+    }
+    fbox->addWidget(fIcon, 0, Qt::AlignVCenter);
+
+    auto* fLabel = new QLabel(QStringLiteral("⚡  Fastest server"), fastestRow);
+    fLabel->setObjectName(QStringLiteral("locationPickerItemLabel"));
+    QFont bold = fLabel->font(); bold.setBold(true); bold.setItalic(true);
+    fLabel->setFont(bold);
+    fLabel->setStyleSheet(QStringLiteral("color: #ab8fff;"));
+    fbox->addWidget(fLabel, 1, Qt::AlignVCenter);
+
+    fastestItem->setSizeHint(QSize(0, 34));
+    m_list->addItem(fastestItem);
+    m_list->setItemWidget(fastestItem, fastestRow);
+
+    // ── City entries ──────────────────────────────────────────────────────
+    for (const auto& [city, features] : cities)
+    {
+        auto* item = new QListWidgetItem();
+        item->setData(Qt::UserRole, city);
+
+        auto* row = new QWidget();
+        auto* hbox = new QHBoxLayout(row);
+        hbox->setContentsMargins(10, 6, 10, 6);
+        hbox->setSpacing(8);
+
+        auto* cityLabel = new QLabel(city, row);
+        cityLabel->setObjectName(QStringLiteral("locationPickerItemLabel"));
+        hbox->addWidget(cityLabel, 1, Qt::AlignVCenter);
+
+        const QStringList tags = features.split(QLatin1Char(','), Qt::SkipEmptyParts);
+        for (const auto& meta : kLocationFeatures)
+        {
+            bool matched = false;
+            for (const QString& tag : tags)
+                if (tag.trimmed().contains(meta.keyword, Qt::CaseInsensitive))
+                    { matched = true; break; }
+            if (!matched) continue;
+
+            auto* iconLabel = new QLabel(row);
+            iconLabel->setPixmap(GeoUtils::svgPixmap(meta.resource, 16));
+            iconLabel->setFixedSize(22, 22);
+            iconLabel->setAlignment(Qt::AlignCenter);
+            iconLabel->setToolTip(meta.tooltip);
+            hbox->addWidget(iconLabel, 0, Qt::AlignVCenter);
+        }
+
+        item->setSizeHint(QSize(0, 34));
+        m_list->addItem(item);
+        m_list->setItemWidget(item, row);
+    }
+
+    m_list->setCurrentRow(0);
+    m_selectedCity.clear();
+}
+
+// ============================================================
+// VpnPage implementation
+// ============================================================
 
 VpnPage::VpnPage(VpnManager* manager, QWidget* parent)
-    : QWidget(parent), m_manager(manager)
+    : QWidget(parent), m_manager(manager),
+      m_localCountryCode(GeoUtils::detectUserCountry())
 {
     auto* layout = new QVBoxLayout(this);
     layout->setSpacing(24);
@@ -238,7 +528,10 @@ VpnPage::VpnPage(VpnManager* manager, QWidget* parent)
         if (m_currentState == VpnState::Connected)
             emit disconnectRequested();
         else if (m_currentState == VpnState::Disconnected || m_currentState == VpnState::Error)
-            emit connectRequested();
+        {
+            m_activeCity = m_locationPicker->selectedCity();
+            emit connectRequested(m_localCountryCode, m_activeCity);
+        }
     });
     layout->addWidget(m_powerBtn, 0, Qt::AlignCenter);
 
@@ -247,6 +540,10 @@ VpnPage::VpnPage(VpnManager* manager, QWidget* parent)
     m_statusLabel->setObjectName(QStringLiteral("vpnStatusLabel"));
     m_statusLabel->setAlignment(Qt::AlignCenter);
     layout->addWidget(m_statusLabel, 0, Qt::AlignCenter);
+
+    // Location picker — shows immediately in loading state, populated once cities arrive
+    m_locationPicker = new LocationPicker(m_localCountryCode, this);
+    layout->addWidget(m_locationPicker, 0, Qt::AlignCenter);
 
     // Timer label
     m_timerLabel = new QLabel(this);
@@ -300,6 +597,88 @@ VpnPage::VpnPage(VpnManager* manager, QWidget* parent)
     // Start in Unknown — spinner runs until checkConnectionStatus responds
     updateUi(VpnState::Unknown, QString());
     m_checkingSpinnerTimer->start();
+
+    // Populate city combo from the detected local country (if any)
+    connect(m_manager, &VpnManager::citiesReady,
+            this, &VpnPage::onCitiesReady);
+    if (!m_localCountryCode.isEmpty())
+        m_manager->fetchCities(m_localCountryCode);
+
+    // When the user changes location while connected/connecting, ask what to do
+    connect(m_locationPicker, &LocationPicker::selectionChanged,
+            this, [this](const QString& city)
+    {
+        if (m_currentState != VpnState::Connected && m_currentState != VpnState::Connecting)
+            return;
+
+        // No confirmation needed if the selected location matches the active connection
+        if (city == m_activeCity)
+            return;
+
+        const QString locationName = city.isEmpty()
+            ? QStringLiteral("Fastest server")
+            : city;
+
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle(QStringLiteral("Change Location?"));
+        dlg->setAttribute(Qt::WA_DeleteOnClose);
+        dlg->setModal(true);
+        dlg->setMinimumWidth(360);
+
+        auto* layout = new QVBoxLayout(dlg);
+        layout->setSpacing(16);
+        layout->setContentsMargins(24, 24, 24, 20);
+
+        auto* msgLabel = new QLabel(
+            QStringLiteral("You selected <b>%1</b>.<br>"
+                           "Would you like to connect to this location now, "
+                           "or use it on the next reconnect?").arg(locationName.toHtmlEscaped()),
+            dlg);
+        msgLabel->setWordWrap(true);
+        msgLabel->setTextFormat(Qt::RichText);
+        layout->addWidget(msgLabel);
+
+        auto* btnRow = new QHBoxLayout();
+        btnRow->setSpacing(8);
+
+        auto* laterBtn = new QPushButton(QStringLiteral("On next reconnect"), dlg);
+        laterBtn->setObjectName(QStringLiteral("secondaryButton"));
+
+        auto* nowBtn = new QPushButton(QStringLiteral("Connect now"), dlg);
+        nowBtn->setObjectName(QStringLiteral("primaryButton"));
+        nowBtn->setDefault(true);
+
+        // Ensure both buttons are the same height.
+        // We use the primary button's natural height as the reference — compute it
+        // from its stylesheet (font metrics + 10px top + 10px bottom padding).
+        const int btnH = nowBtn->sizeHint().height();
+        laterBtn->setFixedHeight(btnH);
+        nowBtn->setFixedHeight(btnH);
+
+        btnRow->addWidget(laterBtn, 1);
+        btnRow->addWidget(nowBtn, 1);
+        layout->addLayout(btnRow);
+
+        connect(laterBtn, &QPushButton::clicked, dlg, &QDialog::reject);
+        connect(nowBtn,   &QPushButton::clicked, dlg, &QDialog::accept);
+
+        if (dlg->exec() == QDialog::Accepted)
+        {
+            m_activeCity = city;
+            emit connectRequested(m_localCountryCode, city);
+        }
+    });
+}
+
+void VpnPage::onCitiesReady(const QString& countryCode,
+                            const QList<QPair<QString, QString>>& cities)
+{
+    // Only populate for our detected local country
+    if (countryCode.compare(m_localCountryCode, Qt::CaseInsensitive) != 0)
+        return;
+
+    m_locationPicker->populate(cities);
+    // populate() calls setVisible(true) internally; nothing else needed here.
 }
 
 void VpnPage::onStateChanged(VpnState state, const QString& info)
@@ -340,6 +719,7 @@ void VpnPage::updateUi(const VpnState state, const QString& info)
         m_statusLabel->setText(QStringLiteral("Disconnected"));
         m_statusLabel->setStyleSheet(QStringLiteral("color: #888888; font-size: 16pt; font-weight: bold; letter-spacing: 1px;"));
         m_infoLabel->setText(info.isEmpty() ? QString() : info);
+        m_activeCity.clear();
         stopElapsedTimer();
         break;
 
