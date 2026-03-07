@@ -37,7 +37,7 @@ private:
     QWidget* m_sidebar;
     QStackedWidget* m_stack;
 
-    QToolButton* m_vpnNavBtn;
+    QToolButton* m_logoBtn;
     QToolButton* m_countriesNavBtn;
     QToolButton* m_accountNavBtn;
     QToolButton* m_settingsNavBtn;

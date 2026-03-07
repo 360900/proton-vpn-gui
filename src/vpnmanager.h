@@ -28,6 +28,7 @@ public:
     void signOut();
     void connectVpn(const QString& country = QString(), const QString& city = QString());
     void disconnectVpn();
+    void disconnectVpnSync(); // blocking disconnect — safe to call just before app exit
     void fetchCountries();
     void fetchCities(const QString& countryCode);
     void fetchInfo();

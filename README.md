@@ -8,18 +8,19 @@ A Qt GUI front-end for the [Proton VPN Linux CLI](https://protonvpn.com/support/
 
 ## Features
 
-## Features
-
 - One-click **connect / disconnect** with a large power button and system tray controls
+- **Location picker** on the main page — shows the fastest server or a specific city for your detected country, with country flag and feature icons (P2P, Tor, Secure Core)
 - Automatic connection detection on launch with active server and public IP display
 - Secure login with **interactive 2FA support** and inline validation
 - Browse and search countries and cities with feature tags (P2P, Tor, Secure Core, Streaming, etc.)
+- **Country flags** in the countries list, detected from system locale/timezone
 - Connect to the fastest server or choose a specific location
+- Confirmation dialog when quitting while the VPN is active — leave it running or disconnect cleanly
 - Account page with username display and sign-out
 - Startup options including **launch on login** (systemd user service) and optional auto-connect
 - Single-instance protection to prevent duplicate launches
 - Proton-inspired dark theme with KDE Breeze (when available) or Fusion styling
-- About dialog with version and CLI compatibility information
+- About dialog with version, CLI compatibility information, and open-source credits
 
 ---
 
@@ -100,6 +101,7 @@ tar -xzf proton-vpn-qt-app-linux-x86_64.tar.gz
 - Icons from [Bootstrap Icons](https://icons.getbootstrap.com/) (MIT License)
 - Built with [Qt 6](https://www.qt.io/)
 - Uses the [ProtonVPN Linux CLI](https://protonvpn.com/support/linux-vpn-tool/)
+- Country flags from [Flag Icons](https://flagicons.lipis.dev/) (MIT License)
 
 ---
 

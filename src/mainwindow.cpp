@@ -1,13 +1,18 @@
 #include "mainwindow.h"
 
 #include <QApplication>
+#include <QDialog>
+#include <QHBoxLayout>
+#include <QLabel>
 #include <QPixmap>
 #include <QPainter>
+#include <QPushButton>
 #include <QSvgRenderer>
 #include <QSvgWidget>
 #include <QToolButton>
 #include <QButtonGroup>
 #include <QFrame>
+#include <QVBoxLayout>
 
 #include "pages/notinstalledpage.h"
 #include "pages/loginpage.h"
@@ -47,7 +52,7 @@ MainWindow::MainWindow(QWidget* parent)
     setWindowTitle(QStringLiteral("ProtonVPN"));
     setWindowIcon(svgNavIcon(QStringLiteral(":/assets/proton-vpn-sign.svg"), {64, 64}, false));
     setMinimumSize(490, 560);
-    resize(490, 600);
+    resize(530, 600);
 
     m_manager = new VpnManager(this);
 
@@ -106,10 +111,11 @@ MainWindow::MainWindow(QWidget* parent)
     // VPN page (index 3)
     m_vpnPage = new VpnPage(m_manager);
     m_stack->addWidget(m_vpnPage); // index 3
-    connect(m_vpnPage, &VpnPage::connectRequested, m_manager, [this]()
-    {
-        m_manager->connectVpn();
-    });
+    connect(m_vpnPage, &VpnPage::connectRequested, m_manager,
+            [this](const QString& country, const QString& city)
+            {
+                m_manager->connectVpn(country, city);
+            });
     connect(m_vpnPage, &VpnPage::disconnectRequested, m_manager, &VpnManager::disconnectVpn);
 
     // Countries page (index 4)
@@ -233,7 +239,82 @@ MainWindow::MainWindow(QWidget* parent)
             m_manager->connectVpn();
     });
     trayMenu->addSeparator();
-    trayMenu->addAction(QStringLiteral("Quit"), qApp, &QApplication::quit);
+    trayMenu->addAction(QStringLiteral("Quit"), this, [this]()
+    {
+        // Only prompt when the VPN is active
+        if (m_manager->currentState() != VpnState::Connected &&
+            m_manager->currentState() != VpnState::Connecting)
+        {
+            QApplication::quit();
+            return;
+        }
+
+        auto* dlg = new QDialog(this);
+        dlg->setWindowTitle(QStringLiteral("Quit ProtonVPN"));
+        dlg->setAttribute(Qt::WA_DeleteOnClose);
+        dlg->setModal(true);
+        dlg->setMinimumWidth(440);
+
+        auto* layout = new QVBoxLayout(dlg);
+        layout->setSpacing(16);
+        layout->setContentsMargins(24, 24, 24, 20);
+
+        auto* msgLabel = new QLabel(
+            QStringLiteral("The VPN is currently active.<br>"
+                           "What would you like to do before quitting?"), dlg);
+        msgLabel->setWordWrap(true);
+        msgLabel->setTextFormat(Qt::RichText);
+        layout->addWidget(msgLabel);
+
+        auto* btnRow = new QHBoxLayout();
+        btnRow->setSpacing(8);
+
+        auto* cancelBtn = new QPushButton(QStringLiteral("Cancel"), dlg);
+        cancelBtn->setObjectName(QStringLiteral("secondaryButton"));
+
+        auto* leaveOnBtn = new QPushButton(QStringLiteral("Leave VPN on"), dlg);
+        leaveOnBtn->setObjectName(QStringLiteral("leaveVpnOnButton"));
+        leaveOnBtn->setDefault(true);
+
+        auto* disconnectBtn = new QPushButton(QStringLiteral("Disconnect VPN"), dlg);
+        disconnectBtn->setObjectName(QStringLiteral("dangerButton"));
+
+        // Uniform size: same height, equal width via stretch, reduced horizontal
+        // padding so the longest label ("Disconnect VPN") fits without clipping.
+        const QString overridePadding = QStringLiteral("padding-left: 8px; padding-right: 8px;");
+        cancelBtn->setStyleSheet(
+            QStringLiteral("QPushButton#secondaryButton { %1 }").arg(overridePadding));
+        leaveOnBtn->setStyleSheet(
+            QStringLiteral("QPushButton#leaveVpnOnButton { %1 }").arg(overridePadding));
+        disconnectBtn->setStyleSheet(
+            QStringLiteral("QPushButton#dangerButton { %1 }").arg(overridePadding));
+
+        const int btnH = disconnectBtn->sizeHint().height();
+        cancelBtn->setFixedHeight(btnH);
+        leaveOnBtn->setFixedHeight(btnH);
+        disconnectBtn->setFixedHeight(btnH);
+
+        btnRow->addWidget(cancelBtn, 1);
+        btnRow->addWidget(leaveOnBtn, 1);
+        btnRow->addWidget(disconnectBtn, 1);
+        layout->addLayout(btnRow);
+
+        connect(cancelBtn,    &QPushButton::clicked, dlg, &QDialog::reject);
+        connect(leaveOnBtn,   &QPushButton::clicked, dlg, &QDialog::accept);
+        connect(disconnectBtn, &QPushButton::clicked, dlg, [dlg]()
+        {
+            dlg->done(2); // custom result code for "disconnect then quit"
+        });
+
+        const int result = dlg->exec();
+        if (result == QDialog::Rejected)
+            return; // user cancelled — do nothing
+
+        if (result == 2)
+            m_manager->disconnectVpnSync(); // blocks until protonvpn disconnect finishes
+
+        QApplication::quit();
+    });
     m_trayIcon->setContextMenu(trayMenu);
     connect(m_trayIcon, &QSystemTrayIcon::activated, this,
             [this](QSystemTrayIcon::ActivationReason reason)
@@ -259,17 +340,24 @@ void MainWindow::setupSidebar()
     layout->setContentsMargins(0, 8, 0, 8);
     layout->setSpacing(4);
 
-    // Logo at top — use a QLabel with a transparent pixmap so no background shows
-    auto* logoLabel = new QLabel(m_sidebar);
-    logoLabel->setPixmap(svgNavIcon(QStringLiteral(":/assets/proton-vpn-sign.svg"), {40, 40}, false).pixmap(40, 40));
-    logoLabel->setFixedSize(40, 40);
-    logoLabel->setAttribute(Qt::WA_TranslucentBackground);
-    layout->addWidget(logoLabel, 0, Qt::AlignHCenter);
-
-    layout->addSpacing(12);
-
     auto* btnGroup = new QButtonGroup(m_sidebar);
     btnGroup->setExclusive(true);
+
+    // Logo button is part of the exclusive group so clicking it automatically
+    // clears the checked state on all nav buttons.
+    m_logoBtn = new QToolButton(m_sidebar);
+    m_logoBtn->setIcon(svgNavIcon(QStringLiteral(":/assets/proton-vpn-sign.svg"), {40, 40}, false));
+    m_logoBtn->setIconSize({40, 40});
+    m_logoBtn->setFixedSize(40, 40);
+    m_logoBtn->setToolTip(QStringLiteral("VPN"));
+    m_logoBtn->setCursor(Qt::PointingHandCursor);
+    m_logoBtn->setObjectName(QStringLiteral("logoButton"));
+    m_logoBtn->setCheckable(true);
+    btnGroup->addButton(m_logoBtn);
+    layout->addWidget(m_logoBtn, 0, Qt::AlignHCenter);
+    connect(m_logoBtn, &QToolButton::clicked, this, [this]() { showPage(Page::Vpn); });
+
+    layout->addSpacing(12);
 
     auto makeNavBtn = [&](const QString& tooltip, const QString& iconPath) -> QToolButton*
     {
@@ -286,11 +374,9 @@ void MainWindow::setupSidebar()
         return btn;
     };
 
-    m_vpnNavBtn = makeNavBtn(QStringLiteral("VPN"), QStringLiteral(":/assets/state-disconnected.svg"));
     m_countriesNavBtn = makeNavBtn(QStringLiteral("Countries"), QStringLiteral(":/assets/server-smart-routing.svg"));
     m_accountNavBtn = makeNavBtn(QStringLiteral("Account"), QStringLiteral(":/assets/person-lines-fill.svg"));
 
-    connect(m_vpnNavBtn, &QToolButton::clicked, this, [this]() { showPage(Page::Vpn); });
     connect(m_countriesNavBtn, &QToolButton::clicked, this, [this]() { showPage(Page::Countries); });
     connect(m_accountNavBtn, &QToolButton::clicked, this, [this]()
     {
@@ -313,7 +399,7 @@ void MainWindow::showPage(Page page) const
 {
     m_stack->setCurrentIndex(static_cast<int>(page));
 
-    m_vpnNavBtn->setChecked(page == Page::Vpn);
+    m_logoBtn->setChecked(page == Page::Vpn);
     m_countriesNavBtn->setChecked(page == Page::Countries);
     m_accountNavBtn->setChecked(page == Page::Account);
     m_settingsNavBtn->setChecked(page == Page::Settings);
@@ -321,7 +407,7 @@ void MainWindow::showPage(Page page) const
 
 void MainWindow::setNavActive(QToolButton* btn)
 {
-    for (auto* b : {m_vpnNavBtn, m_countriesNavBtn, m_accountNavBtn, m_settingsNavBtn})
+    for (auto* b : {m_logoBtn, m_countriesNavBtn, m_accountNavBtn, m_settingsNavBtn})
         b->setChecked(b == btn);
 }
 

@@ -116,6 +116,19 @@ int main(int argc, char* argv[])
             background-color: #3a2d7a;
         }
 
+        QToolButton#logoButton {
+            background-color: transparent;
+            border: none;
+            border-radius: 8px;
+            padding: 0px;
+        }
+        QToolButton#logoButton:hover {
+            background-color: #2d2d4a;
+        }
+        QToolButton#logoButton:checked {
+            background-color: #3a2d7a;
+        }
+
         QWidget#loginCard {
             background-color: #25253d;
             border-radius: 12px;
@@ -164,6 +177,56 @@ int main(int argc, char* argv[])
             border-color: #6d4aff;
         }
 
+        QFrame#locationPicker {
+            background-color: transparent;
+        }
+        QFrame#locationPickerHeader {
+            background-color: #1a1a2e;
+            border: 1px solid #3a3a55;
+            border-radius: 8px;
+        }
+        QFrame#locationPickerHeader:hover {
+            border-color: #6d4aff;
+        }
+        QLabel#locationPickerTop {
+            color: #9999bb;
+            font-size: 10px;
+        }
+        QLabel#locationPickerBottom {
+            color: #eaeaea;
+            font-size: 13px;
+            font-weight: bold;
+        }
+        QLabel#locationPickerChevron {
+            color: #9999bb;
+            font-size: 12px;
+        }
+        QFrame#locationPickerPopup {
+            background-color: #1a1a2e;
+            border: 1px solid #3a3a55;
+            border-top: none;
+            border-bottom-left-radius: 8px;
+            border-bottom-right-radius: 8px;
+        }
+        QListWidget#locationPickerList {
+            background-color: transparent;
+            border: none;
+            outline: none;
+        }
+        QListWidget#locationPickerList::item {
+            border-bottom: 1px solid #2d2d4a;
+        }
+        QListWidget#locationPickerList::item:selected {
+            background-color: #3a2d7a;
+        }
+        QListWidget#locationPickerList::item:hover {
+            background-color: #2d2d4a;
+        }
+        QLabel#locationPickerItemLabel {
+            color: #eaeaea;
+            font-size: 13px;
+        }
+
         QPushButton#primaryButton {
             background-color: #6d4aff;
             color: white;
@@ -192,6 +255,17 @@ int main(int argc, char* argv[])
         QPushButton#secondaryButton:hover {
             background-color: #2d2d4a;
             color: #eaeaea;
+        }
+
+        QPushButton#leaveVpnOnButton {
+            background-color: transparent;
+            color: palette(window-text);
+            border: 1px solid palette(window-text);
+            border-radius: 6px;
+            padding: 4px 12px;
+        }
+        QPushButton#leaveVpnOnButton:hover {
+            background-color: rgba(128, 128, 128, 0.15);
         }
 
         QPushButton#dangerButton {
