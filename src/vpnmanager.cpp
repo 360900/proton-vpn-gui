@@ -420,6 +420,7 @@ void VpnManager::checkConnectionStatus()
                                     });
                             curl->start(QStringLiteral("curl"),
                                         QStringList{
+                                            QStringLiteral("-4"), // Show IPv4
                                             QStringLiteral("--silent"),
                                             QStringLiteral("--max-time"), QStringLiteral("5"),
                                             QStringLiteral("ifconfig.me")
