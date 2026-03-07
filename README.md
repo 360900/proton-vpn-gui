@@ -1,6 +1,6 @@
 # proton-vpn-qt-app
 
-A community-built Qt 6 GUI front-end for the [Proton VPN Linux CLI](https://protonvpn.com/support/linux-vpn-tool/).
+A Qt GUI front-end for the [Proton VPN Linux CLI](https://protonvpn.com/support/linux-vpn-tool/).
 
 > **Disclaimer:** This project is an independent community effort and is in no way affiliated with, endorsed by, or associated with Proton AG or any of its products. "Proton" and "ProtonVPN" are trademarks of Proton AG.
 
@@ -24,12 +24,11 @@ A community-built Qt 6 GUI front-end for the [Proton VPN Linux CLI](https://prot
 ---
 
 ## Screenshots
-<img width="494" height="590" alt="Screenshot_20260225_205650" src="https://github.com/user-attachments/assets/47ab639d-f368-4586-8123-f757d5f0b9cb" />
-<img width="494" height="590" alt="Screenshot_20260225_205715" src="https://github.com/user-attachments/assets/377a0a4f-af3a-4e12-a598-f9587db30340" />
-<img width="494" height="590" alt="Screenshot_20260225_205728" src="https://github.com/user-attachments/assets/62384065-472e-4a36-a979-8a46143dd18d" />
-<img width="494" height="819" alt="Screenshot_20260225_205756" src="https://github.com/user-attachments/assets/a00fa381-2dfb-46ff-b581-cd374c254f28" />
-
-
+<img width="535" height="630" alt="Screenshot_20260307_151057" src="https://github.com/user-attachments/assets/138fe873-dc97-4c03-8d56-60718c0f44cd" />
+<img width="535" height="630" alt="Screenshot_20260307_151115" src="https://github.com/user-attachments/assets/51f74a26-84de-4202-aac0-dd4c2c6116a3" />
+<img width="535" height="630" alt="Screenshot_20260307_151135" src="https://github.com/user-attachments/assets/687d6bde-039e-4ac4-8fb7-c7de7f2374a6" />
+<img width="535" height="630" alt="Screenshot_20260307_151728" src="https://github.com/user-attachments/assets/96338729-a99e-4586-96c7-e11d33c4c24a" />
+<img width="534" height="964" alt="Screenshot_20260307_151827" src="https://github.com/user-attachments/assets/5db7dfe9-c1eb-4dfe-ace3-1818d60defa2" />
 
 ## Requirements
 
