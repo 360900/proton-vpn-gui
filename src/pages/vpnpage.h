@@ -4,6 +4,7 @@
 #include <QLabel>
 #include <QListWidget>
 #include <QPushButton>
+#include <QScrollArea>
 #include <QTimer>
 #include <QPropertyAnimation>
 #include <QDialog>
@@ -112,6 +113,7 @@ public:
 signals:
     void connectRequested(const QString& country, const QString& city);
     void disconnectRequested();
+    void signOutRequested();
 
 private slots:
     void onCitiesReady(const QString& countryCode, const QList<QPair<QString, QString>>& cities);
@@ -123,6 +125,7 @@ private:
     PowerButton*    m_powerBtn;
     QLabel*         m_statusLabel;
     QLabel*         m_infoLabel;
+    QLabel*         m_signOutHintLabel;
     QPushButton*    m_errorDetailsBtn;
     QLabel*         m_timerLabel;
     LocationPicker* m_locationPicker;

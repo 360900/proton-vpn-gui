@@ -13,6 +13,7 @@
 #include <QFont>
 #include <QGuiApplication>
 #include <QClipboard>
+#include <QScrollArea>
 #include <cmath>
 
 // ============================================================
@@ -182,7 +183,7 @@ public:
 
     [[nodiscard]] QSize sizeHint() const override
     {
-        const int w = qMin(parentWidget() ? parentWidget()->width() : 320, 1000);
+        const int w = qMin(width() > 0 ? width() : (parentWidget() ? parentWidget()->width() : 320), 1000);
         return {w, qRound(w / m_aspect)};
     }
 
@@ -505,24 +506,24 @@ VpnPage::VpnPage(VpnManager* manager, QWidget* parent)
     : QWidget(parent), m_manager(manager),
       m_localCountryCode(GeoUtils::detectUserCountry())
 {
-    auto* layout = new QVBoxLayout(this);
-    layout->setSpacing(24);
-    layout->setContentsMargins(40, 40, 40, 40);
+    auto* outerLayout = new QVBoxLayout(this);
+    outerLayout->setSpacing(0);
+    outerLayout->setContentsMargins(0, 0, 0, 0);
 
-    // Proton VPN logo banner – pinned to top, fills available width at 4:1 aspect ratio (max 1000px, centered)
-    auto* logoWidget = new SvgBanner(QStringLiteral(":/assets/proton-vpn-logo.svg"), 4.0, this);
-    auto* logoRow = new QHBoxLayout();
-    logoRow->setContentsMargins(0, 0, 0, 0);
-    logoRow->addStretch(1);
-    logoRow->addWidget(logoWidget);
-    logoRow->addStretch(1);
-    layout->addLayout(logoRow);
+    // ── Fixed top section: logo + power button + status label ────────────
+    // This part never scrolls so the power button is always reachable.
+    auto* topWidget = new QWidget(this);
+    topWidget->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+    auto* topLayout = new QVBoxLayout(topWidget);
+    topLayout->setSpacing(24);
+    topLayout->setContentsMargins(40, 40, 40, 8);
 
-    // Push the rest of the content to vertical centre
-    layout->addStretch(1);
+    // Proton VPN logo banner
+    auto* logoWidget = new SvgBanner(QStringLiteral(":/assets/proton-vpn-logo.svg"), 4.0, topWidget);
+    topLayout->addWidget(logoWidget);
 
     // Power button
-    m_powerBtn = new PowerButton(this);
+    m_powerBtn = new PowerButton(topWidget);
     connect(m_powerBtn, &PowerButton::clicked, this, [this]()
     {
         if (m_currentState == VpnState::Connected)
@@ -533,42 +534,86 @@ VpnPage::VpnPage(VpnManager* manager, QWidget* parent)
             emit connectRequested(m_localCountryCode, m_activeCity);
         }
     });
-    layout->addWidget(m_powerBtn, 0, Qt::AlignCenter);
+    topLayout->addWidget(m_powerBtn, 0, Qt::AlignCenter);
 
     // Status text
-    m_statusLabel = new QLabel(QStringLiteral("Checking…"), this);
+    m_statusLabel = new QLabel(QStringLiteral("Checking…"), topWidget);
     m_statusLabel->setObjectName(QStringLiteral("vpnStatusLabel"));
     m_statusLabel->setAlignment(Qt::AlignCenter);
-    layout->addWidget(m_statusLabel, 0, Qt::AlignCenter);
+    topLayout->addWidget(m_statusLabel, 0, Qt::AlignCenter);
 
-    // Location picker — shows immediately in loading state, populated once cities arrive
-    m_locationPicker = new LocationPicker(m_localCountryCode, this);
-    layout->addWidget(m_locationPicker, 0, Qt::AlignCenter);
+    // Location picker — fixed, never scrolls
+    m_locationPicker = new LocationPicker(m_localCountryCode, topWidget);
+    topLayout->addWidget(m_locationPicker, 0, Qt::AlignCenter);
+
+    outerLayout->addWidget(topWidget);
+
+    // ── Scrollable section: timer, info, hint, button ────────────────────
+    // Wrapped in a QScrollArea so it gracefully scrolls when the window is
+    // at its minimum height and the content would otherwise overlap the button.
+    auto* scrollContent = new QWidget();
+    scrollContent->setObjectName(QStringLiteral("vpnScrollContent"));
+    scrollContent->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
+
+    auto* scrollLayout = new QVBoxLayout(scrollContent);
+    scrollLayout->setSpacing(16);
+    scrollLayout->setContentsMargins(40, 8, 40, 16);
+
 
     // Timer label
-    m_timerLabel = new QLabel(this);
+    m_timerLabel = new QLabel(scrollContent);
     m_timerLabel->setObjectName(QStringLiteral("timerLabel"));
     m_timerLabel->setAlignment(Qt::AlignCenter);
     m_timerLabel->setVisible(false);
-    layout->addWidget(m_timerLabel, 0, Qt::AlignCenter);
+    scrollLayout->addWidget(m_timerLabel, 0, Qt::AlignCenter);
 
     // Info label (IP / error details)
-    m_infoLabel = new QLabel(this);
+    m_infoLabel = new QLabel(scrollContent);
     m_infoLabel->setObjectName(QStringLiteral("infoLabel"));
     m_infoLabel->setAlignment(Qt::AlignCenter);
     m_infoLabel->setWordWrap(true);
     m_infoLabel->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
-    layout->addWidget(m_infoLabel);
+    scrollLayout->addWidget(m_infoLabel);
+
+    // Sign-out hint — shown only when a CLI error is detected
+    m_signOutHintLabel = new QLabel(scrollContent);
+    m_signOutHintLabel->setObjectName(QStringLiteral("signOutHintLabel"));
+    m_signOutHintLabel->setAlignment(Qt::AlignCenter);
+    m_signOutHintLabel->setWordWrap(true);
+    m_signOutHintLabel->setTextFormat(Qt::RichText);
+    m_signOutHintLabel->setOpenExternalLinks(false);
+    m_signOutHintLabel->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
+    m_signOutHintLabel->setVisible(false);
+    connect(m_signOutHintLabel, &QLabel::linkActivated, this, [this](const QString& link)
+    {
+        if (link == QLatin1String("action://signout"))
+            emit signOutRequested();
+    });
+    scrollLayout->addWidget(m_signOutHintLabel);
 
     // "View Details" button – shown only on error
-    m_errorDetailsBtn = new QPushButton(QStringLiteral("View Details"), this);
+    m_errorDetailsBtn = new QPushButton(QStringLiteral("View Details"), scrollContent);
     m_errorDetailsBtn->setVisible(false);
     m_errorDetailsBtn->setFixedWidth(140);
     connect(m_errorDetailsBtn, &QPushButton::clicked, this, &VpnPage::showErrorDetails);
-    layout->addWidget(m_errorDetailsBtn, 0, Qt::AlignCenter);
+    scrollLayout->addWidget(m_errorDetailsBtn, 0, Qt::AlignCenter);
 
-    // Balance the stretch so the content block sits in the middle of the remaining space
-    layout->addStretch(1);
+    scrollLayout->addStretch(1);
+
+    auto* scrollArea = new QScrollArea(this);
+    scrollArea->setObjectName(QStringLiteral("vpnScrollArea"));
+    scrollArea->setWidget(scrollContent);
+    scrollArea->setWidgetResizable(true);
+    scrollArea->setFrameShape(QFrame::NoFrame);
+    scrollArea->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    scrollArea->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
+    // Transparent so the page background shows through
+    scrollArea->setStyleSheet(QStringLiteral(
+        "QScrollArea#vpnScrollArea { background: transparent; }"
+        "QScrollArea#vpnScrollArea > QWidget > QWidget { background: transparent; }"));
+    scrollContent->setAutoFillBackground(false);
+
+    outerLayout->addWidget(scrollArea, 1);
 
     // Elapsed timer
     m_elapsedTimer = new QTimer(this);
@@ -696,6 +741,7 @@ void VpnPage::updateUi(const VpnState state, const QString& info)
 
     // Hide the error details button by default; the Error case will re-show it
     m_errorDetailsBtn->setVisible(false);
+    m_signOutHintLabel->setVisible(false);
     m_infoLabel->setTextFormat(Qt::AutoText);
     m_infoLabel->setOpenExternalLinks(false);
 
@@ -760,6 +806,11 @@ void VpnPage::updateUi(const VpnState state, const QString& info)
                 "An error occurred in the Proton VPN CLI.\n"
                 "Please file a bug report at "
                 "<a href='https://github.com/ProtonVPN/proton-vpn-cli/issues'>github.com/ProtonVPN/proton-vpn-cli/</a>."));
+            m_signOutHintLabel->setText(QStringLiteral(
+                "<span style='color:#f5a623;'>&#9888;</span>"
+                " CLI errors can sometimes be resolved by "
+                "<a href='action://signout' style='color:#ab8fff;'>signing out and signing back in</a>."));
+            m_signOutHintLabel->setVisible(true);
         }
         else
         {
