@@ -120,7 +120,7 @@ int main(int argc, char* argv[])
             background-color: transparent;
             border: none;
             border-radius: 8px;
-            padding: 0px;
+            padding: 8px;
         }
         QToolButton#logoButton:hover {
             background-color: #2d2d4a;
@@ -163,6 +163,15 @@ int main(int argc, char* argv[])
         QLabel#infoLabel {
             color: #9999bb;
             font-size: 12px;
+        }
+
+        QLabel#signOutHintLabel {
+            color: #c8a040;
+            font-size: 12px;
+            background-color: rgba(245, 166, 35, 0.08);
+            border: 1px solid rgba(245, 166, 35, 0.35);
+            border-radius: 6px;
+            padding: 8px 12px;
         }
 
         QLineEdit#inputField {

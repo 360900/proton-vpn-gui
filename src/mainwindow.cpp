@@ -51,7 +51,7 @@ MainWindow::MainWindow(QWidget* parent)
 {
     setWindowTitle(QStringLiteral("ProtonVPN"));
     setWindowIcon(svgNavIcon(QStringLiteral(":/assets/proton-vpn-sign.svg"), {64, 64}, false));
-    setMinimumSize(490, 560);
+    setMinimumSize(490, 580);
     resize(530, 600);
 
     m_manager = new VpnManager(this);
@@ -117,6 +117,10 @@ MainWindow::MainWindow(QWidget* parent)
                 m_manager->connectVpn(country, city);
             });
     connect(m_vpnPage, &VpnPage::disconnectRequested, m_manager, &VpnManager::disconnectVpn);
+    connect(m_vpnPage, &VpnPage::signOutRequested, this, [this]()
+    {
+        m_manager->signOut();
+    });
 
     // Countries page (index 4)
     m_countriesPage = new CountriesPage(m_manager);
@@ -348,7 +352,7 @@ void MainWindow::setupSidebar()
     m_logoBtn = new QToolButton(m_sidebar);
     m_logoBtn->setIcon(svgNavIcon(QStringLiteral(":/assets/proton-vpn-sign.svg"), {40, 40}, false));
     m_logoBtn->setIconSize({40, 40});
-    m_logoBtn->setFixedSize(40, 40);
+    m_logoBtn->setFixedSize(56, 56);
     m_logoBtn->setToolTip(QStringLiteral("VPN"));
     m_logoBtn->setCursor(Qt::PointingHandCursor);
     m_logoBtn->setObjectName(QStringLiteral("logoButton"));
