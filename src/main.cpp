@@ -225,8 +225,9 @@ int main(int argc, char* argv[])
         QListWidget#locationPickerList::item {
             border-bottom: 1px solid #2d2d4a;
         }
-        QListWidget#locationPickerList::item:selected {
-            background-color: #3a2d7a;
+        QListWidget#locationPickerList::item:selected,
+        QListWidget#locationPickerList::item:selected:!active {
+            background-color: #2d2d4a;
         }
         QListWidget#locationPickerList::item:hover {
             background-color: #2d2d4a;
@@ -351,6 +352,19 @@ int main(int argc, char* argv[])
         QSplitter::handle {
             background-color: #3a3a55;
             width: 1px;
+        }
+
+        QToolButton#accordionHeader {
+            background-color: #1a1a2e;
+            border: none;
+            border-bottom: 1px solid #2d2d4a;
+            color: #eaeaea;
+            text-align: left;
+            padding: 0 12px;
+            font-size: 13px;
+        }
+        QToolButton#accordionHeader:hover {
+            background-color: #2d2d4a;
         }
 
         QScrollBar:vertical {

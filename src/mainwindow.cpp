@@ -21,6 +21,8 @@
 #include "pages/accountpage.h"
 #include "pages/settingspage.h"
 #include "appconfig.h"
+#include "connectionhistory.h"
+#include "geoutils.h"
 
 static QIcon svgNavIcon(const QString& path, const QSize& size = {24, 24}, bool tintInDarkMode = true)
 {
@@ -51,8 +53,8 @@ MainWindow::MainWindow(QWidget* parent)
 {
     setWindowTitle(QStringLiteral("ProtonVPN"));
     setWindowIcon(svgNavIcon(QStringLiteral(":/assets/proton-vpn-sign.svg"), {64, 64}, false));
-    setMinimumSize(490, 580);
-    resize(530, 600);
+    setMinimumSize(460, 580);
+    resize(590, 600);
 
     m_manager = new VpnManager(this);
 
@@ -114,12 +116,21 @@ MainWindow::MainWindow(QWidget* parent)
     connect(m_vpnPage, &VpnPage::connectRequested, m_manager,
             [this](const QString& country, const QString& city)
             {
+                if (!country.isEmpty())
+                {
+                    const QString name = GeoUtils::countryCodeToName(country);
+                    ConnectionHistory::instance().record(country, name, city);
+                }
                 m_manager->connectVpn(country, city);
             });
     connect(m_vpnPage, &VpnPage::disconnectRequested, m_manager, &VpnManager::disconnectVpn);
     connect(m_vpnPage, &VpnPage::signOutRequested, this, [this]()
     {
         m_manager->signOut();
+    });
+    connect(m_vpnPage, &VpnPage::changeCountryRequested, this, [this]()
+    {
+        showPage(Page::Countries);
     });
 
     // Countries page (index 4)
@@ -128,6 +139,12 @@ MainWindow::MainWindow(QWidget* parent)
     connect(m_countriesPage, &CountriesPage::connectRequested, this,
             [this](const QString& country, const QString& city)
             {
+                m_vpnPage->notifyExternalConnect(city);
+                if (!country.isEmpty())
+                {
+                    const QString name = GeoUtils::countryCodeToName(country);
+                    ConnectionHistory::instance().record(country, name, city);
+                }
                 m_manager->connectVpn(country, city);
                 showPage(Page::Vpn);
             });

@@ -1,10 +1,16 @@
 #include "vpnpage.h"
 #include "../geoutils.h"
+#include "../connectionhistory.h"
 
+#include <QFile>
 #include <QHBoxLayout>
 #include <QVBoxLayout>
+#include <QJsonDocument>
+#include <QJsonObject>
+#include <QMouseEvent>
 #include <QPainter>
 #include <QPainterPath>
+#include <QResizeEvent>
 #include <QSvgRenderer>
 #include <QPropertyAnimation>
 #include <QEnterEvent>
@@ -13,7 +19,9 @@
 #include <QFont>
 #include <QGuiApplication>
 #include <QClipboard>
+#include <QCursor>
 #include <QScrollArea>
+#include <QVersionNumber>
 #include <cmath>
 
 // ============================================================
@@ -227,8 +235,8 @@ static const FeatureMeta kLocationFeatures[] = {
       QStringLiteral("Tor — Routes traffic through the Tor anonymity network") },
 };
 
-LocationPicker::LocationPicker(const QString& countryCode, QWidget* parent)
-    : QFrame(parent), m_countryCode(countryCode)
+LocationPicker::LocationPicker(const QString& countryCode, const QString& countryName, QWidget* parent)
+    : QFrame(parent), m_countryCode(countryCode), m_countryName(countryName)
 {
     setObjectName(QStringLiteral("locationPicker"));
     setFixedWidth(260);
@@ -297,6 +305,10 @@ LocationPicker::LocationPicker(const QString& countryCode, QWidget* parent)
     m_list->setObjectName(QStringLiteral("locationPickerList"));
     m_list->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     m_list->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
+    m_list->setCursor(Qt::PointingHandCursor);
+    m_list->setMouseTracking(true);
+    m_list->viewport()->setMouseTracking(true);
+    m_list->viewport()->installEventFilter(this);
     popupLayout->addWidget(m_list);
 
     // Header click toggles popup; Qt::Popup handles outside-click dismissal.
@@ -328,6 +340,50 @@ bool LocationPicker::eventFilter(QObject* obj, QEvent* ev)
             while (p) { if (p == this) { togglePopup(); return true; } p = p->parentWidget(); }
         }
     }
+
+    // Row widget hover: use Enter/Leave to paint background directly on the
+    // row widget — the stylesheet ::item:selected rule is painted *under* the
+    // item widget so it never shows through; this approach is reliable.
+    if (auto* w = qobject_cast<QWidget*>(obj))
+    {
+        // Walk up to find the direct child of the viewport (the row root widget)
+        QWidget* rowRoot = nullptr;
+        QWidget* cur = w;
+        while (cur)
+        {
+            if (cur->parent() == m_list->viewport()) { rowRoot = cur; break; }
+            cur = qobject_cast<QWidget*>(cur->parent());
+        }
+
+        if (rowRoot)
+        {
+            if (ev->type() == QEvent::Enter || ev->type() == QEvent::MouseMove)
+            {
+                // Unhighlight every other row
+                for (QObject* child : m_list->viewport()->children())
+                    if (auto* cw = qobject_cast<QWidget*>(child); cw && cw != rowRoot)
+                        cw->setStyleSheet(QStringLiteral("background-color: transparent;"));
+                rowRoot->setStyleSheet(QStringLiteral("background-color: #2d2d4a;"));
+                return false;
+            }
+            if (ev->type() == QEvent::Leave)
+            {
+                // Only clear if the mouse truly left the whole row (not just moved to a child)
+                const QPoint globalPos = QCursor::pos();
+                if (!rowRoot->rect().contains(rowRoot->mapFromGlobal(globalPos)))
+                    rowRoot->setStyleSheet(QStringLiteral("background-color: transparent;"));
+                return false;
+            }
+            if (ev->type() == QEvent::MouseButtonRelease)
+            {
+                const QPoint viewportPos = m_list->viewport()->mapFromGlobal(
+                    w->mapToGlobal(static_cast<QMouseEvent*>(ev)->pos()));
+                QListWidgetItem* item = m_list->itemAt(viewportPos);
+                if (item) { onItemClicked(item); return true; }
+            }
+        }
+    }
+
     return QFrame::eventFilter(obj, ev);
 }
 
@@ -373,9 +429,17 @@ void LocationPicker::onItemClicked(QListWidgetItem* item)
     const QString clicked = item->data(Qt::UserRole).toString();
     closePopup();
 
-    if (clicked == m_selectedCity)
+    // "Change country" action item
+    if (clicked == QLatin1String("__change_country__"))
+    {
+        emit changeCountryRequested();
+        return;
+    }
+
+    if (!m_unknownConnection && clicked == m_selectedCity)
         return; // same selection — no signal, no confirmation dialog
 
+    m_unknownConnection = false;
     m_selectedCity = clicked;
     updateHeader();
     emit selectionChanged(m_selectedCity);
@@ -383,10 +447,22 @@ void LocationPicker::onItemClicked(QListWidgetItem* item)
 
 void LocationPicker::updateHeader()
 {
-    if (m_selectedCity.isEmpty())
-        m_bottomLine->setText(QStringLiteral("⚡  Fastest server"));
-    else
+    if (!m_selectedCity.isEmpty())
+    {
         m_bottomLine->setText(m_selectedCity);
+    }
+    else if (m_unknownConnection)
+    {
+        m_bottomLine->setText(QStringLiteral("Active connection"));
+    }
+    else if (!m_countryName.isEmpty())
+    {
+        m_bottomLine->setText(QStringLiteral("⚡  Fastest in %1").arg(m_countryName));
+    }
+    else
+    {
+        m_bottomLine->setText(QStringLiteral("⚡  Fastest server"));
+    }
 }
 
 void LocationPicker::setLoading(bool loading)
@@ -423,6 +499,43 @@ void LocationPicker::setLoading(bool loading)
     }
 }
 
+void LocationPicker::setUnknownConnection(bool unknown)
+{
+    m_unknownConnection = unknown;
+    updateHeader();
+}
+
+void LocationPicker::setSelectedCity(const QString& city)
+{
+    m_unknownConnection = false;
+    m_selectedCity = city;
+    updateHeader();
+
+    // Highlight the matching row in the popup list so it's visually in sync
+    for (int i = 0; i < m_list->count(); ++i)
+    {
+        QListWidgetItem* item = m_list->item(i);
+        if (item->data(Qt::UserRole).toString() == city)
+        {
+            m_list->setCurrentRow(i);
+            return;
+        }
+    }
+    // No match found — fall back to the first item (Fastest server)
+    m_list->setCurrentRow(0);
+}
+
+void LocationPicker::installOnRowWidget(QWidget* w)
+{
+    w->setMouseTracking(true);
+    w->installEventFilter(this);
+    for (QObject* child : w->children())
+    {
+        if (auto* cw = qobject_cast<QWidget*>(child))
+            installOnRowWidget(cw);
+    }
+}
+
 void LocationPicker::populate(const QList<QPair<QString, QString>>& cities)
 {
     setLoading(false);
@@ -433,6 +546,7 @@ void LocationPicker::populate(const QList<QPair<QString, QString>>& cities)
     fastestItem->setData(Qt::UserRole, QString());
 
     auto* fastestRow = new QWidget();
+    fastestRow->setCursor(Qt::PointingHandCursor);
     auto* fbox = new QHBoxLayout(fastestRow);
     fbox->setContentsMargins(10, 6, 10, 6);
     fbox->setSpacing(8);
@@ -456,6 +570,30 @@ void LocationPicker::populate(const QList<QPair<QString, QString>>& cities)
     fastestItem->setSizeHint(QSize(0, 34));
     m_list->addItem(fastestItem);
     m_list->setItemWidget(fastestItem, fastestRow);
+    installOnRowWidget(fastestRow);
+
+    // ── "Change country" action item ──────────────────────────────────────
+    auto* changeItem = new QListWidgetItem();
+    changeItem->setData(Qt::UserRole, QStringLiteral("__change_country__"));
+
+    auto* changeRow = new QWidget();
+    changeRow->setCursor(Qt::PointingHandCursor);
+    auto* cbox = new QHBoxLayout(changeRow);
+    cbox->setContentsMargins(10, 6, 10, 6);
+    cbox->setSpacing(8);
+
+    auto* cLabel = new QLabel(QStringLiteral("🌐  Change country…"), changeRow);
+    cLabel->setObjectName(QStringLiteral("locationPickerItemLabel"));
+    QFont italicFont = cLabel->font();
+    italicFont.setItalic(true);
+    cLabel->setFont(italicFont);
+    cLabel->setStyleSheet(QStringLiteral("color: #888;"));
+    cbox->addWidget(cLabel, 1, Qt::AlignVCenter);
+
+    changeItem->setSizeHint(QSize(0, 34));
+    m_list->addItem(changeItem);
+    m_list->setItemWidget(changeItem, changeRow);
+    installOnRowWidget(changeRow);
 
     // ── City entries ──────────────────────────────────────────────────────
     for (const auto& [city, features] : cities)
@@ -464,6 +602,7 @@ void LocationPicker::populate(const QList<QPair<QString, QString>>& cities)
         item->setData(Qt::UserRole, city);
 
         auto* row = new QWidget();
+        row->setCursor(Qt::PointingHandCursor);
         auto* hbox = new QHBoxLayout(row);
         hbox->setContentsMargins(10, 6, 10, 6);
         hbox->setSpacing(8);
@@ -492,10 +631,240 @@ void LocationPicker::populate(const QList<QPair<QString, QString>>& cities)
         item->setSizeHint(QSize(0, 34));
         m_list->addItem(item);
         m_list->setItemWidget(item, row);
+        installOnRowWidget(row);
     }
 
     m_list->setCurrentRow(0);
     m_selectedCity.clear();
+}
+
+// ============================================================
+// RecentPicker implementation
+// ============================================================
+
+RecentPicker::RecentPicker(QWidget* parent)
+    : QFrame(parent)
+{
+    setObjectName(QStringLiteral("locationPicker")); // reuse same stylesheet
+    setFixedWidth(260);
+
+    auto* header = new QFrame(this);
+    header->setObjectName(QStringLiteral("locationPickerHeader"));
+    header->setCursor(Qt::PointingHandCursor);
+
+    auto* hl = new QHBoxLayout(header);
+    hl->setContentsMargins(10, 8, 10, 8);
+    hl->setSpacing(10);
+
+    auto* textCol = new QVBoxLayout();
+    textCol->setSpacing(1);
+    textCol->setContentsMargins(0, 0, 0, 0);
+
+    m_topLine = new QLabel(QStringLiteral("Recent Connections"), header);
+    m_topLine->setObjectName(QStringLiteral("locationPickerTop"));
+
+    m_bottomLine = new QLabel(QStringLiteral("None yet"), header);
+    m_bottomLine->setObjectName(QStringLiteral("locationPickerBottom"));
+
+    textCol->addWidget(m_topLine);
+    textCol->addWidget(m_bottomLine);
+    hl->addLayout(textCol, 1);
+
+    m_chevron = new QLabel(QStringLiteral("▾"), header);
+    m_chevron->setObjectName(QStringLiteral("locationPickerChevron"));
+    hl->addWidget(m_chevron);
+
+    auto* outerLayout = new QVBoxLayout(this);
+    outerLayout->setContentsMargins(0, 0, 0, 0);
+    outerLayout->setSpacing(0);
+    outerLayout->addWidget(header);
+
+    m_popup = new QFrame(nullptr, Qt::Popup | Qt::FramelessWindowHint);
+    m_popup->setObjectName(QStringLiteral("locationPickerPopup"));
+
+    auto* popupLayout = new QVBoxLayout(m_popup);
+    popupLayout->setContentsMargins(0, 0, 0, 0);
+    popupLayout->setSpacing(0);
+
+    m_list = new QListWidget(m_popup);
+    m_list->setObjectName(QStringLiteral("locationPickerList"));
+    m_list->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    m_list->setMouseTracking(true);
+    m_list->viewport()->setMouseTracking(true);
+    m_list->viewport()->installEventFilter(this);
+    popupLayout->addWidget(m_list);
+
+    header->installEventFilter(this);
+    m_popup->installEventFilter(this);
+
+    connect(m_list, &QListWidget::itemClicked, this, [this](QListWidgetItem* item)
+    {
+        const QString code = item->data(Qt::UserRole).toString();
+        const QString city = item->data(Qt::UserRole + 1).toString();
+        closePopup();
+        if (!code.isEmpty())
+            emit connectionSelected(code, city);
+    });
+
+    refresh();
+}
+
+void RecentPicker::refresh()
+{
+    m_list->clear();
+    const auto entries = ConnectionHistory::instance().entries();
+
+    if (entries.isEmpty())
+    {
+        m_bottomLine->setText(QStringLiteral("None yet"));
+        m_chevron->setVisible(false);
+        return;
+    }
+
+    m_chevron->setVisible(true);
+    // Show most recent in header
+    const auto& first = entries.first();
+    const QString firstLabel = first.city.isEmpty()
+        ? QStringLiteral("⚡  %1").arg(first.countryName)
+        : QStringLiteral("%1, %2").arg(first.countryName, first.city);
+    m_bottomLine->setText(firstLabel);
+
+    for (const auto& e : entries)
+    {
+        auto* item = new QListWidgetItem();
+        item->setData(Qt::UserRole,     e.countryCode);
+        item->setData(Qt::UserRole + 1, e.city);
+
+        auto* row = new QWidget();
+        row->setCursor(Qt::PointingHandCursor);
+        auto* hbox = new QHBoxLayout(row);
+        hbox->setContentsMargins(10, 6, 10, 6);
+        hbox->setSpacing(8);
+
+        // Flag
+        auto* flagLbl = new QLabel(row);
+        const QPixmap pm = GeoUtils::svgPixmap(
+            QStringLiteral(":/flags/") + e.countryCode.toLower(), 20);
+        if (!pm.isNull()) { flagLbl->setPixmap(pm); flagLbl->setFixedSize(24, 18); }
+        hbox->addWidget(flagLbl, 0, Qt::AlignVCenter);
+
+        // Text
+        const QString label = e.city.isEmpty()
+            ? QStringLiteral("⚡  %1").arg(e.countryName)
+            : QStringLiteral("%1, %2").arg(e.countryName, e.city);
+        auto* lbl = new QLabel(label, row);
+        lbl->setObjectName(QStringLiteral("locationPickerItemLabel"));
+        hbox->addWidget(lbl, 1, Qt::AlignVCenter);
+
+        // Date
+        auto* dateLbl = new QLabel(e.connectedAt.toString(QStringLiteral("MMM d")), row);
+        dateLbl->setObjectName(QStringLiteral("locationPickerTop"));
+        hbox->addWidget(dateLbl, 0, Qt::AlignVCenter);
+
+        item->setSizeHint(QSize(0, 34));
+        m_list->addItem(item);
+        m_list->setItemWidget(item, row);
+        installOnRowWidget(row);
+    }
+}
+
+void RecentPicker::installOnRowWidget(QWidget* w)
+{
+    w->setMouseTracking(true);
+    w->installEventFilter(this);
+    for (QObject* child : w->children())
+        if (auto* cw = qobject_cast<QWidget*>(child))
+            installOnRowWidget(cw);
+}
+
+bool RecentPicker::eventFilter(QObject* obj, QEvent* ev)
+{
+    if (obj == m_popup && ev->type() == QEvent::Hide)
+    {
+        m_chevron->setText(QStringLiteral("▾"));
+        return false;
+    }
+
+    if (obj->isWidgetType() && ev->type() == QEvent::MouseButtonRelease)
+    {
+        auto* w = static_cast<QWidget*>(obj);
+        if (w->objectName() == QLatin1String("locationPickerHeader"))
+        {
+            QWidget* p = w;
+            while (p) { if (p == this) { togglePopup(); return true; } p = p->parentWidget(); }
+        }
+    }
+
+    if (auto* w = qobject_cast<QWidget*>(obj))
+    {
+        QWidget* rowRoot = nullptr;
+        QWidget* cur = w;
+        while (cur)
+        {
+            if (cur->parent() == m_list->viewport()) { rowRoot = cur; break; }
+            cur = qobject_cast<QWidget*>(cur->parent());
+        }
+        if (rowRoot)
+        {
+            if (ev->type() == QEvent::Enter || ev->type() == QEvent::MouseMove)
+            {
+                for (QObject* child : m_list->viewport()->children())
+                    if (auto* cw = qobject_cast<QWidget*>(child); cw && cw != rowRoot)
+                        cw->setStyleSheet(QStringLiteral("background-color: transparent;"));
+                rowRoot->setStyleSheet(QStringLiteral("background-color: #2d2d4a;"));
+                return false;
+            }
+            if (ev->type() == QEvent::Leave)
+            {
+                const QPoint globalPos = QCursor::pos();
+                if (!rowRoot->rect().contains(rowRoot->mapFromGlobal(globalPos)))
+                    rowRoot->setStyleSheet(QStringLiteral("background-color: transparent;"));
+                return false;
+            }
+            if (ev->type() == QEvent::MouseButtonRelease)
+            {
+                const QPoint vp = m_list->viewport()->mapFromGlobal(
+                    w->mapToGlobal(static_cast<QMouseEvent*>(ev)->pos()));
+                QListWidgetItem* item = m_list->itemAt(vp);
+                if (item)
+                {
+                    const QString code = item->data(Qt::UserRole).toString();
+                    const QString city = item->data(Qt::UserRole + 1).toString();
+                    closePopup();
+                    if (!code.isEmpty()) emit connectionSelected(code, city);
+                    return true;
+                }
+            }
+        }
+    }
+    return QFrame::eventFilter(obj, ev);
+}
+
+void RecentPicker::togglePopup()
+{
+    if (m_list->count() == 0) return;
+    if (m_popup->isVisible()) { closePopup(); return; }
+    resizeList();
+    const QPoint pos = mapToGlobal(QPoint(0, height()));
+    m_popup->setFixedWidth(width());
+    m_popup->move(pos);
+    m_popup->show();
+    m_chevron->setText(QStringLiteral("▴"));
+}
+
+void RecentPicker::closePopup()
+{
+    m_popup->hide();
+    m_chevron->setText(QStringLiteral("▾"));
+}
+
+void RecentPicker::resizeList()
+{
+    const int count = m_list->count();
+    if (count == 0) return;
+    const int rowH = m_list->sizeHintForRow(0);
+    m_list->setFixedHeight(qMin(count, 8) * rowH + 2);
+    m_popup->adjustSize();
 }
 
 // ============================================================
@@ -542,9 +911,42 @@ VpnPage::VpnPage(VpnManager* manager, QWidget* parent)
     m_statusLabel->setAlignment(Qt::AlignCenter);
     topLayout->addWidget(m_statusLabel, 0, Qt::AlignCenter);
 
-    // Location picker — fixed, never scrolls
-    m_locationPicker = new LocationPicker(m_localCountryCode, topWidget);
-    topLayout->addWidget(m_locationPicker, 0, Qt::AlignCenter);
+    // Location picker + Recent picker — in a row (side-by-side when wide, stacked when narrow)
+    const QString localCountryName = m_localCountryCode.isEmpty()
+        ? QString()
+        : GeoUtils::countryCodeToName(m_localCountryCode);
+    m_locationPicker = new LocationPicker(m_localCountryCode, localCountryName, topWidget);
+    connect(m_locationPicker, &LocationPicker::changeCountryRequested,
+            this, &VpnPage::changeCountryRequested);
+
+    m_recentPicker = new RecentPicker(topWidget);
+    connect(m_recentPicker, &RecentPicker::connectionSelected,
+            this, [this](const QString& code, const QString& city)
+            {
+                if (m_currentState == VpnState::Connected || m_currentState == VpnState::Connecting)
+                {
+                    // Treat as a location change — let the existing confirmation logic handle it
+                    m_locationPicker->setSelectedCity(city);
+                    emit m_locationPicker->selectionChanged(city);
+                }
+                else
+                {
+                    m_activeCity = city;
+                    emit connectRequested(code, city);
+                }
+            });
+
+    // Wrap both pickers in a horizontal row; relayoutPickers() will manage visibility
+    auto* pickerContainer = new QWidget(topWidget);
+    m_pickerRow = new QHBoxLayout(pickerContainer);
+    m_pickerRow->setContentsMargins(0, 0, 0, 0);
+    m_pickerRow->setSpacing(12);
+    m_pickerRow->addWidget(m_locationPicker, 1);
+    m_pickerRow->addWidget(m_recentPicker, 1);
+    topLayout->addWidget(pickerContainer, 0, Qt::AlignHCenter);
+
+    // Initial layout based on current width
+    relayoutPickers(width());
 
     outerLayout->addWidget(topWidget);
 
@@ -649,6 +1051,11 @@ VpnPage::VpnPage(VpnManager* manager, QWidget* parent)
     if (!m_localCountryCode.isEmpty())
         m_manager->fetchCities(m_localCountryCode);
 
+    // Check the installed CLI version against the tested version
+    connect(m_manager, &VpnManager::cliVersionReady,
+            this, &VpnPage::onCliVersionReady);
+    m_manager->fetchCliVersion();
+
     // When the user changes location while connected/connecting, ask what to do
     connect(m_locationPicker, &LocationPicker::selectionChanged,
             this, [this](const QString& city)
@@ -656,9 +1063,13 @@ VpnPage::VpnPage(VpnManager* manager, QWidget* parent)
         if (m_currentState != VpnState::Connected && m_currentState != VpnState::Connecting)
             return;
 
-        // No confirmation needed if the selected location matches the active connection
-        if (city == m_activeCity)
+        // No confirmation needed if the selected location matches the active connection,
+        // UNLESS we started in an unknown-connection state (m_activeCity is "" but we
+        // don't actually know what server is running).
+        if (!m_hadUnknownConnection && city == m_activeCity)
             return;
+
+        m_hadUnknownConnection = false;
 
         const QString locationName = city.isEmpty()
             ? QStringLiteral("Fastest server")
@@ -715,6 +1126,48 @@ VpnPage::VpnPage(VpnManager* manager, QWidget* parent)
     });
 }
 
+void VpnPage::notifyExternalConnect(const QString& city)
+{
+    m_activeCity = city;
+    m_locationPicker->setSelectedCity(city);
+    if (m_recentPicker) m_recentPicker->refresh();
+}
+
+void VpnPage::relayoutPickers(int w)
+{
+    if (!m_recentPicker) return;
+    const bool hasHistory = !ConnectionHistory::instance().entries().isEmpty();
+    if (!hasHistory)
+    {
+        m_recentPicker->setVisible(false);
+        return;
+    }
+
+    const bool wide = w >= kWideThreshold;
+    if (wide)
+    {
+        // Side-by-side: set equal fixed widths
+        m_locationPicker->setFixedWidth(240);
+        m_recentPicker->setFixedWidth(240);
+        m_recentPicker->setVisible(true);
+        m_pickerRow->setDirection(QBoxLayout::LeftToRight);
+    }
+    else
+    {
+        // Stacked: full width each
+        m_locationPicker->setFixedWidth(260);
+        m_recentPicker->setFixedWidth(260);
+        m_recentPicker->setVisible(true);
+        m_pickerRow->setDirection(QBoxLayout::TopToBottom);
+    }
+}
+
+void VpnPage::resizeEvent(QResizeEvent* event)
+{
+    QWidget::resizeEvent(event);
+    relayoutPickers(event->size().width());
+}
+
 void VpnPage::onCitiesReady(const QString& countryCode,
                             const QList<QPair<QString, QString>>& cities)
 {
@@ -722,8 +1175,106 @@ void VpnPage::onCitiesReady(const QString& countryCode,
     if (countryCode.compare(m_localCountryCode, Qt::CaseInsensitive) != 0)
         return;
 
+    if (!m_stateKnown)
+    {
+        // State check is still pending — stash the cities and wait.
+        // The spinner keeps running; we'll call populate() once we know
+        // whether the VPN is connected or not.
+        m_pendingCities = cities;
+        return;
+    }
+
     m_locationPicker->populate(cities);
-    // populate() calls setVisible(true) internally; nothing else needed here.
+}
+
+void VpnPage::onCliVersionReady(const QString& version)
+{
+    // Read the tested CLI version from the embedded version.json
+    QString testedVersionStr;
+    QFile vf(QStringLiteral(":/version.json"));
+    if (vf.open(QIODevice::ReadOnly))
+    {
+        const QJsonObject obj = QJsonDocument::fromJson(vf.readAll()).object();
+        vf.close();
+        testedVersionStr = obj.value(QStringLiteral("cli_version_tested")).toString();
+    }
+
+    if (version.isEmpty() || testedVersionStr.isEmpty())
+        return; // can't compare — stay silent
+
+    const QVersionNumber installed = QVersionNumber::fromString(version);
+    const QVersionNumber tested    = QVersionNumber::fromString(testedVersionStr);
+
+    if (installed == tested)
+        return; // all good — no banner needed
+
+    const QString colour       = QStringLiteral("#7a5c00");
+    const QString bgColour     = QStringLiteral("#fff3cd");
+    const QString borderColour = QStringLiteral("#e6ac00");
+
+    const QString msg = (installed > tested)
+        ? QStringLiteral(
+              "Your Proton VPN CLI (<b>v%1</b>) is newer than the version this app was "
+              "tested against (<b>v%2</b>). Things may work fine, but you could encounter "
+              "unexpected behaviour.")
+              .arg(version, testedVersionStr)
+        : QStringLiteral(
+              "Your Proton VPN CLI (<b>v%1</b>) is older than the version this app was "
+              "tested against (<b>v%2</b>). Some features may not work correctly. "
+              "Consider upgrading the CLI.")
+              .arg(version, testedVersionStr);
+
+    // Build the dismissable banner and insert it into the scroll area content
+    // (which is the scrollLayout's parent widget — we need to insert it at the top).
+    m_versionBanner = new QFrame(this);
+    m_versionBanner->setObjectName(QStringLiteral("versionBanner"));
+    m_versionBanner->setStyleSheet(
+        QStringLiteral("QFrame#versionBanner { background-color: %1; border: 1px solid %2; "
+                       "border-radius: 6px; } QLabel { color: %3; background: transparent; }")
+            .arg(bgColour, borderColour, colour));
+
+    auto* bannerLayout = new QHBoxLayout(m_versionBanner);
+    bannerLayout->setContentsMargins(12, 8, 8, 8);
+    bannerLayout->setSpacing(8);
+
+    auto* iconLabel = new QLabel(QStringLiteral("⚠"), m_versionBanner);
+    iconLabel->setStyleSheet(QStringLiteral("font-size: 16px; font-weight: bold;"));
+    bannerLayout->addWidget(iconLabel, 0, Qt::AlignTop);
+
+    auto* msgLabel = new QLabel(msg, m_versionBanner);
+    msgLabel->setWordWrap(true);
+    msgLabel->setTextFormat(Qt::RichText);
+    msgLabel->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
+    bannerLayout->addWidget(msgLabel, 1);
+
+    auto* dismissBtn = new QPushButton(QStringLiteral("✕"), m_versionBanner);
+    dismissBtn->setFixedSize(22, 22);
+    dismissBtn->setFlat(true);
+    dismissBtn->setCursor(Qt::PointingHandCursor);
+    dismissBtn->setStyleSheet(
+        QStringLiteral("QPushButton { color: %1; font-weight: bold; border: none; "
+                       "background: transparent; } QPushButton:hover { opacity: 0.7; }")
+            .arg(colour));
+    connect(dismissBtn, &QPushButton::clicked, this, [this]()
+    {
+        if (m_versionBanner)
+        {
+            m_versionBanner->setVisible(false);
+            m_versionBanner->deleteLater();
+            m_versionBanner = nullptr;
+        }
+    });
+    bannerLayout->addWidget(dismissBtn, 0, Qt::AlignTop);
+
+    // Insert banner into the scroll content layout at position 0 (above the timer)
+    // Find the scrollLayout by walking the scroll area's widget
+    auto* scrollArea = findChild<QScrollArea*>(QStringLiteral("vpnScrollArea"));
+    if (scrollArea && scrollArea->widget())
+    {
+        auto* scrollLayout = qobject_cast<QVBoxLayout*>(scrollArea->widget()->layout());
+        if (scrollLayout)
+            scrollLayout->insertWidget(0, m_versionBanner);
+    }
 }
 
 void VpnPage::onStateChanged(VpnState state, const QString& info)
@@ -738,6 +1289,13 @@ void VpnPage::updateUi(const VpnState state, const QString& info)
 
     if (state != VpnState::Unknown)
         m_checkingSpinnerTimer->stop();
+
+    // First time we learn the actual state — flush any cities that arrived
+    // while we were still in Unknown so the picker shows the right text
+    // immediately (no "Fastest in X" flash before "Active connection").
+    const bool justBecameKnown = !m_stateKnown && state != VpnState::Unknown;
+    if (justBecameKnown)
+        m_stateKnown = true;
 
     // Hide the error details button by default; the Error case will re-show it
     m_errorDetailsBtn->setVisible(false);
@@ -754,9 +1312,25 @@ void VpnPage::updateUi(const VpnState state, const QString& info)
         m_statusLabel->setStyleSheet(QStringLiteral("color: #1a9c5b; font-size: 16pt; font-weight: bold; letter-spacing: 1px;"));
         m_infoLabel->setText(info.isEmpty() ? QString() : info);
         if (prevState == VpnState::Connecting)
+        {
             startElapsedTimer();
+            if (m_recentPicker) { m_recentPicker->refresh(); relayoutPickers(width()); }
+        }
         else
+        {
             stopElapsedTimer();
+            // App started with VPN already active — we don't know which server
+            if (prevState == VpnState::Unknown && m_activeCity.isEmpty())
+            {
+                m_hadUnknownConnection = true;
+                m_locationPicker->setUnknownConnection(true);
+            }
+        }
+        if (justBecameKnown && !m_pendingCities.isEmpty())
+        {
+            m_locationPicker->populate(m_pendingCities);
+            m_pendingCities.clear();
+        }
         break;
 
     case VpnState::Disconnected:
@@ -766,7 +1340,14 @@ void VpnPage::updateUi(const VpnState state, const QString& info)
         m_statusLabel->setStyleSheet(QStringLiteral("color: #888888; font-size: 16pt; font-weight: bold; letter-spacing: 1px;"));
         m_infoLabel->setText(info.isEmpty() ? QString() : info);
         m_activeCity.clear();
+        m_hadUnknownConnection = false;
+        m_locationPicker->setUnknownConnection(false);
         stopElapsedTimer();
+        if (justBecameKnown && !m_pendingCities.isEmpty())
+        {
+            m_locationPicker->populate(m_pendingCities);
+            m_pendingCities.clear();
+        }
         break;
 
     case VpnState::Connecting:

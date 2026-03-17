@@ -62,7 +62,6 @@ private:
     {
         QString cliKey;
         ToggleSwitch* toggle = nullptr;
-        bool needsReconnect = false;
     };
 
     // A combo-box row (multi-value setting)
@@ -71,7 +70,6 @@ private:
         QString cliKey;
         QComboBox* combo = nullptr;
         QStringList cliValues; // parallel to combo items
-        bool needsReconnect = false;
     };
 
     VpnManager* m_manager;
@@ -102,12 +100,12 @@ private:
 
     // Helpers
     QWidget* makeToggleRow(QWidget* parent, const QString& label, const QString& desc,
-                           const QString& cliKey, bool needsReconnect);
+                           const QString& cliKey);
     QWidget* makeComboRow(QWidget* parent, const QString& label, const QString& desc,
                           const QString& cliKey, const QStringList& labels,
-                          const QStringList& cliValues, bool needsReconnect);
+                          const QStringList& cliValues);
     static void addDivider(QVBoxLayout* layout, QWidget* parent);
-    void maybeWarnReconnect(bool needsReconnect);
+    void maybeWarnReconnect(const QString& cliOutput);
 
     // Auto-start helpers
     static QString serviceFilePath();

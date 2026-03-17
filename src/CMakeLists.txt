@@ -20,6 +20,8 @@ set(SOURCES
         main.cpp
         appconfig.h
         appconfig.cpp
+        connectionhistory.h
+        connectionhistory.cpp
         geoutils.h
         geoutils.cpp
         vpnmanager.h

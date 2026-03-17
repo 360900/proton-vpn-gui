@@ -281,26 +281,33 @@ void VpnManager::disconnectVpnSync()
 
 void VpnManager::fetchCountries()
 {
-    runCommand({QStringLiteral("countries")}, [this](int, const QString& out, const QString&)
+    runCommand({QStringLiteral("countries"), QStringLiteral("list")},
+               [this](int, const QString& out, const QString& err)
     {
+        // Combine stdout + stderr — the "Server list is outdated, updating..."
+        // notice can appear on either stream.
+        const QString combined = out + QLatin1Char('\n') + err;
         QMap<QString, QString> countries; // name → code
-        const QStringList lines = out.split(QLatin1Char('\n'));
-        // Output format:
+        const QStringList lines = combined.split(QLatin1Char('\n'));
+        // Output format (after any update notice lines):
         //   Country                 Code
         //   ----------------------  ------
         //   Afghanistan             AF
-        // Skip the header + separator (first 2 non-empty lines).
-        // Also defensively skip any line that looks like a separator (starts
-        // with "--") in case blank-line counting is off.
-        int dataRow = 0;
+        // We anchor to the separator line (starts with "--") and only parse
+        // lines that come after it, skipping any status/notice messages.
+        bool pastSeparator = false;
         for (const QString& line : lines)
         {
-            if (line.trimmed().isEmpty())
+            const QString trimmed = line.trimmed();
+            if (trimmed.isEmpty())
                 continue;
-            if (++dataRow <= 2)
+            if (trimmed.startsWith(QStringLiteral("--")))
+            {
+                pastSeparator = true;
                 continue;
-            if (line.trimmed().startsWith(QStringLiteral("--")))
-                continue;
+            }
+            if (!pastSeparator)
+                continue; // skip header and any update-notice lines above it
             // Name and code are separated by 2+ spaces.
             const QStringList parts = line.split(QStringLiteral("  "), Qt::SkipEmptyParts);
             if (parts.size() < 2)
@@ -316,32 +323,38 @@ void VpnManager::fetchCountries()
 
 void VpnManager::fetchCities(const QString& countryCode)
 {
-    runCommand({QStringLiteral("cities"), QStringLiteral("--country"), countryCode},
-               [this, countryCode](int, const QString& out, const QString&)
+    runCommand({QStringLiteral("cities"), QStringLiteral("list"), countryCode},
+               [this, countryCode](int, const QString& out, const QString& err)
                {
+                   // Combine stdout + stderr to catch any "updating..." notices.
+                   const QString combined = out + QLatin1Char('\n') + err;
                    QList<QPair<QString, QString>> cities;
-                   const QStringList lines = out.split(QLatin1Char('\n'));
-                   // Output format:
+                   const QStringList lines = combined.split(QLatin1Char('\n'));
+                   // Output format (after any update notice lines):
                    //   Cities in United States:
                    //   City            Features
                    //   --------------  ----------------
                    //   Ashburn         P2P
                    //   New York        P2P, Secure Core
-                   // Skip the "Cities in X:" intro line plus the header and separator
-                   // (first 3 non-empty lines).
-                   int dataRow = 0;
+                   // We anchor to the separator line (starts with "--") and only
+                   // parse lines that come after it.
+                   bool pastSeparator = false;
                    for (const QString& line : lines)
                    {
-                       if (line.trimmed().isEmpty())
+                       const QString trimmed = line.trimmed();
+                       if (trimmed.isEmpty())
                            continue;
-                       if (++dataRow <= 3)
+                       if (trimmed.startsWith(QStringLiteral("--")))
+                       {
+                           pastSeparator = true;
                            continue;
-                       if (line.trimmed().startsWith(QStringLiteral("--")))
-                           continue;
+                       }
+                       if (!pastSeparator)
+                           continue; // skip intro/header/notice lines
                        // City and Features are separated by 2+ spaces.
                        const QStringList parts = line.split(QStringLiteral("  "), Qt::SkipEmptyParts);
                        const QString city = parts.value(0).trimmed();
-                       const QString features = parts.value(1).trimmed(); // empty string if no features column
+                       const QString features = parts.value(1).trimmed();
                        if (!city.isEmpty())
                            cities.append({city, features});
                    }
@@ -603,8 +616,38 @@ void VpnManager::applyConfigValue(const QString& key, const QString& value)
     const QStringList valueParts = value.split(QLatin1Char(' '), Qt::SkipEmptyParts);
     args << valueParts;
 
-    runCommand(args, [](int, const QString&, const QString&)
+    runCommand(args, [this](int, const QString& out, const QString& err)
     {
-        // fire-and-forget; errors will surface in the UI via the next refresh
+        // Combine stdout and stderr — the CLI prints reconnect notices like
+        // "please establish a new VPN connection for changes to take effect"
+        // to stdout; emit so listeners can act on it.
+        const QString combined = (out + QLatin1Char('\n') + err).trimmed();
+        emit configApplied(combined);
     });
 }
+
+void VpnManager::fetchCliVersion()
+{
+    // Running `protonvpn` with no args prints the ASCII banner which ends with
+    // the version number on the last banner line, e.g.:
+    //   |_|   |_|  \___/ \__\___/|_| |_|    \_/  |_|   |_| \_| 0.1.7
+    // We scan all output lines for a semver-looking token (digits.digits.digits).
+    runCommand({}, [this](int, const QString& out, const QString& err)
+    {
+        const QString combined = out + QLatin1Char('\n') + err;
+        const QRegularExpression re(QStringLiteral(R"(\b(\d+\.\d+\.\d+)\b)"));
+        // Walk lines in reverse — the version is on the last banner line
+        const QStringList lines = combined.split(QLatin1Char('\n'));
+        for (int i = lines.size() - 1; i >= 0; --i)
+        {
+            const auto match = re.match(lines[i]);
+            if (match.hasMatch())
+            {
+                emit cliVersionReady(match.captured(1));
+                return;
+            }
+        }
+        emit cliVersionReady(QString()); // not found
+    });
+}
+

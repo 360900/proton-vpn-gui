@@ -16,8 +16,16 @@ namespace GeoUtils
     // or an empty string if detection fails.
     QString detectUserCountry();
 
+    // Convert a 2-letter country code to its English display name
+    // (e.g. "US" → "United States").  Returns the code itself if unknown.
+    QString countryCodeToName(const QString& code);
+
     // Render an SVG resource path into a QPixmap at the given pixel size.
     QPixmap svgPixmap(const QString& resourcePath, int size = 16);
+
+    // Render an SVG resource path into a QPixmap with explicit dimensions.
+    // Useful for non-square assets such as 4:3 flags.
+    QPixmap svgPixmap(const QString& resourcePath, int width, int height);
 
     // Return a QIcon for the given country code using the embedded /flags/
     // resources (e.g. "US" → :/flags/us).  Icons are cached so each SVG is

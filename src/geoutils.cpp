@@ -131,6 +131,147 @@ static const QMap<QString, QString> kTimezoneToCountry = {
 };
 
 // ---------------------------------------------------------------------------
+// countryCodeToName
+// ---------------------------------------------------------------------------
+QString countryCodeToName(const QString& code)
+{
+    static const QMap<QString, QString> kCodeToName = {
+        {QStringLiteral("AF"), QStringLiteral("Afghanistan")},
+        {QStringLiteral("AL"), QStringLiteral("Albania")},
+        {QStringLiteral("DZ"), QStringLiteral("Algeria")},
+        {QStringLiteral("AO"), QStringLiteral("Angola")},
+        {QStringLiteral("AR"), QStringLiteral("Argentina")},
+        {QStringLiteral("AM"), QStringLiteral("Armenia")},
+        {QStringLiteral("AU"), QStringLiteral("Australia")},
+        {QStringLiteral("AT"), QStringLiteral("Austria")},
+        {QStringLiteral("AZ"), QStringLiteral("Azerbaijan")},
+        {QStringLiteral("BH"), QStringLiteral("Bahrain")},
+        {QStringLiteral("BD"), QStringLiteral("Bangladesh")},
+        {QStringLiteral("BY"), QStringLiteral("Belarus")},
+        {QStringLiteral("BE"), QStringLiteral("Belgium")},
+        {QStringLiteral("BT"), QStringLiteral("Bhutan")},
+        {QStringLiteral("BA"), QStringLiteral("Bosnia and Herzegovina")},
+        {QStringLiteral("BR"), QStringLiteral("Brazil")},
+        {QStringLiteral("BN"), QStringLiteral("Brunei")},
+        {QStringLiteral("BG"), QStringLiteral("Bulgaria")},
+        {QStringLiteral("KH"), QStringLiteral("Cambodia")},
+        {QStringLiteral("CM"), QStringLiteral("Cameroon")},
+        {QStringLiteral("CA"), QStringLiteral("Canada")},
+        {QStringLiteral("TD"), QStringLiteral("Chad")},
+        {QStringLiteral("CL"), QStringLiteral("Chile")},
+        {QStringLiteral("CO"), QStringLiteral("Colombia")},
+        {QStringLiteral("KM"), QStringLiteral("Comoros")},
+        {QStringLiteral("CR"), QStringLiteral("Costa Rica")},
+        {QStringLiteral("HR"), QStringLiteral("Croatia")},
+        {QStringLiteral("CU"), QStringLiteral("Cuba")},
+        {QStringLiteral("CY"), QStringLiteral("Cyprus")},
+        {QStringLiteral("CZ"), QStringLiteral("Czech Republic")},
+        {QStringLiteral("DK"), QStringLiteral("Denmark")},
+        {QStringLiteral("DO"), QStringLiteral("Dominican Republic")},
+        {QStringLiteral("EC"), QStringLiteral("Ecuador")},
+        {QStringLiteral("EG"), QStringLiteral("Egypt")},
+        {QStringLiteral("SV"), QStringLiteral("El Salvador")},
+        {QStringLiteral("ER"), QStringLiteral("Eritrea")},
+        {QStringLiteral("EE"), QStringLiteral("Estonia")},
+        {QStringLiteral("ET"), QStringLiteral("Ethiopia")},
+        {QStringLiteral("FI"), QStringLiteral("Finland")},
+        {QStringLiteral("FR"), QStringLiteral("France")},
+        {QStringLiteral("GE"), QStringLiteral("Georgia")},
+        {QStringLiteral("DE"), QStringLiteral("Germany")},
+        {QStringLiteral("GH"), QStringLiteral("Ghana")},
+        {QStringLiteral("GR"), QStringLiteral("Greece")},
+        {QStringLiteral("GT"), QStringLiteral("Guatemala")},
+        {QStringLiteral("HN"), QStringLiteral("Honduras")},
+        {QStringLiteral("HK"), QStringLiteral("Hong Kong")},
+        {QStringLiteral("HU"), QStringLiteral("Hungary")},
+        {QStringLiteral("IS"), QStringLiteral("Iceland")},
+        {QStringLiteral("IN"), QStringLiteral("India")},
+        {QStringLiteral("ID"), QStringLiteral("Indonesia")},
+        {QStringLiteral("IQ"), QStringLiteral("Iraq")},
+        {QStringLiteral("IE"), QStringLiteral("Ireland")},
+        {QStringLiteral("IL"), QStringLiteral("Israel")},
+        {QStringLiteral("IT"), QStringLiteral("Italy")},
+        {QStringLiteral("CI"), QStringLiteral("Ivory Coast")},
+        {QStringLiteral("JP"), QStringLiteral("Japan")},
+        {QStringLiteral("JO"), QStringLiteral("Jordan")},
+        {QStringLiteral("KZ"), QStringLiteral("Kazakhstan")},
+        {QStringLiteral("KE"), QStringLiteral("Kenya")},
+        {QStringLiteral("KW"), QStringLiteral("Kuwait")},
+        {QStringLiteral("LA"), QStringLiteral("Laos")},
+        {QStringLiteral("LV"), QStringLiteral("Latvia")},
+        {QStringLiteral("LY"), QStringLiteral("Libya")},
+        {QStringLiteral("LT"), QStringLiteral("Lithuania")},
+        {QStringLiteral("LU"), QStringLiteral("Luxembourg")},
+        {QStringLiteral("MK"), QStringLiteral("Macedonia")},
+        {QStringLiteral("MY"), QStringLiteral("Malaysia")},
+        {QStringLiteral("MT"), QStringLiteral("Malta")},
+        {QStringLiteral("MR"), QStringLiteral("Mauritania")},
+        {QStringLiteral("MU"), QStringLiteral("Mauritius")},
+        {QStringLiteral("MX"), QStringLiteral("Mexico")},
+        {QStringLiteral("MD"), QStringLiteral("Moldova")},
+        {QStringLiteral("MN"), QStringLiteral("Mongolia")},
+        {QStringLiteral("ME"), QStringLiteral("Montenegro")},
+        {QStringLiteral("MA"), QStringLiteral("Morocco")},
+        {QStringLiteral("MZ"), QStringLiteral("Mozambique")},
+        {QStringLiteral("MM"), QStringLiteral("Myanmar")},
+        {QStringLiteral("NP"), QStringLiteral("Nepal")},
+        {QStringLiteral("NL"), QStringLiteral("Netherlands")},
+        {QStringLiteral("NZ"), QStringLiteral("New Zealand")},
+        {QStringLiteral("NG"), QStringLiteral("Nigeria")},
+        {QStringLiteral("NO"), QStringLiteral("Norway")},
+        {QStringLiteral("OM"), QStringLiteral("Oman")},
+        {QStringLiteral("PK"), QStringLiteral("Pakistan")},
+        {QStringLiteral("PS"), QStringLiteral("Palestinian Territory")},
+        {QStringLiteral("PA"), QStringLiteral("Panama")},
+        {QStringLiteral("PE"), QStringLiteral("Peru")},
+        {QStringLiteral("PH"), QStringLiteral("Philippines")},
+        {QStringLiteral("PL"), QStringLiteral("Poland")},
+        {QStringLiteral("PT"), QStringLiteral("Portugal")},
+        {QStringLiteral("PR"), QStringLiteral("Puerto Rico")},
+        {QStringLiteral("QA"), QStringLiteral("Qatar")},
+        {QStringLiteral("RO"), QStringLiteral("Romania")},
+        {QStringLiteral("RU"), QStringLiteral("Russia")},
+        {QStringLiteral("RW"), QStringLiteral("Rwanda")},
+        {QStringLiteral("SA"), QStringLiteral("Saudi Arabia")},
+        {QStringLiteral("SN"), QStringLiteral("Senegal")},
+        {QStringLiteral("RS"), QStringLiteral("Serbia")},
+        {QStringLiteral("SG"), QStringLiteral("Singapore")},
+        {QStringLiteral("SK"), QStringLiteral("Slovakia")},
+        {QStringLiteral("SI"), QStringLiteral("Slovenia")},
+        {QStringLiteral("SO"), QStringLiteral("Somalia")},
+        {QStringLiteral("ZA"), QStringLiteral("South Africa")},
+        {QStringLiteral("KR"), QStringLiteral("South Korea")},
+        {QStringLiteral("SS"), QStringLiteral("South Sudan")},
+        {QStringLiteral("ES"), QStringLiteral("Spain")},
+        {QStringLiteral("LK"), QStringLiteral("Sri Lanka")},
+        {QStringLiteral("SD"), QStringLiteral("Sudan")},
+        {QStringLiteral("SE"), QStringLiteral("Sweden")},
+        {QStringLiteral("CH"), QStringLiteral("Switzerland")},
+        {QStringLiteral("SY"), QStringLiteral("Syria")},
+        {QStringLiteral("TW"), QStringLiteral("Taiwan")},
+        {QStringLiteral("TJ"), QStringLiteral("Tajikistan")},
+        {QStringLiteral("TZ"), QStringLiteral("Tanzania")},
+        {QStringLiteral("TH"), QStringLiteral("Thailand")},
+        {QStringLiteral("TG"), QStringLiteral("Togo")},
+        {QStringLiteral("TN"), QStringLiteral("Tunisia")},
+        {QStringLiteral("TR"), QStringLiteral("Turkey")},
+        {QStringLiteral("TM"), QStringLiteral("Turkmenistan")},
+        {QStringLiteral("UG"), QStringLiteral("Uganda")},
+        {QStringLiteral("UA"), QStringLiteral("Ukraine")},
+        {QStringLiteral("AE"), QStringLiteral("United Arab Emirates")},
+        {QStringLiteral("GB"), QStringLiteral("United Kingdom")},
+        {QStringLiteral("UK"), QStringLiteral("United Kingdom")},
+        {QStringLiteral("US"), QStringLiteral("United States")},
+        {QStringLiteral("UZ"), QStringLiteral("Uzbekistan")},
+        {QStringLiteral("VE"), QStringLiteral("Venezuela")},
+        {QStringLiteral("VN"), QStringLiteral("Vietnam")},
+        {QStringLiteral("YE"), QStringLiteral("Yemen")},
+    };
+    const auto it = kCodeToName.find(code.toUpper());
+    return it != kCodeToName.end() ? it.value() : code;
+}
+
+// ---------------------------------------------------------------------------
 // detectUserCountry
 // ---------------------------------------------------------------------------
 QString detectUserCountry()
@@ -172,14 +313,19 @@ QString detectUserCountry()
 // ---------------------------------------------------------------------------
 // svgPixmap
 // ---------------------------------------------------------------------------
-QPixmap svgPixmap(const QString& resourcePath, int size)
+QPixmap svgPixmap(const QString& resourcePath, int width, int height)
 {
     QSvgRenderer renderer(resourcePath);
-    QPixmap pixmap(size, size);
+    QPixmap pixmap(width, height);
     pixmap.fill(Qt::transparent);
     QPainter painter(&pixmap);
     renderer.render(&painter);
     return pixmap;
+}
+
+QPixmap svgPixmap(const QString& resourcePath, int size)
+{
+    return svgPixmap(resourcePath, size, size);
 }
 
 // ---------------------------------------------------------------------------
@@ -200,7 +346,8 @@ QIcon flagIcon(const QString& countryCode)
         return {};
     }
 
-    const QIcon icon(svgPixmap(path, 20));
+    // Render flags at 4:3 so they keep their natural aspect ratio.
+    const QIcon icon(svgPixmap(path, 20, 15));
     cache.insert(key, icon);
     return icon;
 }
