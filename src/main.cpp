@@ -354,6 +354,19 @@ int main(int argc, char* argv[])
             width: 1px;
         }
 
+        QToolButton#accordionHeader {
+            background-color: #1a1a2e;
+            border: none;
+            border-bottom: 1px solid #2d2d4a;
+            color: #eaeaea;
+            text-align: left;
+            padding: 0 12px;
+            font-size: 13px;
+        }
+        QToolButton#accordionHeader:hover {
+            background-color: #2d2d4a;
+        }
+
         QScrollBar:vertical {
             background: #1a1a2e;
             width: 8px;

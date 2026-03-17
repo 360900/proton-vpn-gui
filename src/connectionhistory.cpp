@@ -1,0 +1,120 @@
+#include "connectionhistory.h"
+#include "appconfig.h"
+
+#include <QDir>
+#include <QFile>
+#include <QJsonArray>
+#include <QJsonDocument>
+#include <QJsonObject>
+#include <QStandardPaths>
+
+static QString historyFilePath()
+{
+    // XDG_DATA_HOME / ProtonVPN-Qt / history.json
+    const QString dataHome = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
+    // AppDataLocation already appends the app name on most platforms, but our
+    // app name is "ProtonVPN" so we end up with ~/.local/share/ProtonVPN/…
+    // Override to be explicit about our sub-dir name.
+    const QString dir = QStandardPaths::writableLocation(QStandardPaths::GenericDataLocation)
+                        + QStringLiteral("/ProtonVPN-Qt");
+    return dir + QStringLiteral("/history.json");
+}
+
+ConnectionHistory& ConnectionHistory::instance()
+{
+    static ConnectionHistory inst;
+    return inst;
+}
+
+ConnectionHistory::ConnectionHistory()
+{
+    load();
+}
+
+QList<ConnectionEntry> ConnectionHistory::entries() const
+{
+    return m_entries;
+}
+
+void ConnectionHistory::record(const QString& countryCode,
+                                const QString& countryName,
+                                const QString& city)
+{
+    const int maxCount = AppConfig::instance().recentConnectionsCount();
+
+    // If already present, update timestamp and move to front
+    for (int i = 0; i < m_entries.size(); ++i)
+    {
+        if (m_entries[i].countryCode == countryCode &&
+            m_entries[i].city == city)
+        {
+            m_entries[i].connectedAt = QDateTime::currentDateTime();
+            m_entries[i].countryName = countryName; // keep name fresh
+            // Move to front
+            m_entries.move(i, 0);
+            save();
+            return;
+        }
+    }
+
+    // New entry — prepend
+    ConnectionEntry e;
+    e.countryCode  = countryCode;
+    e.countryName  = countryName;
+    e.city         = city;
+    e.connectedAt  = QDateTime::currentDateTime();
+    m_entries.prepend(e);
+
+    // Trim to max
+    if (maxCount > 0)
+        while (m_entries.size() > maxCount)
+            m_entries.removeLast();
+
+    save();
+}
+
+void ConnectionHistory::load()
+{
+    QFile f(historyFilePath());
+    if (!f.open(QIODevice::ReadOnly))
+        return;
+
+    const QJsonArray arr = QJsonDocument::fromJson(f.readAll()).array();
+    f.close();
+
+    m_entries.clear();
+    for (const auto& val : arr)
+    {
+        const QJsonObject obj = val.toObject();
+        ConnectionEntry e;
+        e.countryCode  = obj.value(QStringLiteral("country_code")).toString();
+        e.countryName  = obj.value(QStringLiteral("country_name")).toString();
+        e.city         = obj.value(QStringLiteral("city")).toString();
+        e.connectedAt  = QDateTime::fromString(
+            obj.value(QStringLiteral("connected_at")).toString(), Qt::ISODate);
+        if (!e.countryCode.isEmpty())
+            m_entries.append(e);
+    }
+}
+
+void ConnectionHistory::save() const
+{
+    const QString path = historyFilePath();
+    QDir().mkpath(QFileInfo(path).absolutePath());
+
+    QJsonArray arr;
+    for (const auto& e : m_entries)
+    {
+        QJsonObject obj;
+        obj[QStringLiteral("country_code")]  = e.countryCode;
+        obj[QStringLiteral("country_name")]  = e.countryName;
+        obj[QStringLiteral("city")]          = e.city;
+        obj[QStringLiteral("connected_at")]  = e.connectedAt.toString(Qt::ISODate);
+        arr.append(obj);
+    }
+
+    QFile f(path);
+    if (f.open(QIODevice::WriteOnly | QIODevice::Text))
+        f.write(QJsonDocument(arr).toJson(QJsonDocument::Indented));
+}
+

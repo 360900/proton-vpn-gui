@@ -32,6 +32,7 @@ void AppConfig::load()
 
     m_autoConnect = obj.value(QStringLiteral("auto_connect")).toBool(false);
     m_notifications = obj.value(QStringLiteral("notifications")).toBool(true);
+    m_recentConnectionsCount = obj.value(QStringLiteral("recent_connections_count")).toInt(5);
 }
 
 bool AppConfig::save() const
@@ -43,6 +44,7 @@ bool AppConfig::save() const
     QJsonObject obj;
     obj[QStringLiteral("auto_connect")] = m_autoConnect;
     obj[QStringLiteral("notifications")] = m_notifications;
+    obj[QStringLiteral("recent_connections_count")] = m_recentConnectionsCount;
 
     QFile f(kConfigFile);
     if (!f.open(QIODevice::WriteOnly | QIODevice::Text))
@@ -67,6 +69,15 @@ void AppConfig::setNotifications(bool value)
 {
     if (m_notifications == value) return;
     m_notifications = value;
+    save();
+}
+
+int AppConfig::recentConnectionsCount() const { return m_recentConnectionsCount; }
+
+void AppConfig::setRecentConnectionsCount(int value)
+{
+    if (m_recentConnectionsCount == value) return;
+    m_recentConnectionsCount = qMax(0, value);
     save();
 }
 

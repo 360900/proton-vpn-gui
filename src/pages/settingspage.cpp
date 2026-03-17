@@ -1,6 +1,7 @@
 #include "settingspage.h"
 #include "../appconfig.h"
 
+#include <QSpinBox>
 #include <QVBoxLayout>
 #include <QFrame>
 #include <QScrollArea>
@@ -447,6 +448,29 @@ SettingsPage::SettingsPage(VpnManager* manager, QWidget* parent)
         addApp(row);
     }
 
+    // ── Recent Connections ────────────────────────────────────
+    {
+        auto* row = new QWidget(appCard);
+        auto* rl = new QHBoxLayout(row);
+        rl->setContentsMargins(16, 12, 16, 12);
+        rl->setSpacing(16);
+        rl->addWidget(makeTextCol(row,
+                                  QStringLiteral("Recent Connections"),
+                                  QStringLiteral("Number of recent VPN connections to remember and show "
+                                      "on the home screen. Set to 0 to disable.")), 1);
+        auto* spinBox = new QSpinBox(row);
+        spinBox->setMinimum(0);
+        spinBox->setMaximum(20);
+        spinBox->setValue(AppConfig::instance().recentConnectionsCount());
+        spinBox->setFixedWidth(64);
+        connect(spinBox, QOverload<int>::of(&QSpinBox::valueChanged), this, [](int val)
+        {
+            AppConfig::instance().setRecentConnectionsCount(val);
+        });
+        rl->addWidget(spinBox);
+        addApp(row);
+    }
+
     appCardLayout->addStretch();
 
     // ── About button – sits inside the App tab, below the card ──
@@ -734,7 +758,7 @@ void SettingsPage::showAboutDialog()
     browser->setFrameShape(QFrame::NoFrame);
     browser->setHtml(QStringLiteral(R"(
 <h2 style="margin-bottom:4px;">ProtonVPN Qt App</h2>
-<p style="color:#888;margin-top:0;">A community-built Qt 6 front-end for the Proton VPN CLI.</p>
+<p style="color:#888;margin-top:0;">A community-built Qt front-end for the Proton VPN CLI.</p>
 <table style="margin-bottom:8px;">
   <tr><td><b>App version:&nbsp;</b></td><td>%1</td></tr>
   <tr><td><b>Tested against CLI:&nbsp;</b></td><td>%2</td></tr>

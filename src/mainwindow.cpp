@@ -21,6 +21,8 @@
 #include "pages/accountpage.h"
 #include "pages/settingspage.h"
 #include "appconfig.h"
+#include "connectionhistory.h"
+#include "geoutils.h"
 
 static QIcon svgNavIcon(const QString& path, const QSize& size = {24, 24}, bool tintInDarkMode = true)
 {
@@ -114,6 +116,11 @@ MainWindow::MainWindow(QWidget* parent)
     connect(m_vpnPage, &VpnPage::connectRequested, m_manager,
             [this](const QString& country, const QString& city)
             {
+                if (!country.isEmpty())
+                {
+                    const QString name = GeoUtils::countryCodeToName(country);
+                    ConnectionHistory::instance().record(country, name, city);
+                }
                 m_manager->connectVpn(country, city);
             });
     connect(m_vpnPage, &VpnPage::disconnectRequested, m_manager, &VpnManager::disconnectVpn);
@@ -133,6 +140,11 @@ MainWindow::MainWindow(QWidget* parent)
             [this](const QString& country, const QString& city)
             {
                 m_vpnPage->notifyExternalConnect(city);
+                if (!country.isEmpty())
+                {
+                    const QString name = GeoUtils::countryCodeToName(country);
+                    ConnectionHistory::instance().record(country, name, city);
+                }
                 m_manager->connectVpn(country, city);
                 showPage(Page::Vpn);
             });
