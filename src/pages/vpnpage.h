@@ -11,6 +11,7 @@
 #include <QPlainTextEdit>
 #include <QClipboard>
 #include <QGuiApplication>
+#include <QVersionNumber>
 #include "../vpnmanager.h"
 
 // ---------------------------------------------------------------------------
@@ -135,6 +136,7 @@ signals:
 
 private slots:
     void onCitiesReady(const QString& countryCode, const QList<QPair<QString, QString>>& cities);
+    void onCliVersionReady(const QString& version);
 
 private:
     VpnManager* m_manager;
@@ -147,6 +149,7 @@ private:
     QPushButton*    m_errorDetailsBtn;
     QLabel*         m_timerLabel;
     LocationPicker* m_locationPicker;
+    QFrame*         m_versionBanner = nullptr;  // dismissable CLI version warning
     QTimer*         m_elapsedTimer;
     QTimer*         m_checkingSpinnerTimer;
     int   m_elapsedSeconds = 0;

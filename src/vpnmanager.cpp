@@ -625,3 +625,29 @@ void VpnManager::applyConfigValue(const QString& key, const QString& value)
         emit configApplied(combined);
     });
 }
+
+void VpnManager::fetchCliVersion()
+{
+    // Running `protonvpn` with no args prints the ASCII banner which ends with
+    // the version number on the last banner line, e.g.:
+    //   |_|   |_|  \___/ \__\___/|_| |_|    \_/  |_|   |_| \_| 0.1.7
+    // We scan all output lines for a semver-looking token (digits.digits.digits).
+    runCommand({}, [this](int, const QString& out, const QString& err)
+    {
+        const QString combined = out + QLatin1Char('\n') + err;
+        const QRegularExpression re(QStringLiteral(R"(\b(\d+\.\d+\.\d+)\b)"));
+        // Walk lines in reverse — the version is on the last banner line
+        const QStringList lines = combined.split(QLatin1Char('\n'));
+        for (int i = lines.size() - 1; i >= 0; --i)
+        {
+            const auto match = re.match(lines[i]);
+            if (match.hasMatch())
+            {
+                emit cliVersionReady(match.captured(1));
+                return;
+            }
+        }
+        emit cliVersionReady(QString()); // not found
+    });
+}
+

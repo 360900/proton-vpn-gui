@@ -36,6 +36,7 @@ public:
     void applyConfig(const QString& key, bool enabled);
     void applyConfigValue(const QString& key, const QString& value);
     void checkConnectionStatus();
+    void fetchCliVersion();
 
     VpnState currentState() const { return m_state; }
 
@@ -51,6 +52,7 @@ signals:
     void infoReady(const QMap<QString, QString>& info);
     void settingsReady(const QMap<QString, QString>& settings);
     void configApplied(const QString& output);
+    void cliVersionReady(const QString& version);
     void errorOccurred(const QString& error);
 
 private:

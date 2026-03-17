@@ -1,8 +1,11 @@
 #include "vpnpage.h"
 #include "../geoutils.h"
 
+#include <QFile>
 #include <QHBoxLayout>
 #include <QVBoxLayout>
+#include <QJsonDocument>
+#include <QJsonObject>
 #include <QMouseEvent>
 #include <QPainter>
 #include <QPainterPath>
@@ -16,6 +19,7 @@
 #include <QClipboard>
 #include <QCursor>
 #include <QScrollArea>
+#include <QVersionNumber>
 #include <cmath>
 
 // ============================================================
@@ -788,6 +792,11 @@ VpnPage::VpnPage(VpnManager* manager, QWidget* parent)
     if (!m_localCountryCode.isEmpty())
         m_manager->fetchCities(m_localCountryCode);
 
+    // Check the installed CLI version against the tested version
+    connect(m_manager, &VpnManager::cliVersionReady,
+            this, &VpnPage::onCliVersionReady);
+    m_manager->fetchCliVersion();
+
     // When the user changes location while connected/connecting, ask what to do
     connect(m_locationPicker, &LocationPicker::selectionChanged,
             this, [this](const QString& city)
@@ -881,6 +890,96 @@ void VpnPage::onCitiesReady(const QString& countryCode,
     }
 
     m_locationPicker->populate(cities);
+}
+
+void VpnPage::onCliVersionReady(const QString& version)
+{
+    // Read the tested CLI version from the embedded version.json
+    QString testedVersionStr;
+    QFile vf(QStringLiteral(":/version.json"));
+    if (vf.open(QIODevice::ReadOnly))
+    {
+        const QJsonObject obj = QJsonDocument::fromJson(vf.readAll()).object();
+        vf.close();
+        testedVersionStr = obj.value(QStringLiteral("cli_version_tested")).toString();
+    }
+
+    if (version.isEmpty() || testedVersionStr.isEmpty())
+        return; // can't compare — stay silent
+
+    const QVersionNumber installed = QVersionNumber::fromString(version);
+    const QVersionNumber tested    = QVersionNumber::fromString(testedVersionStr);
+
+    if (installed == tested)
+        return; // all good — no banner needed
+
+    const QString colour       = QStringLiteral("#7a5c00");
+    const QString bgColour     = QStringLiteral("#fff3cd");
+    const QString borderColour = QStringLiteral("#e6ac00");
+
+    const QString msg = (installed > tested)
+        ? QStringLiteral(
+              "Your Proton VPN CLI (<b>v%1</b>) is newer than the version this app was "
+              "tested against (<b>v%2</b>). Things may work fine, but you could encounter "
+              "unexpected behaviour.")
+              .arg(version, testedVersionStr)
+        : QStringLiteral(
+              "Your Proton VPN CLI (<b>v%1</b>) is older than the version this app was "
+              "tested against (<b>v%2</b>). Some features may not work correctly. "
+              "Consider upgrading the CLI.")
+              .arg(version, testedVersionStr);
+
+    // Build the dismissable banner and insert it into the scroll area content
+    // (which is the scrollLayout's parent widget — we need to insert it at the top).
+    m_versionBanner = new QFrame(this);
+    m_versionBanner->setObjectName(QStringLiteral("versionBanner"));
+    m_versionBanner->setStyleSheet(
+        QStringLiteral("QFrame#versionBanner { background-color: %1; border: 1px solid %2; "
+                       "border-radius: 6px; } QLabel { color: %3; background: transparent; }")
+            .arg(bgColour, borderColour, colour));
+
+    auto* bannerLayout = new QHBoxLayout(m_versionBanner);
+    bannerLayout->setContentsMargins(12, 8, 8, 8);
+    bannerLayout->setSpacing(8);
+
+    auto* iconLabel = new QLabel(QStringLiteral("⚠"), m_versionBanner);
+    iconLabel->setStyleSheet(QStringLiteral("font-size: 16px; font-weight: bold;"));
+    bannerLayout->addWidget(iconLabel, 0, Qt::AlignTop);
+
+    auto* msgLabel = new QLabel(msg, m_versionBanner);
+    msgLabel->setWordWrap(true);
+    msgLabel->setTextFormat(Qt::RichText);
+    msgLabel->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
+    bannerLayout->addWidget(msgLabel, 1);
+
+    auto* dismissBtn = new QPushButton(QStringLiteral("✕"), m_versionBanner);
+    dismissBtn->setFixedSize(22, 22);
+    dismissBtn->setFlat(true);
+    dismissBtn->setCursor(Qt::PointingHandCursor);
+    dismissBtn->setStyleSheet(
+        QStringLiteral("QPushButton { color: %1; font-weight: bold; border: none; "
+                       "background: transparent; } QPushButton:hover { opacity: 0.7; }")
+            .arg(colour));
+    connect(dismissBtn, &QPushButton::clicked, this, [this]()
+    {
+        if (m_versionBanner)
+        {
+            m_versionBanner->setVisible(false);
+            m_versionBanner->deleteLater();
+            m_versionBanner = nullptr;
+        }
+    });
+    bannerLayout->addWidget(dismissBtn, 0, Qt::AlignTop);
+
+    // Insert banner into the scroll content layout at position 0 (above the timer)
+    // Find the scrollLayout by walking the scroll area's widget
+    auto* scrollArea = findChild<QScrollArea*>(QStringLiteral("vpnScrollArea"));
+    if (scrollArea && scrollArea->widget())
+    {
+        auto* scrollLayout = qobject_cast<QVBoxLayout*>(scrollArea->widget()->layout());
+        if (scrollLayout)
+            scrollLayout->insertWidget(0, m_versionBanner);
+    }
 }
 
 void VpnPage::onStateChanged(VpnState state, const QString& info)
