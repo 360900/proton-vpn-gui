@@ -177,7 +177,7 @@ private:
     bool     m_stateKnown = false;
     QList<QPair<QString, QString>> m_pendingCities;
 
-    static constexpr int kWideThreshold = 560; // px
+    static constexpr int kWideThreshold = 580; // px
 
     void updateUi(VpnState state, const QString& info);
     void startElapsedTimer();

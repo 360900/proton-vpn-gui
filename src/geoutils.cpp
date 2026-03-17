@@ -313,14 +313,19 @@ QString detectUserCountry()
 // ---------------------------------------------------------------------------
 // svgPixmap
 // ---------------------------------------------------------------------------
-QPixmap svgPixmap(const QString& resourcePath, int size)
+QPixmap svgPixmap(const QString& resourcePath, int width, int height)
 {
     QSvgRenderer renderer(resourcePath);
-    QPixmap pixmap(size, size);
+    QPixmap pixmap(width, height);
     pixmap.fill(Qt::transparent);
     QPainter painter(&pixmap);
     renderer.render(&painter);
     return pixmap;
+}
+
+QPixmap svgPixmap(const QString& resourcePath, int size)
+{
+    return svgPixmap(resourcePath, size, size);
 }
 
 // ---------------------------------------------------------------------------
@@ -341,7 +346,8 @@ QIcon flagIcon(const QString& countryCode)
         return {};
     }
 
-    const QIcon icon(svgPixmap(path, 20));
+    // Render flags at 4:3 so they keep their natural aspect ratio.
+    const QIcon icon(svgPixmap(path, 20, 15));
     cache.insert(key, icon);
     return icon;
 }

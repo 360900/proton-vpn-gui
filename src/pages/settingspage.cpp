@@ -448,8 +448,9 @@ SettingsPage::SettingsPage(VpnManager* manager, QWidget* parent)
         addApp(row);
     }
 
+    // TODO iron out the bugs and reimplement later
     // ── Recent Connections ────────────────────────────────────
-    {
+    /*{
         auto* row = new QWidget(appCard);
         auto* rl = new QHBoxLayout(row);
         rl->setContentsMargins(16, 12, 16, 12);
@@ -463,13 +464,12 @@ SettingsPage::SettingsPage(VpnManager* manager, QWidget* parent)
         spinBox->setMaximum(20);
         spinBox->setValue(AppConfig::instance().recentConnectionsCount());
         spinBox->setFixedWidth(64);
-        connect(spinBox, QOverload<int>::of(&QSpinBox::valueChanged), this, [](int val)
+        connect(spinBox, QOverload<int>::of(&QSpinBox::valueChanged), this, [](const int val)
         {
             AppConfig::instance().setRecentConnectionsCount(val);
         });
         rl->addWidget(spinBox);
-        addApp(row);
-    }
+    }*/
 
     appCardLayout->addStretch();
 

@@ -44,7 +44,7 @@ private:
     QString m_selectedCity;
     QString m_selectedCountry;
 
-    static constexpr int kNarrowThreshold = 560;
+    static constexpr int kNarrowThreshold = 515;
     bool m_narrowMode = false;
 
     bool m_filterP2P        = false;
@@ -72,6 +72,7 @@ private:
     QScrollArea* m_narrowScroll  = nullptr;
     QWidget*     m_narrowContent = nullptr;
     QVBoxLayout* m_narrowLayout  = nullptr;
+    QLabel*      m_narrowLoadingLabel = nullptr;
 
     struct AccordionItem {
         QToolButton* headerBtn    = nullptr;

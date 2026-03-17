@@ -32,7 +32,8 @@ void AppConfig::load()
 
     m_autoConnect = obj.value(QStringLiteral("auto_connect")).toBool(false);
     m_notifications = obj.value(QStringLiteral("notifications")).toBool(true);
-    m_recentConnectionsCount = obj.value(QStringLiteral("recent_connections_count")).toInt(5);
+    // m_recentConnectionsCount = obj.value(QStringLiteral("recent_connections_count")).toInt(5);
+    m_recentConnectionsCount = 0; // TODO: Remove this line and uncomment out the line above when bugs are removed
 }
 
 bool AppConfig::save() const
@@ -65,7 +66,7 @@ void AppConfig::setAutoConnect(bool value)
 
 bool AppConfig::notifications() const { return m_notifications; }
 
-void AppConfig::setNotifications(bool value)
+void AppConfig::setNotifications(const bool value)
 {
     if (m_notifications == value) return;
     m_notifications = value;
@@ -74,7 +75,7 @@ void AppConfig::setNotifications(bool value)
 
 int AppConfig::recentConnectionsCount() const { return m_recentConnectionsCount; }
 
-void AppConfig::setRecentConnectionsCount(int value)
+void AppConfig::setRecentConnectionsCount(const int value)
 {
     if (m_recentConnectionsCount == value) return;
     m_recentConnectionsCount = qMax(0, value);

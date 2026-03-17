@@ -33,10 +33,131 @@ static bool hasFeature(const QString& features, const QString& keyword)
     return false;
 }
 
+// City-level filter predicate used by both wide and narrow city lists.
+static bool cityPassesFilters(const QString& features,
+                              const bool filterP2P,
+                              const bool filterSecureCore,
+                              const bool filterTor)
+{
+    if (!filterP2P && !filterSecureCore && !filterTor)
+        return true;
+
+    // AND semantics: all enabled filters must be present.
+    if (filterP2P && !hasFeature(features, QStringLiteral("p2p")))
+        return false;
+    if (filterSecureCore && !hasFeature(features, QStringLiteral("secure core")))
+        return false;
+    if (filterTor && !hasFeature(features, QStringLiteral("tor")))
+        return false;
+    return true;
+}
+
+// Shared star styling so wide and narrow views match exactly.
+static void drawPinnedStar(QPainter& p, const QRect& r)
+{
+    QFont starFont = p.font();
+    starFont.setBold(true);
+    starFont.setPointSize(qMax(starFont.pointSize() + 1, 10));
+    p.setFont(starFont);
+    p.setPen(QColor(0xff, 0xd2, 0x4a)); // gold
+    p.drawText(r, Qt::AlignCenter, QStringLiteral("★"));
+}
+
+// Wide country-list icon: optional star, then flag.
+static QIcon makeCountryListIcon(const QString& countryCode, const bool pinned)
+{
+    // Keep a fixed icon box so wide-mode star + flag are never downscaled.
+    const int iconW = 40;
+    QPixmap pm(iconW, 16);
+    pm.fill(Qt::transparent);
+
+    QPainter p(&pm);
+    p.setRenderHint(QPainter::Antialiasing);
+
+    int x = 12; // keep flag aligned across rows; star occupies the left slot
+    if (pinned)
+        drawPinnedStar(p, QRect(0, 0, 9, 16));
+
+    const QPixmap flag = GeoUtils::svgPixmap(
+        QStringLiteral(":/flags/") + countryCode.toLower(), 20, 15);
+    if (!flag.isNull())
+        p.drawPixmap(x, 0, flag);
+
+    return QIcon(pm);
+}
+
+// Header icon for narrow accordion: arrow indicator, optional star, then country flag.
+static QIcon makeAccordionHeaderIcon(const QString& countryCode,
+                                     const bool expanded,
+                                     const bool pinned)
+{
+    const int iconW = pinned ? 48 : 38;
+    QPixmap pm(iconW, 16);
+    pm.fill(Qt::transparent);
+
+    QPainter p(&pm);
+    p.setRenderHint(QPainter::Antialiasing);
+
+    const QString arrow = expanded ? QStringLiteral("▾") : QStringLiteral("▸");
+    p.setPen(QColor(0xea, 0xea, 0xea));
+    QFont f = p.font();
+    f.setBold(true);
+    f.setPointSize(qMax(f.pointSize() - 1, 8));
+    p.setFont(f);
+    p.drawText(QRect(0, 0, 10, 16), Qt::AlignCenter, arrow);
+
+    int x = 12;
+    if (pinned)
+    {
+        drawPinnedStar(p, QRect(x, 0, 9, 16));
+        p.setFont(f);
+        p.setPen(QColor(0xea, 0xea, 0xea));
+        x += 12; // star width + right padding
+    }
+
+    const QPixmap flag = GeoUtils::svgPixmap(
+        QStringLiteral(":/flags/") + countryCode.toLower(), 20, 15);
+    if (!flag.isNull())
+        p.drawPixmap(x, 0, flag);
+
+    return QIcon(pm);
+}
+
+// Add a non-selectable, word-wrapped informational row to a QListWidget.
+static void addWideInfoRow(QListWidget* list, const QString& text)
+{
+    if (!list) return;
+
+    auto* item = new QListWidgetItem();
+    item->setFlags(Qt::NoItemFlags);
+
+    auto* row = new QWidget(list);
+    auto* layout = new QVBoxLayout(row);
+    layout->setContentsMargins(10, 12, 10, 12);
+    layout->setSpacing(0);
+
+    auto* label = new QLabel(text, row);
+    label->setObjectName(QStringLiteral("infoLabel"));
+    label->setWordWrap(true);
+    label->setAlignment(Qt::AlignLeft | Qt::AlignTop);
+    layout->addWidget(label);
+
+    // Use a conservative wrapped-height estimate and a larger minimum to avoid
+    // clipping with list item padding/borders in styled views.
+    const int wrapW = qMax(200, list->viewport()->width() - 24);
+    const QRect textRect = label->fontMetrics().boundingRect(
+        QRect(0, 0, wrapW, 5000), Qt::TextWordWrap, text);
+    const int rowH = qMax(56, textRect.height() + 36);
+    item->setSizeHint(QSize(0, rowH));
+
+    list->addItem(item);
+    list->setItemWidget(item, row);
+}
+
 // ============================================================
 // Bubble style helper
 // ============================================================
-QString CountriesPage::bubbleStyle(bool active)
+QString CountriesPage::bubbleStyle(const bool active)
 {
     if (active)
         return QStringLiteral(
@@ -148,9 +269,13 @@ CountriesPage::CountriesPage(VpnManager* manager, QWidget* parent)
     m_countriesSpinnerTimer->setInterval(200);
     connect(m_countriesSpinnerTimer, &QTimer::timeout, this, [this]() {
         m_countriesSpinnerFrame = (m_countriesSpinnerFrame + 1) % frameCount;
+        const QString frame = QString::fromUtf8(frames[m_countriesSpinnerFrame]);
         if (m_countriesList && m_countriesList->count() > 0)
             m_countriesList->item(0)->setText(
-                QStringLiteral("%1 Loading countries…").arg(QString::fromUtf8(frames[m_countriesSpinnerFrame])));
+                QStringLiteral("%1 Loading countries…").arg(frame));
+        if (m_narrowLoadingLabel)
+            m_narrowLoadingLabel->setText(
+                QStringLiteral("%1 Loading countries…").arg(frame));
     });
 
     // ── VpnManager signals ────────────────────────────────────────────────
@@ -165,6 +290,35 @@ CountriesPage::CountriesPage(VpnManager* manager, QWidget* parent)
     m_narrowMode = width() < kNarrowThreshold;
     m_wideWidget->setVisible(!m_narrowMode);
     m_narrowWidget->setVisible(m_narrowMode);
+
+    // Initial loading state until countriesReady arrives.
+    m_refreshBtn->setEnabled(false);
+    m_refreshBtn->setText(QStringLiteral("Loading…"));
+
+    if (m_countriesList)
+    {
+        m_countriesList->clear();
+        m_countriesSpinnerFrame = 0;
+        auto* loadingItem = new QListWidgetItem(QStringLiteral("⠋ Loading countries…"));
+        loadingItem->setFlags(Qt::NoItemFlags);
+        loadingItem->setForeground(QColor(0x99, 0x99, 0xbb));
+        m_countriesList->addItem(loadingItem);
+    }
+
+    // While countries are loading, reset the right pane header.
+    if (m_citiesLabel)
+        m_citiesLabel->setText(QStringLiteral("Cities"));
+
+    if (m_narrowLayout)
+    {
+        m_narrowLoadingLabel = new QLabel(QStringLiteral("⠋ Loading countries…"), m_narrowContent);
+        m_narrowLoadingLabel->setObjectName(QStringLiteral("infoLabel"));
+        m_narrowLoadingLabel->setAlignment(Qt::AlignHCenter | Qt::AlignVCenter);
+        m_narrowLoadingLabel->setContentsMargins(0, 10, 0, 0); // extra top padding
+        m_narrowLayout->insertWidget(0, m_narrowLoadingLabel, 0, Qt::AlignHCenter);
+    }
+
+    m_countriesSpinnerTimer->start();
 }
 
 // ============================================================
@@ -185,7 +339,8 @@ void CountriesPage::buildWideLayout(QVBoxLayout* parent)
     countriesLayout->setContentsMargins(0, 0, 0, 0);
     m_countriesList = new QListWidget(countriesWidget);
     m_countriesList->setObjectName(QStringLiteral("serverList"));
-    m_countriesList->setIconSize(QSize(20, 15));
+    // Wide mode uses a composite icon (star + flag) so reserve enough width.
+    m_countriesList->setIconSize(QSize(40, 16));
     connect(m_countriesList, &QListWidget::itemClicked,
             this, &CountriesPage::onWideCountrySelected);
     countriesLayout->addWidget(m_countriesList);
@@ -201,6 +356,7 @@ void CountriesPage::buildWideLayout(QVBoxLayout* parent)
     citiesLayout->addWidget(m_citiesLabel);
     m_citiesList = new QListWidget(citiesWidget);
     m_citiesList->setObjectName(QStringLiteral("serverList"));
+    m_citiesList->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     connect(m_citiesList, &QListWidget::itemClicked,
             this, &CountriesPage::onWideCitySelected);
     citiesLayout->addWidget(m_citiesList);
@@ -320,6 +476,10 @@ void CountriesPage::refresh()
         m_countriesList->addItem(item);
         m_countriesSpinnerTimer->start();
     }
+
+    // While countries are loading, reset the right pane header and list.
+    if (m_citiesLabel)
+        m_citiesLabel->setText(QStringLiteral("Cities"));
     if (m_citiesList) m_citiesList->clear();
 
     // Narrow: clear accordion
@@ -328,6 +488,16 @@ void CountriesPage::refresh()
         auto* item = m_narrowLayout->takeAt(0);
         if (item->widget()) item->widget()->deleteLater();
         delete item;
+    }
+
+    // Narrow: show loading text/spinner as well.
+    if (!m_narrowLoadingLabel)
+    {
+        m_narrowLoadingLabel = new QLabel(QStringLiteral("⠋ Loading countries…"), m_narrowContent);
+        m_narrowLoadingLabel->setObjectName(QStringLiteral("infoLabel"));
+        m_narrowLoadingLabel->setAlignment(Qt::AlignHCenter | Qt::AlignVCenter);
+        m_narrowLoadingLabel->setContentsMargins(0, 10, 0, 0); // extra top padding
+        m_narrowLayout->insertWidget(0, m_narrowLoadingLabel, 0, Qt::AlignHCenter);
     }
 
     m_manager->fetchCountries();
@@ -342,6 +512,12 @@ void CountriesPage::onCountriesReady(const QMap<QString, QString>& countries)
     m_allCountries = countries;
     m_refreshBtn->setEnabled(true);
     m_refreshBtn->setText(QStringLiteral("↻ Refresh"));
+
+    if (m_narrowLoadingLabel)
+    {
+        m_narrowLoadingLabel->deleteLater();
+        m_narrowLoadingLabel = nullptr;
+    }
 
     applyFilter();
 
@@ -370,8 +546,6 @@ void CountriesPage::applyFilter()
     const bool anyFilter = m_filterP2P || m_filterSecureCore || m_filterTor;
     const QString search = m_searchEdit ? m_searchEdit->text() : QString();
 
-    // For feature-based filtering we need city data.
-    // Collect matching country codes.
     QList<QPair<QString,QString>> matching; // {name, code}
     for (auto it = m_allCountries.constBegin(); it != m_allCountries.constEnd(); ++it)
     {
@@ -384,31 +558,93 @@ void CountriesPage::applyFilter()
         matching.append({name, code});
     }
 
-    const int total = matching.size();
-    m_countriesLabel->setText(QStringLiteral("Countries (%1)").arg(total));
+    m_countriesLabel->setText(QStringLiteral("Countries (%1)").arg(matching.size()));
 
     if (m_narrowMode)
+    {
         populateNarrow();
-    else
-        populateWide();
+        return;
+    }
+
+    // Wide mode: rebuild countries and then refresh/clear the city panel.
+    populateWide();
+
+    if (m_selectedCode.isEmpty())
+    {
+        if (m_citiesList)
+        {
+            m_citiesList->clear();
+            addWideInfoRow(m_citiesList, QStringLiteral("Select a country to view cities."));
+        }
+        if (m_citiesLabel) m_citiesLabel->setText(QStringLiteral("Cities"));
+        if (m_connectBtn)
+        {
+            m_connectBtn->setEnabled(false);
+            m_connectBtn->setText(QStringLiteral("Connect to Selected"));
+        }
+        return;
+    }
+
+    QListWidgetItem* selectedItem = nullptr;
+    if (m_countriesList)
+    {
+        for (int i = 0; i < m_countriesList->count(); ++i)
+        {
+            auto* item = m_countriesList->item(i);
+            if (item && item->data(Qt::UserRole).toString() == m_selectedCode)
+            {
+                selectedItem = item;
+                break;
+            }
+        }
+    }
+
+    if (!selectedItem)
+    {
+        // Keep the previously selected country context and show an empty-state
+        // message instead of collapsing the header back to plain "Cities".
+        m_selectedCity.clear();
+
+        if (m_citiesList)
+        {
+            m_citiesList->clear();
+            addWideInfoRow(m_citiesList,
+                           QStringLiteral("No servers in this country match the selected filters."));
+        }
+        if (m_citiesLabel && !m_selectedCountry.isEmpty())
+            m_citiesLabel->setText(QStringLiteral("Cities (0) – %1").arg(m_selectedCountry));
+        if (m_connectBtn)
+        {
+            m_connectBtn->setEnabled(false);
+            if (!m_selectedCountry.isEmpty())
+                m_connectBtn->setText(QStringLiteral("Connect to %1").arg(m_selectedCountry));
+            else
+                m_connectBtn->setText(QStringLiteral("Connect to Selected"));
+        }
+        return;
+    }
+
+    // Keep selection and refresh cities to reflect the active feature filters.
+    m_countriesList->setCurrentItem(selectedItem);
+    onWideCountrySelected(selectedItem);
 }
 
-// countryPassesFilter: returns true if we have city data with the required feature,
-// or if we haven't fetched cities yet (we can't know — show it optimistically).
+// Country passes if at least one city satisfies all selected feature filters.
+// If we have no city cache yet, keep it visible until data arrives.
 bool CountriesPage::countryPassesFilter(const QString& code) const
 {
     if (!m_filterP2P && !m_filterSecureCore && !m_filterTor)
         return true;
 
     if (!m_cityCache.contains(code))
-        return true; // not fetched yet — show optimistically
+        return true;
 
     const auto& cities = m_cityCache[code];
-    for (const auto& [city, features] : cities)
+    for (const auto& cityPair : cities)
     {
-        if (m_filterP2P        && hasFeature(features, QStringLiteral("p2p")))         return true;
-        if (m_filterSecureCore && hasFeature(features, QStringLiteral("secure core"))) return true;
-        if (m_filterTor        && hasFeature(features, QStringLiteral("tor")))         return true;
+        const QString& features = cityPair.second;
+        if (cityPassesFilters(features, m_filterP2P, m_filterSecureCore, m_filterTor))
+            return true;
     }
     return false;
 }
@@ -442,24 +678,21 @@ void CountriesPage::populateWide()
         const QString& code = it.value();
         if (!search.isEmpty() && !name.contains(search, Qt::CaseInsensitive))
             continue;
-        if (anyFilter && !countryPassesFilter(code))
+        if (anyFilter && !countryPassesFilter(code) && code != m_selectedCode)
             continue;
+
+        const bool isPinned = (!m_localCountryCode.isEmpty() &&
+                               code.compare(m_localCountryCode, Qt::CaseInsensitive) == 0);
 
         auto* item = new QListWidgetItem(name);
         item->setData(Qt::UserRole, code);
-        const QIcon icon = GeoUtils::flagIcon(code);
-        if (!icon.isNull()) item->setIcon(icon);
+        item->setData(Qt::UserRole + 10, isPinned);
+        item->setIcon(makeCountryListIcon(code, isPinned));
 
-        if (!m_localCountryCode.isEmpty() &&
-            code.compare(m_localCountryCode, Qt::CaseInsensitive) == 0)
-        {
-            item->setText(QStringLiteral("★ %1").arg(name));
+        if (isPinned)
             pinnedItem = item;
-        }
         else
-        {
             others.append(item);
-        }
     }
 
     if (pinnedItem) m_countriesList->addItem(pinnedItem);
@@ -501,14 +734,15 @@ void CountriesPage::populateNarrow()
         btn->setFixedHeight(42);
         btn->setCursor(Qt::PointingHandCursor);
         btn->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
-        btn->setArrowType(Qt::RightArrow);
 
-        const QString displayName = (code.compare(pinnedCode, Qt::CaseInsensitive) == 0)
-            ? QStringLiteral("★ %1").arg(name) : name;
+        const bool isPinned = (code.compare(pinnedCode, Qt::CaseInsensitive) == 0);
+        const QString displayName = name;
+        btn->setProperty("baseText", displayName);
+        btn->setProperty("countryCode", code);
+        btn->setProperty("isPinned", isPinned);
         btn->setText(displayName);
-
-        const QIcon icon = GeoUtils::flagIcon(code);
-        if (!icon.isNull()) { btn->setIcon(icon); btn->setIconSize({20, 15}); }
+        btn->setIcon(makeAccordionHeaderIcon(code, false, isPinned));
+        btn->setIconSize({isPinned ? 48 : 38, 16});
 
         containerLayout->addWidget(btn);
 
@@ -540,7 +774,7 @@ void CountriesPage::populateNarrow()
     {
         if (it.value().compare(pinnedCode, Qt::CaseInsensitive) != 0) continue;
         if (!search.isEmpty() && !it.key().contains(search, Qt::CaseInsensitive)) continue;
-        if (anyFilter && !countryPassesFilter(it.value())) continue;
+        if (anyFilter && !countryPassesFilter(it.value()) && it.value() != m_selectedCode) continue;
         addAccordion(it.key(), it.value());
     }
     // Then the rest alphabetically
@@ -548,7 +782,7 @@ void CountriesPage::populateNarrow()
     {
         if (it.value().compare(pinnedCode, Qt::CaseInsensitive) == 0) continue;
         if (!search.isEmpty() && !it.key().contains(search, Qt::CaseInsensitive)) continue;
-        if (anyFilter && !countryPassesFilter(it.value())) continue;
+        if (anyFilter && !countryPassesFilter(it.value()) && it.value() != m_selectedCode) continue;
         addAccordion(it.key(), it.value());
     }
 }
@@ -563,9 +797,10 @@ void CountriesPage::onCitiesReady(const QString& code,
     m_pendingCityCodes.remove(code);
 
     const bool anyFilter = m_filterP2P || m_filterSecureCore || m_filterTor;
-    if (anyFilter)
+    if (anyFilter && code.compare(m_selectedCode, Qt::CaseInsensitive) != 0)
     {
-        // Now we have city data — re-apply filter (might remove this country)
+        // Re-apply only for non-selected countries. Reapplying for the selected
+        // country can recurse via applyFilter -> onWideCountrySelected -> onCitiesReady.
         applyFilter();
     }
 
@@ -577,11 +812,27 @@ void CountriesPage::onCitiesReady(const QString& code,
         m_citiesList->clear();
 
         const QString displayName = m_allCountries.key(code, code);
+
+        int filteredCount = 0;
+        for (const auto& [city, features] : cities)
+        {
+            if (!cityPassesFilters(features, m_filterP2P, m_filterSecureCore, m_filterTor))
+                continue;
+            ++filteredCount;
+        }
+
         if (m_citiesLabel)
             m_citiesLabel->setText(QStringLiteral("Cities (%1) – %2")
-                                   .arg(cities.size()).arg(displayName));
+                                   .arg(filteredCount).arg(displayName));
 
-        // "Fastest server" row
+        if ((m_filterP2P || m_filterSecureCore || m_filterTor) && filteredCount == 0)
+        {
+            addWideInfoRow(m_citiesList,
+                           QStringLiteral("No servers in this country match the selected filters."));
+            return;
+        }
+
+        // "Fastest server" row (always available when not in a zero-match filtered state)
         auto* anyItem = new QListWidgetItem(QStringLiteral("⚡  Fastest server"));
         anyItem->setData(Qt::UserRole, QString());
         anyItem->setToolTip(QStringLiteral("Connects to the fastest server in this country."));
@@ -592,7 +843,11 @@ void CountriesPage::onCitiesReady(const QString& code,
         m_citiesList->addItem(anyItem);
 
         for (const auto& [city, features] : cities)
+        {
+            if (!cityPassesFilters(features, m_filterP2P, m_filterSecureCore, m_filterTor))
+                continue;
             addWideCityItem(city, features);
+        }
     }
 
     // ── Narrow mode: fill the accordion for this country ──────────────────
@@ -607,9 +862,36 @@ void CountriesPage::onCitiesReady(const QString& code,
             delete li;
         }
 
-        // Add city rows
+        // Count how many cities pass the filter first.
+        int added = 0;
         for (const auto& [city, features] : cities)
+        {
+            if (!cityPassesFilters(features, m_filterP2P, m_filterSecureCore, m_filterTor))
+                continue;
+            ++added;
+        }
+
+        // "Fastest server" row — always shown unless ALL cities were filtered out.
+        if (added > 0 || !(m_filterP2P || m_filterSecureCore || m_filterTor))
+            addNarrowCityItem(acc.citiesLayout, QString(), QString(), code);
+
+        // Now add the actual city rows.
+        added = 0;
+        for (const auto& [city, features] : cities)
+        {
+            if (!cityPassesFilters(features, m_filterP2P, m_filterSecureCore, m_filterTor))
+                continue;
             addNarrowCityItem(acc.citiesLayout, city, features, code);
+            ++added;
+        }
+
+        if ((m_filterP2P || m_filterSecureCore || m_filterTor) && added == 0)
+        {
+            auto* msg = new QLabel(QStringLiteral("No servers in this country match the selected filters."), acc.citiesWidget);
+            msg->setObjectName(QStringLiteral("infoLabel"));
+            msg->setWordWrap(true);
+            acc.citiesLayout->addWidget(msg);
+        }
 
         if (acc.expanded)
             acc.citiesWidget->setVisible(true);
@@ -680,8 +962,18 @@ void CountriesPage::addNarrowCityItem(QVBoxLayout* layout, const QString& city,
     hbox->setContentsMargins(8, 6, 8, 6);
     hbox->setSpacing(6);
 
-    auto* cityLabel = new QLabel(city.isEmpty() ? QStringLiteral("⚡  Fastest server") : city, row);
+    const bool isFastest = city.isEmpty();
+    auto* cityLabel = new QLabel(isFastest ? QStringLiteral("⚡  Fastest server") : city, row);
     cityLabel->setObjectName(QStringLiteral("cityLabel"));
+    if (isFastest)
+    {
+        QFont f = cityLabel->font();
+        f.setBold(true);
+        f.setItalic(true);
+        cityLabel->setFont(f);
+        cityLabel->setStyleSheet(QStringLiteral("color: #ab8fff;"));
+        row->setStyleSheet(QStringLiteral("background-color: rgba(109, 74, 255, 40);"));
+    }
     hbox->addWidget(cityLabel, 1, Qt::AlignVCenter);
 
     for (const auto& meta : kFeatures)
@@ -724,9 +1016,8 @@ void CountriesPage::addNarrowCityItem(QVBoxLayout* layout, const QString& city,
 // ============================================================
 void CountriesPage::onWideCountrySelected(QListWidgetItem* item)
 {
-    QString displayName = item->text();
-    if (displayName.startsWith(QStringLiteral("★ ")))
-        displayName = displayName.mid(2);
+    // Country name text is now star-free; keep as-is.
+    const QString displayName = item->text();
 
     m_selectedCountry = displayName;
     m_selectedCode    = item->data(Qt::UserRole).toString();
@@ -744,12 +1035,10 @@ void CountriesPage::onWideCountrySelected(QListWidgetItem* item)
 
     if (m_cityCache.contains(m_selectedCode))
     {
-        // Already cached — emit a synthetic signal
         onCitiesReady(m_selectedCode, m_cityCache[m_selectedCode]);
     }
     else
     {
-        // Show spinner while fetching
         m_spinnerFrame = 0;
         auto* li = new QListWidgetItem(QStringLiteral("⠋ Loading cities…"));
         li->setFlags(Qt::NoItemFlags);
@@ -796,10 +1085,17 @@ void CountriesPage::toggleAccordion(const QString& code)
     if (!m_accordion.contains(code)) return;
     auto& acc = m_accordion[code];
     acc.expanded = !acc.expanded;
-    acc.headerBtn->setArrowType(acc.expanded ? Qt::DownArrow : Qt::RightArrow);
+
+    const QString baseText = acc.headerBtn->property("baseText").toString();
+    const QString headerCode = acc.headerBtn->property("countryCode").toString();
+    const bool pinned = acc.headerBtn->property("isPinned").toBool();
+    acc.headerBtn->setText(baseText);
+    acc.headerBtn->setIcon(makeAccordionHeaderIcon(headerCode, acc.expanded, pinned));
 
     if (acc.expanded)
     {
+        // Show immediately so loading text and then cities are visible.
+        acc.citiesWidget->setVisible(true);
         ensureCities(code);
 
         // Update selection state
@@ -816,8 +1112,22 @@ void CountriesPage::toggleAccordion(const QString& code)
         }
 
         if (m_cityCache.contains(code))
+        {
+            // Cached path (common for local country): populate now, because no
+            // citiesReady signal will fire to fill this accordion section.
+            while (acc.citiesLayout->count() > 0)
+            {
+                auto* li = acc.citiesLayout->takeAt(0);
+                if (li->widget()) li->widget()->deleteLater();
+                delete li;
+            }
+            // "Fastest server" row first.
+            addNarrowCityItem(acc.citiesLayout, QString(), QString(), code);
+            for (const auto& [city, features] : m_cityCache[code])
+                addNarrowCityItem(acc.citiesLayout, city, features, code);
             acc.citiesWidget->setVisible(true);
-        // if not yet cached, onCitiesReady will make it visible
+        }
+        // if not yet cached, onCitiesReady will fill the already-visible container
     }
     else
     {
