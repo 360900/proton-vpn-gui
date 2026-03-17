@@ -62,18 +62,28 @@ class LocationPicker : public QFrame
 {
     Q_OBJECT
 public:
-    explicit LocationPicker(const QString& countryCode, QWidget* parent = nullptr);
+    explicit LocationPicker(const QString& countryCode, const QString& countryName, QWidget* parent = nullptr);
 
     // Populate with cities; call once after fetchCities() responds.
     // Each entry: (cityName, featureString).  Empty cityName = "Fastest server".
     void populate(const QList<QPair<QString, QString>>& cities);
     void setLoading(bool loading);
 
+    // Programmatically select a city (empty = fastest server) without emitting
+    // selectionChanged. Updates the header and highlights the matching list row.
+    void setSelectedCity(const QString& city);
+
+    // When the app starts and VPN is already connected but we don't know which
+    // server, call this so the header doesn't falsely say "Fastest in X".
+    // Cleared automatically when the user picks a location or disconnects.
+    void setUnknownConnection(bool unknown);
+
     // Currently selected city string (empty = fastest server / no --city flag).
     [[nodiscard]] QString selectedCity() const { return m_selectedCity; }
 
 signals:
     void selectionChanged(const QString& city);
+    void changeCountryRequested();
 
 protected:
     bool eventFilter(QObject* obj, QEvent* ev) override;
@@ -84,9 +94,12 @@ private:
     void onItemClicked(QListWidgetItem* item);
     void updateHeader();
     void resizeList();
+    void installOnRowWidget(QWidget* w); // recursively installs event filter
 
     QString m_countryCode;
+    QString m_countryName;        // human-readable country name for header text
     QString m_selectedCity;       // empty = fastest server
+    bool    m_unknownConnection = false; // true when app started already connected
 
     QLabel*      m_flagLabel;
     QLabel*      m_topLine;       // "Selected Location"
@@ -110,10 +123,15 @@ public:
 
     void onStateChanged(VpnState state, const QString& info);
 
+    // Called when a connection is initiated externally (e.g. from the Countries
+    // page) so the location picker stays in sync.
+    void notifyExternalConnect(const QString& city);
+
 signals:
     void connectRequested(const QString& country, const QString& city);
     void disconnectRequested();
     void signOutRequested();
+    void changeCountryRequested();
 
 private slots:
     void onCitiesReady(const QString& countryCode, const QList<QPair<QString, QString>>& cities);
@@ -136,7 +154,10 @@ private:
     QString m_rawError;
 
     VpnState m_currentState = VpnState::Unknown;
-    QString  m_activeCity;   // city of the current or in-progress connection
+    QString  m_activeCity;              // city of the current or in-progress connection
+    bool     m_hadUnknownConnection = false; // true when app started already connected
+    bool     m_stateKnown = false;      // false until first non-Unknown state received
+    QList<QPair<QString, QString>> m_pendingCities; // stored if cities arrive before state
 
     void updateUi(VpnState state, const QString& info);
     void startElapsedTimer();

@@ -225,8 +225,9 @@ int main(int argc, char* argv[])
         QListWidget#locationPickerList::item {
             border-bottom: 1px solid #2d2d4a;
         }
-        QListWidget#locationPickerList::item:selected {
-            background-color: #3a2d7a;
+        QListWidget#locationPickerList::item:selected,
+        QListWidget#locationPickerList::item:selected:!active {
+            background-color: #2d2d4a;
         }
         QListWidget#locationPickerList::item:hover {
             background-color: #2d2d4a;

@@ -50,6 +50,7 @@ signals:
     void citiesReady(const QString& countryCode, const QList<QPair<QString, QString>>& cities); // (city, features)
     void infoReady(const QMap<QString, QString>& info);
     void settingsReady(const QMap<QString, QString>& settings);
+    void configApplied(const QString& output);
     void errorOccurred(const QString& error);
 
 private:

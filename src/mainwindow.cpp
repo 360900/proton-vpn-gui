@@ -121,6 +121,10 @@ MainWindow::MainWindow(QWidget* parent)
     {
         m_manager->signOut();
     });
+    connect(m_vpnPage, &VpnPage::changeCountryRequested, this, [this]()
+    {
+        showPage(Page::Countries);
+    });
 
     // Countries page (index 4)
     m_countriesPage = new CountriesPage(m_manager);
@@ -128,6 +132,7 @@ MainWindow::MainWindow(QWidget* parent)
     connect(m_countriesPage, &CountriesPage::connectRequested, this,
             [this](const QString& country, const QString& city)
             {
+                m_vpnPage->notifyExternalConnect(city);
                 m_manager->connectVpn(country, city);
                 showPage(Page::Vpn);
             });

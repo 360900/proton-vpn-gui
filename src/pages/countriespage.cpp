@@ -144,11 +144,28 @@ void CountriesPage::onCountriesReady(const QMap<QString, QString>& countries)
     m_refreshBtn->setEnabled(true);
     m_refreshBtn->setText(QStringLiteral("↻ Refresh"));
     filterCountries(m_searchEdit->text());
+
+    // If the user's country was detected and is now sitting at row 0, auto-select it
+    // so the cities panel is pre-populated without requiring a manual click.
+    if (!m_localCountryCode.isEmpty() && m_countriesList->count() > 0)
+    {
+        QListWidgetItem* first = m_countriesList->item(0);
+        if (first && first->data(Qt::UserRole).toString().compare(
+                m_localCountryCode, Qt::CaseInsensitive) == 0)
+        {
+            m_countriesList->setCurrentItem(first);
+            onCountrySelected(first);
+        }
+    }
 }
 
 void CountriesPage::onCitiesReady(const QString& countryCode,
                                   const QList<QPair<QString, QString>>& cities)
 {
+    // Ignore responses we didn't request (e.g. VpnPage's startup fetch)
+    if (countryCode.compare(m_selectedCode, Qt::CaseInsensitive) != 0)
+        return;
+
     // Stop spinner
     m_spinnerTimer->stop();
     m_citiesList->clear();

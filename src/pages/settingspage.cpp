@@ -116,8 +116,15 @@ static QWidget* makeTextCol(QWidget* parent, const QString& label, const QString
     return w;
 }
 
-void SettingsPage::maybeWarnReconnect(bool needsReconnect)
+void SettingsPage::maybeWarnReconnect(const QString& cliOutput)
 {
+    // The CLI emits phrases like "please establish a new VPN connection for
+    // changes to take effect" when a reconnect is required.
+    // Only warn when we are actually connected so the message is relevant.
+    const bool needsReconnect =
+        cliOutput.contains(QStringLiteral("new VPN connection"), Qt::CaseInsensitive) ||
+        cliOutput.contains(QStringLiteral("establish a new"), Qt::CaseInsensitive);
+
     if (!needsReconnect) return;
     if (m_manager->currentState() != VpnState::Connected) return;
 
@@ -130,8 +137,7 @@ void SettingsPage::maybeWarnReconnect(bool needsReconnect)
 }
 
 QWidget* SettingsPage::makeToggleRow(QWidget* parent, const QString& label,
-                                     const QString& desc, const QString& cliKey,
-                                     bool needsReconnect)
+                                     const QString& desc, const QString& cliKey)
 {
     auto* row = new QWidget(parent);
     auto* rl = new QHBoxLayout(row);
@@ -141,20 +147,19 @@ QWidget* SettingsPage::makeToggleRow(QWidget* parent, const QString& label,
     auto* toggle = new ToggleSwitch(row);
     rl->addWidget(toggle, 0);
 
-    connect(toggle, &ToggleSwitch::toggled, this, [this, cliKey, needsReconnect](bool on)
+    connect(toggle, &ToggleSwitch::toggled, this, [this, cliKey](bool on)
     {
         m_manager->applyConfigValue(cliKey, on ? QStringLiteral("on") : QStringLiteral("off"));
-        maybeWarnReconnect(needsReconnect);
+        // Reconnect detection is handled via the configApplied signal.
     });
 
-    m_toggleRows.append({cliKey, toggle, needsReconnect});
+    m_toggleRows.append({cliKey, toggle});
     return row;
 }
 
 QWidget* SettingsPage::makeComboRow(QWidget* parent, const QString& label,
                                     const QString& desc, const QString& cliKey,
-                                    const QStringList& labels, const QStringList& cliValues,
-                                    bool needsReconnect)
+                                    const QStringList& labels, const QStringList& cliValues)
 {
     auto* row = new QWidget(parent);
     auto* rl = new QHBoxLayout(row);
@@ -167,14 +172,14 @@ QWidget* SettingsPage::makeComboRow(QWidget* parent, const QString& label,
     rl->addWidget(combo, 0);
 
     connect(combo, QOverload<int>::of(&QComboBox::currentIndexChanged),
-            this, [this, cliKey, cliValues, needsReconnect](int idx)
+            this, [this, cliKey, cliValues](int idx)
             {
                 if (idx < 0 || idx >= cliValues.size()) return;
                 m_manager->applyConfigValue(cliKey, cliValues[idx]);
-                maybeWarnReconnect(needsReconnect);
+                // Reconnect detection is handled via the configApplied signal.
             });
 
-    m_comboRows.append({cliKey, combo, cliValues, needsReconnect});
+    m_comboRows.append({cliKey, combo, cliValues});
     return row;
 }
 
@@ -495,13 +500,13 @@ SettingsPage::SettingsPage(VpnManager* manager, QWidget* parent)
     addVpn(makeToggleRow(vpnCard,
                          QStringLiteral("Anonymous Crash Reports"),
                          QStringLiteral("Send anonymous crash reports to Proton for the VPN CLI tool — not this Qt app."),
-                         QStringLiteral("anonymous-crash-reports"), false));
+                         QStringLiteral("anonymous-crash-reports")));
 
     // ── IPv6 ─────────────────────────────────────────────────
     addVpn(makeToggleRow(vpnCard,
                          QStringLiteral("IPv6"),
                          QStringLiteral("Enable IPv6 support over the VPN tunnel."),
-                         QStringLiteral("ipv6"), true));
+                         QStringLiteral("ipv6")));
 
     // ── NAT Type ──────────────────────────────────────────────
     addVpn(makeComboRow(vpnCard,
@@ -515,8 +520,7 @@ SettingsPage::SettingsPage(VpnManager* manager, QWidget* parent)
                         QStringLiteral("moderate-nat"),
                         {QStringLiteral("Strict (Type 3)"),
                          QStringLiteral("Moderate (Type 2)")},
-                        {QStringLiteral("off"), QStringLiteral("on")},
-                        true));
+                        {QStringLiteral("off"), QStringLiteral("on")}));
 
     // ── Kill Switch ───────────────────────────────────────────
     addVpn(makeComboRow(vpnCard,
@@ -526,14 +530,13 @@ SettingsPage::SettingsPage(VpnManager* manager, QWidget* parent)
                             "\"Permanent\" blocks even when the VPN is off."),
                         QStringLiteral("kill-switch"),
                         {QStringLiteral("Off"), QStringLiteral("Standard"), QStringLiteral("Permanent")},
-                        {QStringLiteral("off"), QStringLiteral("standard"), QStringLiteral("full")},
-                        false));
+                        {QStringLiteral("off"), QStringLiteral("standard"), QStringLiteral("full")}));
 
     // ── VPN Accelerator ───────────────────────────────────────
     addVpn(makeToggleRow(vpnCard,
                          QStringLiteral("VPN Accelerator"),
                          QStringLiteral("Boost connection speeds using advanced protocol techniques."),
-                         QStringLiteral("vpn-accelerator"), true));
+                         QStringLiteral("vpn-accelerator")));
 
     // ── NetShield ─────────────────────────────────────────────
     addVpn(makeComboRow(vpnCard,
@@ -549,15 +552,15 @@ SettingsPage::SettingsPage(VpnManager* manager, QWidget* parent)
                             QStringLiteral("off"),
                             QStringLiteral("malware-only"),
                             QStringLiteral("malware-ads-trackers")
-                        },
-                        true));
+                        }));
 
     // ── Port Forwarding ───────────────────────────────────────
     addVpn(makeToggleRow(vpnCard,
                          QStringLiteral("Port Forwarding"),
-                         QStringLiteral("Allow incoming connections through the VPN. "
-                             "Reconnect after enabling for changes to take effect."),
-                         QStringLiteral("port-forwarding"), true));
+                         QStringLiteral("Bypass firewalls to connect to P2P servers and devices in your local network. "
+                             "<a href='https://protonvpn.com/support/port-forwarding'>Learn more</a> · "
+                             "<a href='https://protonvpn.com/support/port-forwarding-manual-setup#linux'>Guide</a>"),
+                         QStringLiteral("port-forwarding")));
 
     // ── Custom DNS ────────────────────────────────────────────
     {
@@ -593,10 +596,8 @@ SettingsPage::SettingsPage(VpnManager* manager, QWidget* parent)
         {
             dnsAddrRow->setVisible(on);
             if (!on)
-            {
                 m_manager->applyConfigValue(QStringLiteral("custom-dns"), QStringLiteral("off"));
-                maybeWarnReconnect(true);
-            }
+            // Reconnect detection handled via the configApplied signal.
         });
         connect(m_dnsApplyBtn, &QPushButton::clicked, this, [this]()
         {
@@ -605,15 +606,16 @@ SettingsPage::SettingsPage(VpnManager* manager, QWidget* parent)
             m_manager->applyConfigValue(
                 QStringLiteral("custom-dns"),
                 QStringLiteral("--dns %1 on").arg(dns));
-            maybeWarnReconnect(true);
+            // Reconnect detection handled via the configApplied signal.
         });
     }
 
     vpnCardLayout->addStretch();
 
 
-    // VpnManager signal
+    // VpnManager signals
     connect(m_manager, &VpnManager::settingsReady, this, &SettingsPage::onSettingsReady);
+    connect(m_manager, &VpnManager::configApplied, this, &SettingsPage::maybeWarnReconnect);
 
     // Spinner timer
     static constexpr const char* frames[] = {"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"};
