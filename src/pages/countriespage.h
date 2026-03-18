@@ -1,5 +1,6 @@
 #pragma once
 
+#include <functional>
 #include <QFrame>
 #include <QLabel>
 #include <QLineEdit>
@@ -13,6 +14,8 @@
 #include <QToolButton>
 #include <QVBoxLayout>
 #include "../vpnmanager.h"
+
+class ElideLabel;
 
 // ---------------------------------------------------------------------------
 // CountriesPage – server browser with feature-filter bubbles and a
@@ -50,6 +53,7 @@ private:
     bool m_filterP2P        = false;
     bool m_filterSecureCore = false;
     bool m_filterTor        = false;
+    bool m_portForwardingEnabled = false;
 
     QLineEdit*   m_searchEdit     = nullptr;
     QPushButton* m_refreshBtn     = nullptr;
@@ -64,7 +68,7 @@ private:
     QWidget*     m_wideWidget    = nullptr;
     QListWidget* m_countriesList = nullptr;
     QListWidget* m_citiesList    = nullptr;
-    QLabel*      m_citiesLabel   = nullptr;
+    ElideLabel*  m_citiesLabel   = nullptr;
     QPushButton* m_connectBtn    = nullptr;
 
     // Narrow layout
@@ -110,6 +114,11 @@ private:
 
     void toggleAccordion(const QString& code);
     void ensureCities(const QString& code);
+
+    // Shows the "Disable Port Forwarding?" confirmation dialog.
+    // bodyText is the message shown; onConfirm is called if the user confirms.
+    void showDisablePortForwardingDialog(const QString& bodyText,
+                                         std::function<void()> onConfirm);
 
     static QString bubbleStyle(bool active);
 };

@@ -1,14 +1,56 @@
 #include "countriespage.h"
 #include "../geoutils.h"
 
+#include <algorithm>
+#include <QDialog>
+#include <QDialogButtonBox>
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QPainter>
 #include <QPixmap>
+#include <QResizeEvent>
 #include <QSplitter>
 #include <QSvgRenderer>
 #include <QToolButton>
 #include <QVBoxLayout>
+
+// ============================================================
+// ElideLabel – a QLabel that elides its text with "…" at the
+// right edge whenever it is too narrow to show it in full.
+// ============================================================
+class ElideLabel : public QLabel
+{
+public:
+    explicit ElideLabel(const QString& text, QWidget* parent = nullptr)
+        : QLabel(parent), m_fullText(text)
+    {
+        setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Preferred);
+        setMinimumWidth(0);
+        QLabel::setText(elided());
+    }
+
+    // Override setText so callers can use it normally.
+    void setText(const QString& text)
+    {
+        m_fullText = text;
+        QLabel::setText(elided());
+    }
+
+protected:
+    void resizeEvent(QResizeEvent* e) override
+    {
+        QLabel::resizeEvent(e);
+        QLabel::setText(elided());
+    }
+
+private:
+    QString elided() const
+    {
+        return fontMetrics().elidedText(m_fullText, Qt::ElideRight, width() > 0 ? width() : 9999);
+    }
+
+    QString m_fullText;
+};
 
 // ============================================================
 // Feature metadata shared by wide + narrow city rows
@@ -228,11 +270,44 @@ CountriesPage::CountriesPage(VpnManager* manager, QWidget* parent)
     updateBubbleStyles();
 
     connect(m_bubbleAll, &QPushButton::clicked, this, [this]() {
+        if (m_portForwardingEnabled && m_filterP2P)
+        {
+            showDisablePortForwardingDialog(
+                QStringLiteral("The <b>P2P</b> filter is active because <b>Port Forwarding</b> "
+                                "is enabled in your settings.<br><br>"
+                                "Clearing all filters will also remove the P2P filter, which "
+                                "requires disabling Port Forwarding. Would you like to do that?"),
+                [this]() {
+                    m_portForwardingEnabled = false;
+                    m_filterP2P = m_filterSecureCore = m_filterTor = false;
+                    updateBubbleStyles();
+                    applyFilter();
+                });
+            return;
+        }
+
         m_filterP2P = m_filterSecureCore = m_filterTor = false;
         updateBubbleStyles();
         applyFilter();
     });
     connect(m_bubbleP2P, &QPushButton::clicked, this, [this]() {
+        if (m_filterP2P && m_portForwardingEnabled)
+        {
+            showDisablePortForwardingDialog(
+                QStringLiteral("The <b>P2P</b> filter is active because <b>Port Forwarding</b> "
+                                "is enabled in your settings.<br><br>"
+                                "To turn off this filter you need to disable Port Forwarding. "
+                                "Would you like to do that?"),
+                [this]() {
+                    m_portForwardingEnabled = false;
+                    m_filterP2P = false;
+                    updateBubbleStyles();
+                    applyFilter();
+                });
+            return;
+        }
+
+        // Normal toggle (port forwarding is not driving this filter)
         m_filterP2P = !m_filterP2P;
         updateBubbleStyles();
         applyFilter();
@@ -247,6 +322,42 @@ CountriesPage::CountriesPage(VpnManager* manager, QWidget* parent)
         updateBubbleStyles();
         applyFilter();
     });
+
+    // ── Sync P2P filter with port forwarding setting ──────────────────────
+    connect(m_manager, &VpnManager::settingsReady,
+            this, [this](const QMap<QString, QString>& settings)
+    {
+        const QString v = settings.value(QStringLiteral("port-forwarding")).toLower().trimmed();
+        const bool pfOn = (v == QLatin1String("on") || v == QLatin1String("true")
+                           || v == QLatin1String("1") || v == QLatin1String("enabled"));
+        m_portForwardingEnabled = pfOn;
+
+        if (pfOn && !m_filterP2P)
+        {
+            m_filterP2P = true;
+            updateBubbleStyles();
+            applyFilter();
+        }
+        else if (!pfOn && m_filterP2P)
+        {
+            // Port forwarding was just turned off externally (e.g. from Settings page);
+            // mirror that by clearing the P2P filter.
+            m_filterP2P = false;
+            updateBubbleStyles();
+            applyFilter();
+        }
+    });
+
+    // Re-read settings after any CLI config change so the P2P filter stays in
+    // sync when the user toggles port forwarding from the Settings page.
+    connect(m_manager, &VpnManager::configApplied,
+            this, [this](const QString&)
+    {
+        m_manager->fetchSettings();
+    });
+
+    // Seed the initial port-forwarding state.
+    m_manager->fetchSettings();
 
     // ── Wide / narrow container ───────────────────────────────────────────
     buildWideLayout(mainLayout);
@@ -351,7 +462,7 @@ void CountriesPage::buildWideLayout(QVBoxLayout* parent)
     auto* citiesLayout = new QVBoxLayout(citiesWidget);
     citiesLayout->setContentsMargins(0, 0, 0, 0);
     citiesLayout->setSpacing(4);
-    m_citiesLabel = new QLabel(QStringLiteral("Cities"), citiesWidget);
+    m_citiesLabel = new ElideLabel(QStringLiteral("Cities"), citiesWidget);
     m_citiesLabel->setObjectName(QStringLiteral("listHeader"));
     citiesLayout->addWidget(m_citiesLabel);
     m_citiesList = new QListWidget(citiesWidget);
@@ -562,6 +673,26 @@ void CountriesPage::applyFilter()
 
     if (m_narrowMode)
     {
+        // If the selected country is no longer visible after filtering, clear its selection.
+        if (!m_selectedCode.isEmpty() && !matching.isEmpty())
+        {
+            const bool stillVisible = std::any_of(matching.constBegin(), matching.constEnd(),
+                [this](const QPair<QString,QString>& p){
+                    return p.second.compare(m_selectedCode, Qt::CaseInsensitive) == 0;
+                });
+            if (!stillVisible)
+            {
+                m_selectedCode.clear();
+                m_selectedCity.clear();
+                m_selectedCountry.clear();
+                if (auto* nbtn = qobject_cast<QPushButton*>(
+                        m_narrowWidget->property("connectBtn").value<QObject*>()))
+                {
+                    nbtn->setEnabled(false);
+                    nbtn->setText(QStringLiteral("Connect to Selected"));
+                }
+            }
+        }
         populateNarrow();
         return;
     }
@@ -649,6 +780,64 @@ bool CountriesPage::countryPassesFilter(const QString& code) const
     return false;
 }
 
+// ============================================================
+// showDisablePortForwardingDialog
+// ============================================================
+void CountriesPage::showDisablePortForwardingDialog(const QString& bodyText,
+                                                     std::function<void()> onConfirm)
+{
+    auto* dlg = new QDialog(this);
+    dlg->setWindowTitle(QStringLiteral("Disable Port Forwarding?"));
+    dlg->setAttribute(Qt::WA_DeleteOnClose);
+    dlg->setModal(true);
+
+    auto* layout = new QVBoxLayout(dlg);
+    layout->setSpacing(16);
+    layout->setContentsMargins(24, 24, 24, 20);
+
+    auto* msg = new QLabel(bodyText, dlg);
+    msg->setWordWrap(true);
+    msg->setTextFormat(Qt::RichText);
+    layout->addWidget(msg);
+
+    auto* btnRow = new QHBoxLayout();
+    btnRow->setSpacing(8);
+
+    auto* goBackBtn = new QPushButton(QStringLiteral("Go Back"), dlg);
+    goBackBtn->setObjectName(QStringLiteral("secondaryButton"));
+
+    auto* disableBtn = new QPushButton(QStringLiteral("Disable Port Forwarding"), dlg);
+    disableBtn->setObjectName(QStringLiteral("primaryButton"));
+    disableBtn->setDefault(true);
+
+    // Match height to the primary button's natural height, same as the VPN page dialog.
+    const int btnH = disableBtn->sizeHint().height();
+    goBackBtn->setFixedHeight(btnH);
+    disableBtn->setFixedHeight(btnH);
+
+    // Stretch factor 1 on both so they share available width equally.
+    btnRow->addWidget(goBackBtn, 1);
+    btnRow->addWidget(disableBtn, 1);
+    layout->addLayout(btnRow);
+
+    // Ensure the dialog is wide enough that "Disable Port Forwarding" is never clipped.
+    const int needed = disableBtn->sizeHint().width() * 2
+                       + btnRow->spacing()
+                       + layout->contentsMargins().left()
+                       + layout->contentsMargins().right();
+    dlg->setMinimumWidth(qMax(420, needed));
+
+    connect(goBackBtn,  &QPushButton::clicked, dlg, &QDialog::reject);
+    connect(disableBtn, &QPushButton::clicked, dlg, [this, dlg, onConfirm]() {
+        m_manager->applyConfigValue(QStringLiteral("port-forwarding"),
+                                    QStringLiteral("off"));
+        onConfirm();
+        dlg->accept();
+    });
+
+    dlg->exec();
+}
+
 void CountriesPage::updateBubbleStyles()
 {
     const bool anyActive = m_filterP2P || m_filterSecureCore || m_filterTor;
@@ -678,7 +867,7 @@ void CountriesPage::populateWide()
         const QString& code = it.value();
         if (!search.isEmpty() && !name.contains(search, Qt::CaseInsensitive))
             continue;
-        if (anyFilter && !countryPassesFilter(code) && code != m_selectedCode)
+        if (anyFilter && !countryPassesFilter(code))
             continue;
 
         const bool isPinned = (!m_localCountryCode.isEmpty() &&
@@ -774,7 +963,7 @@ void CountriesPage::populateNarrow()
     {
         if (it.value().compare(pinnedCode, Qt::CaseInsensitive) != 0) continue;
         if (!search.isEmpty() && !it.key().contains(search, Qt::CaseInsensitive)) continue;
-        if (anyFilter && !countryPassesFilter(it.value()) && it.value() != m_selectedCode) continue;
+        if (anyFilter && !countryPassesFilter(it.value())) continue;
         addAccordion(it.key(), it.value());
     }
     // Then the rest alphabetically
@@ -782,7 +971,7 @@ void CountriesPage::populateNarrow()
     {
         if (it.value().compare(pinnedCode, Qt::CaseInsensitive) == 0) continue;
         if (!search.isEmpty() && !it.key().contains(search, Qt::CaseInsensitive)) continue;
-        if (anyFilter && !countryPassesFilter(it.value()) && it.value() != m_selectedCode) continue;
+        if (anyFilter && !countryPassesFilter(it.value())) continue;
         addAccordion(it.key(), it.value());
     }
 }
