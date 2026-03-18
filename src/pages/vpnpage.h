@@ -165,6 +165,7 @@ private:
     RecentPicker*   m_recentPicker = nullptr;
     QHBoxLayout*    m_pickerRow    = nullptr;   // holds both pickers side-by-side
     QFrame*         m_versionBanner = nullptr;
+    QFrame*         m_prereleaseBanner = nullptr;
     QTimer*         m_elapsedTimer;
     QTimer*         m_checkingSpinnerTimer;
     int   m_elapsedSeconds = 0;
@@ -184,5 +185,6 @@ private:
     void stopElapsedTimer() const;
     void showErrorDetails() const;
     void relayoutPickers(int width);
+    void checkPrereleaseBanner();
 };
 

@@ -1056,6 +1056,9 @@ VpnPage::VpnPage(VpnManager* manager, QWidget* parent)
             this, &VpnPage::onCliVersionReady);
     m_manager->fetchCliVersion();
 
+    // Show a banner if this is a pre-release build
+    checkPrereleaseBanner();
+
     // When the user changes location while connected/connecting, ask what to do
     connect(m_locationPicker, &LocationPicker::selectionChanged,
             this, [this](const QString& city)
@@ -1187,6 +1190,79 @@ void VpnPage::onCitiesReady(const QString& countryCode,
     m_locationPicker->populate(cities);
 }
 
+void VpnPage::checkPrereleaseBanner()
+{
+    QFile vf(QStringLiteral(":/version.json"));
+    if (!vf.open(QIODevice::ReadOnly))
+        return;
+
+    const QJsonObject obj = QJsonDocument::fromJson(vf.readAll()).object();
+    vf.close();
+
+    if (!obj.value(QStringLiteral("prerelease")).toBool(false))
+        return; // stable build — nothing to show
+
+    const QString appVersion = obj.value(QStringLiteral("app_version")).toString();
+
+    const QString colour       = QStringLiteral("#7a5c00");
+    const QString bgColour     = QStringLiteral("#fff3cd");
+    const QString borderColour = QStringLiteral("#e6ac00");
+
+    const QString msg = QStringLiteral(
+        "You are running a <b>pre-release</b> version of this app (<b>v%1</b>). "
+        "It may contain bugs or incomplete features. Use with caution.")
+        .arg(appVersion.toHtmlEscaped());
+
+    m_prereleaseBanner = new QFrame(this);
+    m_prereleaseBanner->setObjectName(QStringLiteral("prereleaseBanner"));
+    m_prereleaseBanner->setStyleSheet(
+        QStringLiteral("QFrame#prereleaseBanner { background-color: %1; border: 1px solid %2; "
+                       "border-radius: 6px; } QLabel { color: %3; background: transparent; }")
+            .arg(bgColour, borderColour, colour));
+
+    auto* bannerLayout = new QHBoxLayout(m_prereleaseBanner);
+    bannerLayout->setContentsMargins(12, 8, 8, 8);
+    bannerLayout->setSpacing(8);
+
+    auto* iconLabel = new QLabel(QStringLiteral("⚠"), m_prereleaseBanner);
+    iconLabel->setStyleSheet(QStringLiteral("font-size: 16px; font-weight: bold;"));
+    bannerLayout->addWidget(iconLabel, 0, Qt::AlignTop);
+
+    auto* msgLabel = new QLabel(msg, m_prereleaseBanner);
+    msgLabel->setWordWrap(true);
+    msgLabel->setTextFormat(Qt::RichText);
+    msgLabel->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
+    bannerLayout->addWidget(msgLabel, 1);
+
+    auto* dismissBtn = new QPushButton(QStringLiteral("✕"), m_prereleaseBanner);
+    dismissBtn->setFixedSize(22, 22);
+    dismissBtn->setFlat(true);
+    dismissBtn->setCursor(Qt::PointingHandCursor);
+    dismissBtn->setStyleSheet(
+        QStringLiteral("QPushButton { color: %1; font-weight: bold; border: none; "
+                       "background: transparent; } QPushButton:hover { opacity: 0.7; }")
+            .arg(colour));
+    connect(dismissBtn, &QPushButton::clicked, this, [this]()
+    {
+        if (m_prereleaseBanner)
+        {
+            m_prereleaseBanner->setVisible(false);
+            m_prereleaseBanner->deleteLater();
+            m_prereleaseBanner = nullptr;
+        }
+    });
+    bannerLayout->addWidget(dismissBtn, 0, Qt::AlignTop);
+
+    // Insert at top of scroll area content, above any CLI version banner
+    auto* scrollArea = findChild<QScrollArea*>(QStringLiteral("vpnScrollArea"));
+    if (scrollArea && scrollArea->widget())
+    {
+        auto* scrollLayout = qobject_cast<QVBoxLayout*>(scrollArea->widget()->layout());
+        if (scrollLayout)
+            scrollLayout->insertWidget(0, m_prereleaseBanner);
+    }
+}
+
 void VpnPage::onCliVersionReady(const QString& version)
 {
     // Read the tested CLI version from the embedded version.json
@@ -1266,14 +1342,16 @@ void VpnPage::onCliVersionReady(const QString& version)
     });
     bannerLayout->addWidget(dismissBtn, 0, Qt::AlignTop);
 
-    // Insert banner into the scroll content layout at position 0 (above the timer)
-    // Find the scrollLayout by walking the scroll area's widget
+    // Insert banner into the scroll content layout — after the prerelease banner if present
     auto* scrollArea = findChild<QScrollArea*>(QStringLiteral("vpnScrollArea"));
     if (scrollArea && scrollArea->widget())
     {
         auto* scrollLayout = qobject_cast<QVBoxLayout*>(scrollArea->widget()->layout());
         if (scrollLayout)
-            scrollLayout->insertWidget(0, m_versionBanner);
+        {
+            const int pos = (m_prereleaseBanner != nullptr) ? 1 : 0;
+            scrollLayout->insertWidget(pos, m_versionBanner);
+        }
     }
 }
 

@@ -1,5 +1,6 @@
 {
-    "app_version": "1.4.0-rc.1",
+    "app_version": "1.4.0-rc.2",
+    "prerelease": true,
     "cli_version_tested": "0.1.7"
 }
 
