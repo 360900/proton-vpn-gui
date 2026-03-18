@@ -2,6 +2,7 @@
 #include "../geoutils.h"
 #include "../connectionhistory.h"
 #include "../uihelpers.h"
+#include "../widgets/svgbanner.h"
 
 #include <QFile>
 #include <QHBoxLayout>
@@ -168,54 +169,6 @@ void PowerButton::leaveEvent(QEvent* e)
     QWidget::leaveEvent(e);
 }
 
-// ============================================================
-// VpnPage implementation
-// ============================================================
-// SvgBanner – responsive SVG widget that maintains a fixed aspect ratio
-// and always fills its parent's width.
-// ============================================================
-
-class SvgBanner : public QWidget
-{
-public:
-    // aspectRatio = width / height  (e.g. 4.0 for a 4:1 banner)
-    explicit SvgBanner(const QString& resource, qreal aspectRatio, QWidget* parent = nullptr)
-        : QWidget(parent), m_renderer(resource), m_aspect(aspectRatio)
-    {
-        setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
-        setMaximumWidth(1000);
-    }
-
-    [[nodiscard]] QSize sizeHint() const override
-    {
-        const int w = qMin(width() > 0 ? width() : (parentWidget() ? parentWidget()->width() : 320), 1000);
-        return {w, qRound(w / m_aspect)};
-    }
-
-    [[nodiscard]] int heightForWidth(const int w) const override { return qRound(w / m_aspect); }
-    [[nodiscard]] bool hasHeightForWidth() const override { return true; }
-
-protected:
-    void paintEvent(QPaintEvent*) override
-    {
-        QPainter p(this);
-        p.setRenderHint(QPainter::Antialiasing);
-        m_renderer.render(&p, QRectF(rect()));
-    }
-
-    void resizeEvent(QResizeEvent* e) override
-    {
-        QWidget::resizeEvent(e);
-        // Keep height in sync with width
-        const int h = qRound(width() / m_aspect);
-        if (height() != h)
-            setFixedHeight(h);
-    }
-
-private:
-    QSvgRenderer m_renderer;
-    qreal m_aspect;
-};
 
 // ============================================================
 // LocationPicker implementation

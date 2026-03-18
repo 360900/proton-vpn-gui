@@ -1,8 +1,8 @@
 #include "loginpage.h"
+#include "../widgets/svgbanner.h"
 
 #include <QHBoxLayout>
 #include <QLabel>
-#include <QSvgWidget>
 #include <QPixmap>
 #include <QSvgRenderer>
 #include <QPainter>
@@ -60,8 +60,7 @@ void LoginPage::buildCredsWidget()
     layout->setContentsMargins(32, 32, 32, 24);
 
     // Logo
-    auto* logo = new QSvgWidget(QStringLiteral(":/assets/proton-vpn-logo.svg"), m_credsWidget);
-    logo->setFixedSize(180, 40);
+    auto* logo = new SvgBanner(QStringLiteral(":/assets/proton-vpn-logo.svg"), 4.0, m_credsWidget);
     layout->addWidget(logo, 0, Qt::AlignCenter);
 
     layout->addSpacing(8);
@@ -133,8 +132,7 @@ void LoginPage::buildTFAWidget()
     layout->setContentsMargins(32, 32, 32, 24);
 
     // Logo
-    auto* logo = new QSvgWidget(QStringLiteral(":/assets/proton-vpn-logo.svg"), m_tfaWidget);
-    logo->setFixedSize(180, 40);
+    auto* logo = new SvgBanner(QStringLiteral(":/assets/proton-vpn-logo.svg"), 4.0, m_tfaWidget);
     layout->addWidget(logo, 0, Qt::AlignCenter);
 
     layout->addSpacing(8);

@@ -54,7 +54,7 @@ MainWindow::MainWindow(QWidget* parent)
     setWindowTitle(QStringLiteral("ProtonVPN"));
     setWindowIcon(svgNavIcon(QStringLiteral(":/assets/proton-vpn-sign.svg"), {64, 64}, false));
     setMinimumSize(460, 580);
-    resize(590, 600);
+    resize(660, 600);
 
     m_manager = new VpnManager(this);
 

@@ -720,18 +720,13 @@ bool CountriesPage::countryPassesFilter(const QString& code) const
         return true;
 
     const auto& cities = m_cityCache[code];
-    return std::ranges::any_of(
-        cities | std::views::values,
-        [this](const QString& features)
-        {
-            return cityPassesFilters(
-                features,
-                m_filterP2P,
-                m_filterSecureCore,
-                m_filterTor
-            );
-        }
-    );
+    for (const auto& cityPair : cities)
+    {
+        const QString& features = cityPair.second;
+        if (cityPassesFilters(features, m_filterP2P, m_filterSecureCore, m_filterTor))
+            return true;
+    }
+    return false;
 }
 
 // ============================================================

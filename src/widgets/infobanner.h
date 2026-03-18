@@ -23,9 +23,9 @@ public:
     explicit InfoBanner(const QString& htmlMessage, QWidget* parent = nullptr)
         : QFrame(parent)
     {
-        static const char* kColour       = "#7a5c00";
-        static const char* kBgColour     = "#fff3cd";
-        static const char* kBorderColour = "#e6ac00";
+        static const std::string kColour       = "#7a5c00";
+        static const std::string kBgColour     = "#fff3cd";
+        static const std::string kBorderColour = "#e6ac00";
 
         setStyleSheet(
             QStringLiteral(

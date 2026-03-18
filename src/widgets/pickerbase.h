@@ -62,13 +62,13 @@ protected:
         if (m_chevron) m_chevron->setText(QStringLiteral("▴"));
     }
 
-    void closePopup()
+    void closePopup() const
     {
         m_popup->hide();
         if (m_chevron) m_chevron->setText(QStringLiteral("▾"));
     }
 
-    void resizeList()
+    void resizeList() const
     {
         const int count = m_list->count();
         if (count == 0) return;
@@ -106,7 +106,7 @@ protected:
         // Header click → toggle
         if (obj->isWidgetType() && ev->type() == QEvent::MouseButtonRelease)
         {
-            auto* w = static_cast<QWidget*>(obj);
+            auto* w = dynamic_cast<QWidget*>(obj);
             if (w->objectName() == QLatin1String("locationPickerHeader"))
             {
                 QWidget* p = w;
@@ -149,7 +149,7 @@ protected:
                 if (ev->type() == QEvent::MouseButtonRelease)
                 {
                     const QPoint vp = m_list->viewport()->mapFromGlobal(
-                        w->mapToGlobal(static_cast<QMouseEvent*>(ev)->pos()));
+                        w->mapToGlobal(dynamic_cast<QMouseEvent*>(ev)->pos()));
                     QListWidgetItem* item = m_list->itemAt(vp);
                     if (item) { onRowClicked(item); return true; }
                 }

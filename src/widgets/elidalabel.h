@@ -2,6 +2,7 @@
 
 #include <QLabel>
 #include <QResizeEvent>
+#include <utility>
 
 // ============================================================
 // ElideLabel – a QLabel that elides its text with "…" at the
@@ -10,8 +11,8 @@
 class ElideLabel : public QLabel
 {
 public:
-    explicit ElideLabel(const QString& text, QWidget* parent = nullptr)
-        : QLabel(parent), m_fullText(text)
+    explicit ElideLabel(QString  text, QWidget* parent = nullptr)
+        : QLabel(parent), m_fullText(std::move(text))
     {
         setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Preferred);
         setMinimumWidth(0);

@@ -32,6 +32,7 @@ set(SOURCES
         widgets/elidalabel.h
         widgets/infobanner.h
         widgets/pickerbase.h
+        widgets/svgbanner.h
         pages/notinstalledpage.h
         pages/notinstalledpage.cpp
         pages/loginpage.h
