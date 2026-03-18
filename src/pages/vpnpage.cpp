@@ -592,7 +592,7 @@ VpnPage::VpnPage(VpnManager* manager, QWidget* parent)
 
     // Proton VPN logo banner
     auto* logoWidget = new SvgBanner(QStringLiteral(":/assets/proton-vpn-logo.svg"), 4.0, topWidget);
-    topLayout->addWidget(logoWidget);
+    topLayout->addWidget(logoWidget, 0, Qt::AlignCenter);
 
     // Power button
     m_powerBtn = new PowerButton(topWidget);
