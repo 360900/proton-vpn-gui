@@ -41,15 +41,18 @@ jobs:
         id: tag
         run: |
           VERSION=$(jq -r '.app_version' src/version.json)
+          PRERELEASE=$(jq -r '.prerelease' src/version.json)
           echo "VERSION=$VERSION" >> "$GITHUB_OUTPUT"
           echo "TAG=v$VERSION" >> "$GITHUB_OUTPUT"
           echo "NAME=v$VERSION" >> "$GITHUB_OUTPUT"
+          echo "PRERELEASE=$PRERELEASE" >> "$GITHUB_OUTPUT"
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.tag.outputs.TAG }}
           name: ${{ steps.tag.outputs.NAME }}
+          prerelease: ${{ steps.tag.outputs.PRERELEASE }}
           body: |
             Automated release built from commit ${{ github.sha }}.
 
@@ -65,5 +68,5 @@ jobs:
 
             > This is a community build. See the [README](https://github.com/${{ github.repository }}/blob/main/README.md) for requirements and usage.
           files: proton-vpn-qt-app-linux-x86_64.tar.gz
-          make_latest: true
+          make_latest: ${{ steps.tag.outputs.PRERELEASE == 'false' }}
 
