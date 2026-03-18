@@ -25,11 +25,14 @@ A Qt GUI front-end for the [Proton VPN Linux CLI](https://protonvpn.com/support/
 ---
 
 ## Screenshots
-<img width="535" height="630" alt="Screenshot_20260307_151057" src="https://github.com/user-attachments/assets/138fe873-dc97-4c03-8d56-60718c0f44cd" />
-<img width="535" height="630" alt="Screenshot_20260307_151115" src="https://github.com/user-attachments/assets/51f74a26-84de-4202-aac0-dd4c2c6116a3" />
+<img width="670" height="629" alt="Screenshot_20260318_142949" src="https://github.com/user-attachments/assets/0ceaabad-f436-4363-9916-96dbdfd957ed" />
+<div>Country List - Wide View</div>
+<img width="670" height="629" alt="Screenshot_20260318_142959" src="https://github.com/user-attachments/assets/01ac1c89-825e-475c-83b2-db0d90001158" />
+<div>Country List - Narrow View</div>
+<img width="571" height="629" alt="Screenshot_20260318_143126" src="https://github.com/user-attachments/assets/4c25b20e-71d6-4c6d-a02e-40829c36c59e" />
 <img width="535" height="630" alt="Screenshot_20260307_151135" src="https://github.com/user-attachments/assets/687d6bde-039e-4ac4-8fb7-c7de7f2374a6" />
-<img width="535" height="630" alt="Screenshot_20260307_151728" src="https://github.com/user-attachments/assets/96338729-a99e-4586-96c7-e11d33c4c24a" />
-<img width="534" height="964" alt="Screenshot_20260307_151827" src="https://github.com/user-attachments/assets/5db7dfe9-c1eb-4dfe-ace3-1818d60defa2" />
+<img width="670" height="629" alt="Screenshot_20260318_143011" src="https://github.com/user-attachments/assets/d590e188-0a05-42f4-9e45-35bbf2c6bbf0" />
+<img width="571" height="629" alt="Screenshot_20260318_143126" src="https://github.com/user-attachments/assets/f87d3d76-b70b-44b6-87a9-3a6e8c6643ac" />
 
 ## Requirements
 
