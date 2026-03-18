@@ -452,7 +452,7 @@ void LocationPicker::resizeList()
 {
     const int count = m_list->count();
     if (count == 0) return;
-    constexpr int rowH = 34; // matches setSizeHint height used in populate()
+    const int rowH = m_list->sizeHintForRow(0);
     const int rows = qMin(count, 8);
     m_list->setFixedHeight(rows * rowH + 2);
     m_popup->adjustSize();
@@ -902,7 +902,7 @@ void RecentPicker::resizeList()
 {
     const int count = m_list->count();
     if (count == 0) return;
-    constexpr int rowH = 34; // matches setSizeHint height used in refresh()
+    const int rowH = m_list->sizeHintForRow(0);
     m_list->setFixedHeight(qMin(count, 8) * rowH + 2);
     m_popup->adjustSize();
 }
