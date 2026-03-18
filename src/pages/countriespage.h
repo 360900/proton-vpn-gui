@@ -14,8 +14,7 @@
 #include <QToolButton>
 #include <QVBoxLayout>
 #include "../vpnmanager.h"
-
-class ElideLabel;
+#include "../widgets/elidalabel.h"
 
 // ---------------------------------------------------------------------------
 // CountriesPage – server browser with feature-filter bubbles and a
@@ -96,13 +95,13 @@ private:
     void switchLayout(bool narrow);
 
     void applyFilter();
-    void updateBubbleStyles();
+    void updateBubbleStyles() const;
     bool countryPassesFilter(const QString& code) const;
 
-    void populateWide();
+    void populateWide() const;
     void populateNarrow();
 
-    void addWideCityItem(const QString& city, const QString& features);
+    void addWideCityItem(const QString& city, const QString& features) const;
     void addNarrowCityItem(QVBoxLayout* layout, const QString& city,
                            const QString& features, const QString& code);
 

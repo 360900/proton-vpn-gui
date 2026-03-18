@@ -37,7 +37,7 @@ void AppConfig::load()
 
 bool AppConfig::save() const
 {
-    QDir dir;
+    const QDir dir;
     if (!dir.mkpath(kConfigDir))
         return false;
 

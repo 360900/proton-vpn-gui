@@ -14,8 +14,8 @@ public:
 
     void setError(const QString& error) const;
     void setLoading(bool loading) const;
-    void show2FAPrompt(); // called when VpnManager emits twoFactorRequired()
-    void reset(); // return to username/password view
+    void show2FAPrompt() const; // called when VpnManager emits twoFactorRequired()
+    void reset() const; // return to username/password view
 
 signals:
     void loginRequested(const QString& username, const QString& password);

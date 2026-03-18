@@ -1,5 +1,6 @@
 #include "settingspage.h"
 #include "../appconfig.h"
+#include "../uihelpers.h"
 
 #include <QSpinBox>
 #include <QVBoxLayout>
@@ -642,15 +643,13 @@ SettingsPage::SettingsPage(VpnManager* manager, QWidget* parent)
     connect(m_manager, &VpnManager::configApplied, this, &SettingsPage::maybeWarnReconnect);
 
     // Spinner timer
-    static constexpr const char* frames[] = {"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"};
-    static constexpr int frameCount = 10;
     m_spinnerTimer = new QTimer(this);
     m_spinnerTimer->setInterval(200);
     connect(m_spinnerTimer, &QTimer::timeout, this, [this]()
     {
-        m_spinnerFrame = (m_spinnerFrame + 1) % frameCount;
+        m_spinnerFrame = (m_spinnerFrame + 1) % kSpinnerFrameCount;
         m_statusLabel->setText(
-            QStringLiteral("%1 Loading settings…").arg(QString::fromUtf8(frames[m_spinnerFrame])));
+            QStringLiteral("%1 Loading settings…").arg(QString::fromUtf8(kSpinnerFrames[m_spinnerFrame])));
     });
 }
 
@@ -697,16 +696,10 @@ void SettingsPage::onSettingsReady(const QMap<QString, QString>& info)
     {
         return info.value(key).toLower().trimmed();
     };
-    auto isOn = [&](const QString& key)
-    {
-        const QString v = val(key);
-        return v == QLatin1String("on") || v == QLatin1String("true")
-            || v == QLatin1String("1") || v == QLatin1String("enabled");
-    };
 
     // Toggle rows
     for (const auto& row : std::as_const(m_toggleRows))
-        row.toggle->setOn(isOn(row.cliKey), false);
+        row.toggle->setOn(isOnString(val(row.cliKey)), false);
 
     // Combo rows – find the matching CLI value and select that index
     for (const auto& row : std::as_const(m_comboRows))

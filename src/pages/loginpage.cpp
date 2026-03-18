@@ -175,7 +175,7 @@ void LoginPage::buildTFAWidget()
     layout->addWidget(m_tfaSubmitBtn);
 }
 
-void LoginPage::show2FAPrompt()
+void LoginPage::show2FAPrompt() const
 {
     setError(QString());
     m_tfaEdit->clear();
@@ -186,7 +186,7 @@ void LoginPage::show2FAPrompt()
     m_tfaEdit->setFocus();
 }
 
-void LoginPage::reset()
+void LoginPage::reset() const
 {
     m_stack->setCurrentIndex(0);
     setError(QString());

@@ -14,9 +14,9 @@
 #include <QVersionNumber>
 #include <QHBoxLayout>
 #include "../vpnmanager.h"
-
-// Forward-declared here; defined as a file-local class in vpnpage.cpp.
-class ElideLabel;
+#include "../widgets/elidalabel.h"
+#include "../widgets/pickerbase.h"
+#include "../widgets/infobanner.h"
 
 // ---------------------------------------------------------------------------
 // PowerButton
@@ -54,7 +54,7 @@ private:
 // ---------------------------------------------------------------------------
 // LocationPicker – custom styled dropdown
 // ---------------------------------------------------------------------------
-class LocationPicker : public QFrame
+class LocationPicker : public PickerBase
 {
     Q_OBJECT
 public:
@@ -73,34 +73,25 @@ signals:
 
 protected:
     bool eventFilter(QObject* obj, QEvent* ev) override;
+    void onRowClicked(QListWidgetItem* item) override;
 
 private:
-    void togglePopup();
-    void closePopup();
-    void onItemClicked(QListWidgetItem* item);
-    void updateHeader();
-    void resizeList();
-    void installOnRowWidget(QWidget* w);
+    void updateHeader() const;
 
     QString m_countryCode;
     QString m_countryName;
     QString m_selectedCity;
     bool    m_unknownConnection = false;
 
-    QLabel*      m_flagLabel;
-    ElideLabel*  m_topLine;
-    ElideLabel*  m_bottomLine;
-    QLabel*      m_chevron;
-    QFrame*      m_popup;
-    QListWidget* m_list;
-    QTimer*      m_loadingTimer = nullptr;
-    int          m_loadingFrame = 0;
+    QLabel*  m_flagLabel;
+    QTimer*  m_loadingTimer = nullptr;
+    int      m_loadingFrame = 0;
 };
 
 // ---------------------------------------------------------------------------
 // RecentPicker – shows recent connections as a dropdown
 // ---------------------------------------------------------------------------
-class RecentPicker : public QFrame
+class RecentPicker : public PickerBase
 {
     Q_OBJECT
 public:
@@ -114,18 +105,7 @@ signals:
 
 protected:
     bool eventFilter(QObject* obj, QEvent* ev) override;
-
-private:
-    void togglePopup();
-    void closePopup();
-    void resizeList();
-    void installOnRowWidget(QWidget* w);
-
-    ElideLabel*  m_topLine;
-    ElideLabel*  m_bottomLine;
-    QLabel*      m_chevron;
-    QFrame*      m_popup;
-    QListWidget* m_list;
+    void onRowClicked(QListWidgetItem* item) override;
 };
 
 // ---------------------------------------------------------------------------
@@ -167,8 +147,8 @@ private:
     LocationPicker* m_locationPicker;
     RecentPicker*   m_recentPicker = nullptr;
     QHBoxLayout*    m_pickerRow    = nullptr;   // holds both pickers side-by-side
-    QFrame*         m_versionBanner = nullptr;
-    QFrame*         m_prereleaseBanner = nullptr;
+    InfoBanner*     m_versionBanner = nullptr;
+    InfoBanner*     m_prereleaseBanner = nullptr;
     QTimer*         m_elapsedTimer;
     QTimer*         m_checkingSpinnerTimer;
     int   m_elapsedSeconds = 0;
@@ -187,7 +167,6 @@ private:
     void startElapsedTimer();
     void stopElapsedTimer() const;
     void showErrorDetails() const;
-    void relayoutPickers(int width);
+    void relayoutPickers(int width) const;
     void checkPrereleaseBanner();
 };
-
