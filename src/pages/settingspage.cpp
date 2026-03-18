@@ -1,5 +1,6 @@
 #include "settingspage.h"
 #include "../appconfig.h"
+#include "../uihelpers.h"
 
 #include <QSpinBox>
 #include <QVBoxLayout>
@@ -448,9 +449,8 @@ SettingsPage::SettingsPage(VpnManager* manager, QWidget* parent)
         addApp(row);
     }
 
-    // TODO iron out the bugs and reimplement later
     // ── Recent Connections ────────────────────────────────────
-    /*{
+    {
         auto* row = new QWidget(appCard);
         auto* rl = new QHBoxLayout(row);
         rl->setContentsMargins(16, 12, 16, 12);
@@ -459,17 +459,18 @@ SettingsPage::SettingsPage(VpnManager* manager, QWidget* parent)
                                   QStringLiteral("Recent Connections"),
                                   QStringLiteral("Number of recent VPN connections to remember and show "
                                       "on the home screen. Set to 0 to disable.")), 1);
-        auto* spinBox = new QSpinBox(row);
-        spinBox->setMinimum(0);
-        spinBox->setMaximum(20);
-        spinBox->setValue(AppConfig::instance().recentConnectionsCount());
-        spinBox->setFixedWidth(64);
-        connect(spinBox, QOverload<int>::of(&QSpinBox::valueChanged), this, [](const int val)
+        m_recentConnectionsSpinBox = new QSpinBox(row);
+        m_recentConnectionsSpinBox->setMinimum(0);
+        m_recentConnectionsSpinBox->setMaximum(20);
+        m_recentConnectionsSpinBox->setValue(AppConfig::instance().recentConnectionsCount());
+        m_recentConnectionsSpinBox->setFixedWidth(64);
+        connect(m_recentConnectionsSpinBox, QOverload<int>::of(&QSpinBox::valueChanged), this, [](const int val)
         {
             AppConfig::instance().setRecentConnectionsCount(val);
         });
-        rl->addWidget(spinBox);
-    }*/
+        rl->addWidget(m_recentConnectionsSpinBox);
+        addApp(row);
+    }
 
     appCardLayout->addStretch();
 
@@ -642,15 +643,13 @@ SettingsPage::SettingsPage(VpnManager* manager, QWidget* parent)
     connect(m_manager, &VpnManager::configApplied, this, &SettingsPage::maybeWarnReconnect);
 
     // Spinner timer
-    static constexpr const char* frames[] = {"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"};
-    static constexpr int frameCount = 10;
     m_spinnerTimer = new QTimer(this);
     m_spinnerTimer->setInterval(200);
     connect(m_spinnerTimer, &QTimer::timeout, this, [this]()
     {
-        m_spinnerFrame = (m_spinnerFrame + 1) % frameCount;
+        m_spinnerFrame = (m_spinnerFrame + 1) % kSpinnerFrameCount;
         m_statusLabel->setText(
-            QStringLiteral("%1 Loading settings…").arg(QString::fromUtf8(frames[m_spinnerFrame])));
+            QStringLiteral("%1 Loading settings…").arg(QString::fromUtf8(kSpinnerFrames[m_spinnerFrame])));
     });
 }
 
@@ -684,6 +683,7 @@ void SettingsPage::setLoading(const bool loading)
     for (const auto& r : std::as_const(m_comboRows)) r.combo->setEnabled(!loading);
     if (m_autoStartToggle) m_autoStartToggle->setEnabled(!loading);
     if (m_notificationsToggle) m_notificationsToggle->setEnabled(!loading);
+    if (m_recentConnectionsSpinBox) m_recentConnectionsSpinBox->setEnabled(!loading);
     if (m_dnsToggle) m_dnsToggle->setEnabled(!loading);
     if (m_dnsApplyBtn) m_dnsApplyBtn->setEnabled(!loading);
 }
@@ -696,16 +696,10 @@ void SettingsPage::onSettingsReady(const QMap<QString, QString>& info)
     {
         return info.value(key).toLower().trimmed();
     };
-    auto isOn = [&](const QString& key)
-    {
-        const QString v = val(key);
-        return v == QLatin1String("on") || v == QLatin1String("true")
-            || v == QLatin1String("1") || v == QLatin1String("enabled");
-    };
 
     // Toggle rows
     for (const auto& row : std::as_const(m_toggleRows))
-        row.toggle->setOn(isOn(row.cliKey), false);
+        row.toggle->setOn(isOnString(val(row.cliKey)), false);
 
     // Combo rows – find the matching CLI value and select that index
     for (const auto& row : std::as_const(m_comboRows))

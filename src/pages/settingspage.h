@@ -19,12 +19,12 @@ class ToggleSwitch : public QWidget
 public:
     explicit ToggleSwitch(QWidget* parent = nullptr);
 
-    bool isOn() const { return m_on; }
+    [[nodiscard]] bool isOn() const { return m_on; }
     void setOn(bool on, bool animate = true);
 
-    qreal knobPos() const { return m_knobPos; }
+    [[nodiscard]] qreal knobPos() const { return m_knobPos; }
 
-    void setKnobPos(qreal v)
+    void setKnobPos(const qreal v)
     {
         m_knobPos = v;
         update();
@@ -91,6 +91,9 @@ private:
 
     // Desktop notifications
     ToggleSwitch* m_notificationsToggle = nullptr;
+
+    // Recent connections count (0 = disabled)
+    class QSpinBox* m_recentConnectionsSpinBox = nullptr;
 
     QPushButton* m_refreshBtn;
     QLabel* m_statusLabel;

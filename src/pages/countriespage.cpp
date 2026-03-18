@@ -1,5 +1,6 @@
 #include "countriespage.h"
 #include "../geoutils.h"
+#include "../uihelpers.h"
 
 #include <algorithm>
 #include <QDialog>
@@ -14,63 +15,18 @@
 #include <QToolButton>
 #include <QVBoxLayout>
 
-// ============================================================
-// ElideLabel – a QLabel that elides its text with "…" at the
-// right edge whenever it is too narrow to show it in full.
-// ============================================================
-class ElideLabel : public QLabel
-{
-public:
-    explicit ElideLabel(const QString& text, QWidget* parent = nullptr)
-        : QLabel(parent), m_fullText(text)
-    {
-        setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Preferred);
-        setMinimumWidth(0);
-        QLabel::setText(elided());
-    }
-
-    // Override setText so callers can use it normally.
-    void setText(const QString& text)
-    {
-        m_fullText = text;
-        QLabel::setText(elided());
-    }
-
-protected:
-    void resizeEvent(QResizeEvent* e) override
-    {
-        QLabel::resizeEvent(e);
-        QLabel::setText(elided());
-    }
-
-private:
-    QString elided() const
-    {
-        return fontMetrics().elidedText(m_fullText, Qt::ElideRight, width() > 0 ? width() : 9999);
-    }
-
-    QString m_fullText;
-};
 
 // ============================================================
 // Feature metadata shared by wide + narrow city rows
 // ============================================================
-struct FeatureMeta { QString keyword; QString resource; QString tooltip; };
-static const FeatureMeta kFeatures[] = {
-    { QStringLiteral("p2p"),         QStringLiteral(":/assets/server-p2p.svg"),
-      QStringLiteral("P2P — Optimized for peer-to-peer file sharing") },
-    { QStringLiteral("secure core"), QStringLiteral(":/assets/server-secure-core.svg"),
-      QStringLiteral("Secure Core — Routes through privacy-friendly countries") },
-    { QStringLiteral("tor"),         QStringLiteral(":/assets/server-tor.svg"),
-      QStringLiteral("Tor — Routes through the Tor anonymity network") },
-};
+// kServerFeatures is defined in uihelpers.h
 
 // Helper: does a feature string contain a keyword?
-static bool hasFeature(const QString& features, const QString& keyword)
+static bool hasFeature(const QString& features, const char* keyword)
 {
     const QStringList tags = features.split(QLatin1Char(','), Qt::SkipEmptyParts);
     for (const QString& t : tags)
-        if (t.trimmed().contains(keyword, Qt::CaseInsensitive))
+        if (t.trimmed().contains(QLatin1String(keyword), Qt::CaseInsensitive))
             return true;
     return false;
 }
@@ -85,12 +41,9 @@ static bool cityPassesFilters(const QString& features,
         return true;
 
     // AND semantics: all enabled filters must be present.
-    if (filterP2P && !hasFeature(features, QStringLiteral("p2p")))
-        return false;
-    if (filterSecureCore && !hasFeature(features, QStringLiteral("secure core")))
-        return false;
-    if (filterTor && !hasFeature(features, QStringLiteral("tor")))
-        return false;
+    if (filterP2P        && !hasFeature(features, kServerFeatures[0].keyword)) return false;
+    if (filterSecureCore && !hasFeature(features, kServerFeatures[1].keyword)) return false;
+    if (filterTor        && !hasFeature(features, kServerFeatures[2].keyword)) return false;
     return true;
 }
 
@@ -109,7 +62,7 @@ static void drawPinnedStar(QPainter& p, const QRect& r)
 static QIcon makeCountryListIcon(const QString& countryCode, const bool pinned)
 {
     // Keep a fixed icon box so wide-mode star + flag are never downscaled.
-    const int iconW = 40;
+    constexpr int iconW = 40;
     QPixmap pm(iconW, 16);
     pm.fill(Qt::transparent);
 
@@ -328,8 +281,7 @@ CountriesPage::CountriesPage(VpnManager* manager, QWidget* parent)
             this, [this](const QMap<QString, QString>& settings)
     {
         const QString v = settings.value(QStringLiteral("port-forwarding")).toLower().trimmed();
-        const bool pfOn = (v == QLatin1String("on") || v == QLatin1String("true")
-                           || v == QLatin1String("1") || v == QLatin1String("enabled"));
+        const bool pfOn = isOnString(v);
         m_portForwardingEnabled = pfOn;
 
         if (pfOn && !m_filterP2P)
@@ -364,23 +316,20 @@ CountriesPage::CountriesPage(VpnManager* manager, QWidget* parent)
     buildNarrowLayout(mainLayout);
 
     // ── Spinners ──────────────────────────────────────────────────────────
-    static constexpr const char* frames[] = {"⠋","⠙","⠹","⠸","⠼","⠴","⠦","⠧","⠇","⠏"};
-    static constexpr int frameCount = 10;
-
     m_spinnerTimer = new QTimer(this);
     m_spinnerTimer->setInterval(200);
     connect(m_spinnerTimer, &QTimer::timeout, this, [this]() {
-        m_spinnerFrame = (m_spinnerFrame + 1) % frameCount;
+        m_spinnerFrame = (m_spinnerFrame + 1) % kSpinnerFrameCount;
         if (m_citiesList && m_citiesList->count() > 0)
             m_citiesList->item(0)->setText(
-                QStringLiteral("%1 Loading cities…").arg(QString::fromUtf8(frames[m_spinnerFrame])));
+                QStringLiteral("%1 Loading cities…").arg(QString::fromUtf8(kSpinnerFrames[m_spinnerFrame])));
     });
 
     m_countriesSpinnerTimer = new QTimer(this);
     m_countriesSpinnerTimer->setInterval(200);
     connect(m_countriesSpinnerTimer, &QTimer::timeout, this, [this]() {
-        m_countriesSpinnerFrame = (m_countriesSpinnerFrame + 1) % frameCount;
-        const QString frame = QString::fromUtf8(frames[m_countriesSpinnerFrame]);
+        m_countriesSpinnerFrame = (m_countriesSpinnerFrame + 1) % kSpinnerFrameCount;
+        const QString frame = QString::fromUtf8(kSpinnerFrames[m_countriesSpinnerFrame]);
         if (m_countriesList && m_countriesList->count() > 0)
             m_countriesList->item(0)->setText(
                 QStringLiteral("%1 Loading countries…").arg(frame));
@@ -838,7 +787,7 @@ void CountriesPage::showDisablePortForwardingDialog(const QString& bodyText,
     dlg->exec();
 }
 
-void CountriesPage::updateBubbleStyles()
+void CountriesPage::updateBubbleStyles() const
 {
     const bool anyActive = m_filterP2P || m_filterSecureCore || m_filterTor;
     m_bubbleAll->setStyleSheet(bubbleStyle(!anyActive));
@@ -850,7 +799,7 @@ void CountriesPage::updateBubbleStyles()
 // ============================================================
 // populateWide – rebuild the countries QListWidget
 // ============================================================
-void CountriesPage::populateWide()
+void CountriesPage::populateWide() const
 {
     if (!m_countriesList) return;
     m_countriesList->clear();
@@ -1090,7 +1039,7 @@ void CountriesPage::onCitiesReady(const QString& code,
 // ============================================================
 // Wide city item
 // ============================================================
-void CountriesPage::addWideCityItem(const QString& city, const QString& features)
+void CountriesPage::addWideCityItem(const QString& city, const QString& features) const
 {
     const QStringList tags = features.split(QLatin1Char(','), Qt::SkipEmptyParts);
 
@@ -1105,20 +1054,20 @@ void CountriesPage::addWideCityItem(const QString& city, const QString& features
     hbox->addWidget(cityLabel, 0, Qt::AlignVCenter);
     hbox->addStretch();
 
-    for (const auto& meta : kFeatures)
+    for (const auto& meta : kServerFeatures)
     {
         bool matched = false;
         for (const QString& tag : tags)
-            if (tag.trimmed().contains(meta.keyword, Qt::CaseInsensitive))
+            if (tag.trimmed().contains(QLatin1String(meta.keyword), Qt::CaseInsensitive))
                 { matched = true; break; }
         if (!matched) continue;
 
         auto* iconLabel = new QLabel(row);
-        iconLabel->setPixmap(GeoUtils::svgPixmap(meta.resource, 16));
+        iconLabel->setPixmap(GeoUtils::svgPixmap(QLatin1String(meta.resource), 16));
         iconLabel->setFixedSize(24, 24);
         iconLabel->setScaledContents(false);
         iconLabel->setAlignment(Qt::AlignCenter);
-        iconLabel->setToolTip(meta.tooltip);
+        iconLabel->setToolTip(QLatin1String(meta.tooltip));
         hbox->addWidget(iconLabel, 0, Qt::AlignVCenter);
     }
 
@@ -1165,19 +1114,19 @@ void CountriesPage::addNarrowCityItem(QVBoxLayout* layout, const QString& city,
     }
     hbox->addWidget(cityLabel, 1, Qt::AlignVCenter);
 
-    for (const auto& meta : kFeatures)
+    for (const auto& meta : kServerFeatures)
     {
         bool matched = false;
         for (const QString& tag : tags)
-            if (tag.trimmed().contains(meta.keyword, Qt::CaseInsensitive))
+            if (tag.trimmed().contains(QLatin1String(meta.keyword), Qt::CaseInsensitive))
                 { matched = true; break; }
         if (!matched) continue;
 
         auto* iconLabel = new QLabel(row);
-        iconLabel->setPixmap(GeoUtils::svgPixmap(meta.resource, 14));
+        iconLabel->setPixmap(GeoUtils::svgPixmap(QLatin1String(meta.resource), 14));
         iconLabel->setFixedSize(20, 20);
         iconLabel->setAlignment(Qt::AlignCenter);
-        iconLabel->setToolTip(meta.tooltip);
+        iconLabel->setToolTip(QLatin1String(meta.tooltip));
         hbox->addWidget(iconLabel, 0, Qt::AlignVCenter);
     }
 

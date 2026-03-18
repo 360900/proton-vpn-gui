@@ -32,13 +32,12 @@ void AppConfig::load()
 
     m_autoConnect = obj.value(QStringLiteral("auto_connect")).toBool(false);
     m_notifications = obj.value(QStringLiteral("notifications")).toBool(true);
-    // m_recentConnectionsCount = obj.value(QStringLiteral("recent_connections_count")).toInt(5);
-    m_recentConnectionsCount = 0; // TODO: Remove this line and uncomment out the line above when bugs are removed
+    m_recentConnectionsCount = obj.value(QStringLiteral("recent_connections_count")).toInt(5);
 }
 
 bool AppConfig::save() const
 {
-    QDir dir;
+    const QDir dir;
     if (!dir.mkpath(kConfigDir))
         return false;
 

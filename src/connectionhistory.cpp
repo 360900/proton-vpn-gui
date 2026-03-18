@@ -33,7 +33,12 @@ ConnectionHistory::ConnectionHistory()
 
 QList<ConnectionEntry> ConnectionHistory::entries() const
 {
-    return m_entries;
+    const int maxCount = AppConfig::instance().recentConnectionsCount();
+    if (maxCount == 0)
+        return {};
+    if (m_entries.size() <= maxCount)
+        return m_entries;
+    return m_entries.sliced(0, maxCount);
 }
 
 void ConnectionHistory::record(const QString& countryCode,
@@ -41,6 +46,10 @@ void ConnectionHistory::record(const QString& countryCode,
                                 const QString& city)
 {
     const int maxCount = AppConfig::instance().recentConnectionsCount();
+
+    // 0 means the feature is disabled — don't store anything.
+    if (maxCount == 0)
+        return;
 
     // If already present, update timestamp and move to front
     for (int i = 0; i < m_entries.size(); ++i)
@@ -66,9 +75,8 @@ void ConnectionHistory::record(const QString& countryCode,
     m_entries.prepend(e);
 
     // Trim to max
-    if (maxCount > 0)
-        while (m_entries.size() > maxCount)
-            m_entries.removeLast();
+    while (m_entries.size() > maxCount)
+        m_entries.removeLast();
 
     save();
 }

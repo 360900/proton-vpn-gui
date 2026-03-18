@@ -157,7 +157,7 @@ void VpnManager::login(const QString& username, const QString& password)
             });
 
     connect(process, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
-            this, [this, process, state](int exitCode, QProcess::ExitStatus)
+            this, [this, process, state](const int exitCode, QProcess::ExitStatus)
             {
                 const QString combined = state->accumulated.trimmed();
                 delete state;
@@ -166,7 +166,7 @@ void VpnManager::login(const QString& username, const QString& password)
                     m_signinProcess = nullptr;
                 process->deleteLater();
 
-                bool ok = (exitCode == 0);
+                const bool ok = exitCode == 0;
                 QString errorMsg;
                 if (!ok)
                 {

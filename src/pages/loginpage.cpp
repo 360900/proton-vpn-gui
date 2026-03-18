@@ -1,8 +1,8 @@
 #include "loginpage.h"
+#include "../widgets/svgbanner.h"
 
 #include <QHBoxLayout>
 #include <QLabel>
-#include <QSvgWidget>
 #include <QPixmap>
 #include <QSvgRenderer>
 #include <QPainter>
@@ -60,8 +60,7 @@ void LoginPage::buildCredsWidget()
     layout->setContentsMargins(32, 32, 32, 24);
 
     // Logo
-    auto* logo = new QSvgWidget(QStringLiteral(":/assets/proton-vpn-logo.svg"), m_credsWidget);
-    logo->setFixedSize(180, 40);
+    auto* logo = new SvgBanner(QStringLiteral(":/assets/proton-vpn-logo.svg"), 4.0, m_credsWidget);
     layout->addWidget(logo, 0, Qt::AlignCenter);
 
     layout->addSpacing(8);
@@ -133,8 +132,7 @@ void LoginPage::buildTFAWidget()
     layout->setContentsMargins(32, 32, 32, 24);
 
     // Logo
-    auto* logo = new QSvgWidget(QStringLiteral(":/assets/proton-vpn-logo.svg"), m_tfaWidget);
-    logo->setFixedSize(180, 40);
+    auto* logo = new SvgBanner(QStringLiteral(":/assets/proton-vpn-logo.svg"), 4.0, m_tfaWidget);
     layout->addWidget(logo, 0, Qt::AlignCenter);
 
     layout->addSpacing(8);
@@ -175,7 +173,7 @@ void LoginPage::buildTFAWidget()
     layout->addWidget(m_tfaSubmitBtn);
 }
 
-void LoginPage::show2FAPrompt()
+void LoginPage::show2FAPrompt() const
 {
     setError(QString());
     m_tfaEdit->clear();
@@ -186,7 +184,7 @@ void LoginPage::show2FAPrompt()
     m_tfaEdit->setFocus();
 }
 
-void LoginPage::reset()
+void LoginPage::reset() const
 {
     m_stack->setCurrentIndex(0);
     setError(QString());

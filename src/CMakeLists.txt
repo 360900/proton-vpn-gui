@@ -24,10 +24,15 @@ set(SOURCES
         connectionhistory.cpp
         geoutils.h
         geoutils.cpp
+        uihelpers.h
         vpnmanager.h
         vpnmanager.cpp
         mainwindow.h
         mainwindow.cpp
+        widgets/elidalabel.h
+        widgets/infobanner.h
+        widgets/pickerbase.h
+        widgets/svgbanner.h
         pages/notinstalledpage.h
         pages/notinstalledpage.cpp
         pages/loginpage.h
