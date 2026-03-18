@@ -448,9 +448,8 @@ SettingsPage::SettingsPage(VpnManager* manager, QWidget* parent)
         addApp(row);
     }
 
-    // TODO iron out the bugs and reimplement later
     // ── Recent Connections ────────────────────────────────────
-    /*{
+    {
         auto* row = new QWidget(appCard);
         auto* rl = new QHBoxLayout(row);
         rl->setContentsMargins(16, 12, 16, 12);
@@ -459,17 +458,18 @@ SettingsPage::SettingsPage(VpnManager* manager, QWidget* parent)
                                   QStringLiteral("Recent Connections"),
                                   QStringLiteral("Number of recent VPN connections to remember and show "
                                       "on the home screen. Set to 0 to disable.")), 1);
-        auto* spinBox = new QSpinBox(row);
-        spinBox->setMinimum(0);
-        spinBox->setMaximum(20);
-        spinBox->setValue(AppConfig::instance().recentConnectionsCount());
-        spinBox->setFixedWidth(64);
-        connect(spinBox, QOverload<int>::of(&QSpinBox::valueChanged), this, [](const int val)
+        m_recentConnectionsSpinBox = new QSpinBox(row);
+        m_recentConnectionsSpinBox->setMinimum(0);
+        m_recentConnectionsSpinBox->setMaximum(20);
+        m_recentConnectionsSpinBox->setValue(AppConfig::instance().recentConnectionsCount());
+        m_recentConnectionsSpinBox->setFixedWidth(64);
+        connect(m_recentConnectionsSpinBox, QOverload<int>::of(&QSpinBox::valueChanged), this, [](const int val)
         {
             AppConfig::instance().setRecentConnectionsCount(val);
         });
-        rl->addWidget(spinBox);
-    }*/
+        rl->addWidget(m_recentConnectionsSpinBox);
+        addApp(row);
+    }
 
     appCardLayout->addStretch();
 
@@ -684,6 +684,7 @@ void SettingsPage::setLoading(const bool loading)
     for (const auto& r : std::as_const(m_comboRows)) r.combo->setEnabled(!loading);
     if (m_autoStartToggle) m_autoStartToggle->setEnabled(!loading);
     if (m_notificationsToggle) m_notificationsToggle->setEnabled(!loading);
+    if (m_recentConnectionsSpinBox) m_recentConnectionsSpinBox->setEnabled(!loading);
     if (m_dnsToggle) m_dnsToggle->setEnabled(!loading);
     if (m_dnsApplyBtn) m_dnsApplyBtn->setEnabled(!loading);
 }

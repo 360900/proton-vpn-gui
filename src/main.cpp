@@ -383,6 +383,41 @@ int main(int argc, char* argv[])
         QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
             height: 0;
         }
+
+        QSpinBox {
+            background-color: #1a1a2e;
+            border: 1px solid #3a3a55;
+            border-radius: 6px;
+            padding: 4px 6px;
+            color: #eaeaea;
+        }
+        QSpinBox:focus {
+            border-color: #6d4aff;
+        }
+        QSpinBox::up-button, QSpinBox::down-button {
+            background-color: #25253d;
+            border: none;
+            width: 18px;
+        }
+        QSpinBox::up-button:hover, QSpinBox::down-button:hover {
+            background-color: #3a3a55;
+        }
+        QSpinBox::up-arrow {
+            image: none;
+            border-left: 4px solid transparent;
+            border-right: 4px solid transparent;
+            border-bottom: 5px solid #9999bb;
+            width: 0;
+            height: 0;
+        }
+        QSpinBox::down-arrow {
+            image: none;
+            border-left: 4px solid transparent;
+            border-right: 4px solid transparent;
+            border-top: 5px solid #9999bb;
+            width: 0;
+            height: 0;
+        }
     )"));
 
     MainWindow w;

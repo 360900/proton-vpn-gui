@@ -15,6 +15,9 @@
 #include <QHBoxLayout>
 #include "../vpnmanager.h"
 
+// Forward-declared here; defined as a file-local class in vpnpage.cpp.
+class ElideLabel;
+
 // ---------------------------------------------------------------------------
 // PowerButton
 // ---------------------------------------------------------------------------
@@ -85,8 +88,8 @@ private:
     bool    m_unknownConnection = false;
 
     QLabel*      m_flagLabel;
-    QLabel*      m_topLine;
-    QLabel*      m_bottomLine;
+    ElideLabel*  m_topLine;
+    ElideLabel*  m_bottomLine;
     QLabel*      m_chevron;
     QFrame*      m_popup;
     QListWidget* m_list;
@@ -118,8 +121,8 @@ private:
     void resizeList();
     void installOnRowWidget(QWidget* w);
 
-    QLabel*      m_topLine;
-    QLabel*      m_bottomLine;
+    ElideLabel*  m_topLine;
+    ElideLabel*  m_bottomLine;
     QLabel*      m_chevron;
     QFrame*      m_popup;
     QListWidget* m_list;

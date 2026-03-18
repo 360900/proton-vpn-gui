@@ -25,6 +25,41 @@
 #include <cmath>
 
 // ============================================================
+// ElideLabel – QLabel that truncates with "…" when too narrow.
+// ============================================================
+class ElideLabel : public QLabel
+{
+public:
+    explicit ElideLabel(const QString& text, QWidget* parent = nullptr)
+        : QLabel(parent), m_fullText(text)
+    {
+        setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Preferred);
+        setMinimumWidth(0);
+        QLabel::setText(elided());
+    }
+
+    void setText(const QString& text)
+    {
+        m_fullText = text;
+        QLabel::setText(elided());
+    }
+
+protected:
+    void resizeEvent(QResizeEvent* e) override
+    {
+        QLabel::resizeEvent(e);
+        QLabel::setText(elided());
+    }
+
+private:
+    QString elided() const
+    {
+        return fontMetrics().elidedText(m_fullText, Qt::ElideRight, width() > 0 ? width() : 9999);
+    }
+    QString m_fullText;
+};
+
+// ============================================================
 // PowerButton implementation
 // ============================================================
 
@@ -268,16 +303,15 @@ LocationPicker::LocationPicker(const QString& countryCode, const QString& countr
     textCol->setSpacing(1);
     textCol->setContentsMargins(0, 0, 0, 0);
 
-    m_topLine = new QLabel(QStringLiteral("Selected Location"), header);
+    m_topLine = new ElideLabel(QStringLiteral("Selected Location"), header);
     m_topLine->setObjectName(QStringLiteral("locationPickerTop"));
 
-    m_bottomLine = new QLabel(QStringLiteral("⚡  Fastest server"), header);
+    m_bottomLine = new ElideLabel(QStringLiteral("⚡  Fastest server"), header);
     m_bottomLine->setObjectName(QStringLiteral("locationPickerBottom"));
 
     textCol->addWidget(m_topLine);
     textCol->addWidget(m_bottomLine);
-    headerLayout->addLayout(textCol);
-    headerLayout->addStretch();
+    headerLayout->addLayout(textCol, 1);
 
     // Chevron
     m_chevron = new QLabel(QStringLiteral("▾"), header);
@@ -418,7 +452,7 @@ void LocationPicker::resizeList()
 {
     const int count = m_list->count();
     if (count == 0) return;
-    const int rowH = m_list->sizeHintForRow(0);
+    constexpr int rowH = 34; // matches setSizeHint height used in populate()
     const int rows = qMin(count, 8);
     m_list->setFixedHeight(rows * rowH + 2);
     m_popup->adjustSize();
@@ -560,7 +594,7 @@ void LocationPicker::populate(const QList<QPair<QString, QString>>& cities)
     }
     fbox->addWidget(fIcon, 0, Qt::AlignVCenter);
 
-    auto* fLabel = new QLabel(QStringLiteral("⚡  Fastest server"), fastestRow);
+    auto* fLabel = new ElideLabel(QStringLiteral("⚡  Fastest server"), fastestRow);
     fLabel->setObjectName(QStringLiteral("locationPickerItemLabel"));
     QFont bold = fLabel->font(); bold.setBold(true); bold.setItalic(true);
     fLabel->setFont(bold);
@@ -582,7 +616,7 @@ void LocationPicker::populate(const QList<QPair<QString, QString>>& cities)
     cbox->setContentsMargins(10, 6, 10, 6);
     cbox->setSpacing(8);
 
-    auto* cLabel = new QLabel(QStringLiteral("🌐  Change country…"), changeRow);
+    auto* cLabel = new ElideLabel(QStringLiteral("🌐  Change country…"), changeRow);
     cLabel->setObjectName(QStringLiteral("locationPickerItemLabel"));
     QFont italicFont = cLabel->font();
     italicFont.setItalic(true);
@@ -607,7 +641,7 @@ void LocationPicker::populate(const QList<QPair<QString, QString>>& cities)
         hbox->setContentsMargins(10, 6, 10, 6);
         hbox->setSpacing(8);
 
-        auto* cityLabel = new QLabel(city, row);
+        auto* cityLabel = new ElideLabel(city, row);
         cityLabel->setObjectName(QStringLiteral("locationPickerItemLabel"));
         hbox->addWidget(cityLabel, 1, Qt::AlignVCenter);
 
@@ -656,14 +690,20 @@ RecentPicker::RecentPicker(QWidget* parent)
     hl->setContentsMargins(10, 8, 10, 8);
     hl->setSpacing(10);
 
+    // Clock icon — mirrors the flag icon in LocationPicker for visual parity
+    auto* clockIcon = new QLabel(QStringLiteral("🕐"), header);
+    clockIcon->setFixedSize(28, 21);
+    clockIcon->setAlignment(Qt::AlignCenter);
+    hl->addWidget(clockIcon);
+
     auto* textCol = new QVBoxLayout();
     textCol->setSpacing(1);
     textCol->setContentsMargins(0, 0, 0, 0);
 
-    m_topLine = new QLabel(QStringLiteral("Recent Connections"), header);
+    m_topLine = new ElideLabel(QStringLiteral("Recent Connections"), header);
     m_topLine->setObjectName(QStringLiteral("locationPickerTop"));
 
-    m_bottomLine = new QLabel(QStringLiteral("None yet"), header);
+    m_bottomLine = new ElideLabel(QStringLiteral("None yet"), header);
     m_bottomLine->setObjectName(QStringLiteral("locationPickerBottom"));
 
     textCol->addWidget(m_topLine);
@@ -725,7 +765,7 @@ void RecentPicker::refresh()
     // Show most recent in header
     const auto& first = entries.first();
     const QString firstLabel = first.city.isEmpty()
-        ? QStringLiteral("⚡  %1").arg(first.countryName)
+        ? QStringLiteral("⚡  Fastest in %1").arg(first.countryName)
         : QStringLiteral("%1, %2").arg(first.countryName, first.city);
     m_bottomLine->setText(firstLabel);
 
@@ -750,9 +790,9 @@ void RecentPicker::refresh()
 
         // Text
         const QString label = e.city.isEmpty()
-            ? QStringLiteral("⚡  %1").arg(e.countryName)
+            ? QStringLiteral("⚡  Fastest in %1").arg(e.countryName)
             : QStringLiteral("%1, %2").arg(e.countryName, e.city);
-        auto* lbl = new QLabel(label, row);
+        auto* lbl = new ElideLabel(label, row);
         lbl->setObjectName(QStringLiteral("locationPickerItemLabel"));
         hbox->addWidget(lbl, 1, Qt::AlignVCenter);
 
@@ -862,7 +902,7 @@ void RecentPicker::resizeList()
 {
     const int count = m_list->count();
     if (count == 0) return;
-    const int rowH = m_list->sizeHintForRow(0);
+    constexpr int rowH = 34; // matches setSizeHint height used in refresh()
     m_list->setFixedHeight(qMin(count, 8) * rowH + 2);
     m_popup->adjustSize();
 }

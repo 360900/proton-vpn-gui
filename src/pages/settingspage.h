@@ -92,6 +92,9 @@ private:
     // Desktop notifications
     ToggleSwitch* m_notificationsToggle = nullptr;
 
+    // Recent connections count (0 = disabled)
+    class QSpinBox* m_recentConnectionsSpinBox = nullptr;
+
     QPushButton* m_refreshBtn;
     QLabel* m_statusLabel;
     QTimer* m_spinnerTimer;
