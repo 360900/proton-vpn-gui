@@ -454,8 +454,9 @@ void LocationPicker::resizeList()
     if (count == 0) return;
     const int rowH = m_list->sizeHintForRow(0);
     const int rows = qMin(count, 8);
-    m_list->setFixedHeight(rows * rowH + 2);
-    m_popup->adjustSize();
+    const int listH = rows * rowH + 2;
+    m_list->setFixedHeight(listH);
+    m_popup->setFixedHeight(listH);
 }
 
 void LocationPicker::onItemClicked(QListWidgetItem* item)
@@ -902,9 +903,10 @@ void RecentPicker::resizeList()
 {
     const int count = m_list->count();
     if (count == 0) return;
-    const int rowH = m_list->sizeHintForRow(0);
-    m_list->setFixedHeight(qMin(count, 8) * rowH + 2);
-    m_popup->adjustSize();
+    const int rowH = m_list->item(0)->sizeHint().height();
+    const int listH = qMin(count, 8) * rowH + 2;
+    m_list->setFixedHeight(listH);
+    m_popup->setFixedHeight(listH);
 }
 
 // ============================================================
