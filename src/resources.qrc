@@ -25,6 +25,10 @@
     </qresource>
     <qresource prefix="/">
         <file>version.json</file>
+        <file>style.qss</file>
+    </qresource>
+    <qresource prefix="/init">
+        <file alias="systemd/proton-vpn-qt.service">init/systemd/proton-vpn-qt.service</file>
     </qresource>
 </RCC>
 

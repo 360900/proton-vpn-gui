@@ -116,7 +116,7 @@ MainWindow::MainWindow(QWidget* parent)
     connect(m_vpnPage, &VpnPage::connectRequested, m_manager,
             [this](const QString& country, const QString& city)
             {
-                if (!country.isEmpty())
+                if (!country.isEmpty() && !city.isEmpty())
                 {
                     const QString name = GeoUtils::countryCodeToName(country);
                     ConnectionHistory::instance().record(country, name, city);
@@ -140,7 +140,7 @@ MainWindow::MainWindow(QWidget* parent)
             [this](const QString& country, const QString& city)
             {
                 m_vpnPage->notifyExternalConnect(city);
-                if (!country.isEmpty())
+                if (!country.isEmpty() && !city.isEmpty())
                 {
                     const QString name = GeoUtils::countryCodeToName(country);
                     ConnectionHistory::instance().record(country, name, city);
@@ -164,6 +164,8 @@ MainWindow::MainWindow(QWidget* parent)
             m_vpnPage, &VpnPage::refreshRecentPicker);
 
     // VpnManager signals
+    connect(m_manager, &VpnManager::connectionCityKnown,
+            m_vpnPage, &VpnPage::onStatusCityKnown);
     connect(m_manager, &VpnManager::installedResult, this, [this](bool installed)
     {
         if (!installed)
@@ -210,7 +212,8 @@ MainWindow::MainWindow(QWidget* parent)
             m_loginPage->reset();
             m_sidebar->setEnabled(true);
             showPage(Page::Vpn);
-            m_manager->checkConnectionStatus();
+            // checkConnectionStatus() + startPolling() are already called
+            // inside VpnManager::login() on success, before loginFinished fires.
             m_manager->fetchCountries();
         }
         else

@@ -339,6 +339,25 @@ void LocationPicker::setSelectedCity(const QString& city)
     m_list->setCurrentRow(0);
 }
 
+bool LocationPicker::trySelectCity(const QString& city)
+{
+    for (int i = 0; i < m_list->count(); ++i)
+    {
+        if (m_list->item(i)->data(Qt::UserRole).toString() == city)
+        {
+            m_unknownConnection = false;
+            m_selectedCity = city;
+            updateHeader();
+            m_list->setCurrentRow(i);
+            return true;
+        }
+    }
+    // City not in the list – show "Active connection" as fallback.
+    m_selectedCity.clear();
+    setUnknownConnection(true);
+    return false;
+}
+
 void LocationPicker::populate(const QList<QPair<QString, QString>>& cities)
 {
     setLoading(false);
@@ -822,6 +841,30 @@ void VpnPage::notifyExternalConnect(const QString& city)
     if (m_recentPicker) m_recentPicker->refresh();
 }
 
+void VpnPage::onStatusCityKnown(const QString& city)
+{
+    // Store the city so updateUi() (triggered by the subsequent
+    // connectionStateChanged signal) can skip the "Active connection" fallback,
+    // and applyPendingStatusCity() can select it once the list is populated.
+    m_pendingStatusCity = city;
+    m_activeCity        = city;
+}
+
+void VpnPage::applyPendingStatusCity()
+{
+    if (m_pendingStatusCity.isEmpty())
+        return;
+
+    const bool found = m_locationPicker->trySelectCity(m_pendingStatusCity);
+    if (!found)
+    {
+        // City not in the list – treat as unknown active connection.
+        m_activeCity.clear();
+        m_hadUnknownConnection = true;
+    }
+    m_pendingStatusCity.clear();
+}
+
 void VpnPage::refreshRecentPicker()
 {
     if (m_recentPicker)
@@ -877,6 +920,7 @@ void VpnPage::onCitiesReady(const QString& countryCode,
     }
 
     m_locationPicker->populate(cities);
+    applyPendingStatusCity();
 }
 
 void VpnPage::checkPrereleaseBanner()
@@ -984,9 +1028,22 @@ void VpnPage::updateUi(const VpnState state, const QString& info)
             startElapsedTimer();
             if (m_recentPicker) { m_recentPicker->refresh(); relayoutPickers(width()); }
         }
+        else if (prevState == VpnState::Connected)
+        {
+            // Server changed while staying connected (external CLI switch).
+            // Restart the elapsed timer for the new connection and update the
+            // location picker to reflect the new city.
+            startElapsedTimer();
+            m_hadUnknownConnection = false;
+            m_locationPicker->setUnknownConnection(false);
+            applyPendingStatusCity();
+        }
         else
         {
             stopElapsedTimer();
+            // Only fall back to "Active connection" when we have no city at
+            // all.  If onStatusCityKnown() was called first, m_activeCity is
+            // already set and we skip this so the picker can show the real city.
             if (prevState == VpnState::Unknown && m_activeCity.isEmpty())
             {
                 m_hadUnknownConnection = true;
@@ -997,6 +1054,7 @@ void VpnPage::updateUi(const VpnState state, const QString& info)
         {
             m_locationPicker->populate(m_pendingCities);
             m_pendingCities.clear();
+            applyPendingStatusCity();
         }
         break;
 
@@ -1043,6 +1101,15 @@ void VpnPage::updateUi(const VpnState state, const QString& info)
         stopElapsedTimer();
 
         m_rawError = info;
+
+        // Detect free-plan location restriction and offer quick-connect instead
+        const bool isFreePlanError =
+            info.contains(QLatin1String("not available on the free plan"), Qt::CaseInsensitive);
+        if (isFreePlanError)
+        {
+            handleFreePlanError();
+            break;
+        }
 
         const bool isCliError = info.contains(QLatin1String("Traceback (most recent call last)"))
                              || info.contains(QLatin1String("File \"/usr/bin/protonvpn\""))
@@ -1127,5 +1194,68 @@ void VpnPage::showErrorDetails() const
     layout->addLayout(btnRow);
 
     dlg->exec();
+}
+
+void VpnPage::handleFreePlanError()
+{
+    // Reset the UI to a friendly "disconnected" state instead of showing a
+    // scary red error — the user didn't do anything wrong.
+    m_powerBtn->setState(PowerButton::RingState::Disconnected);
+    m_powerBtn->setEnabled(true);
+    m_statusLabel->setText(QStringLiteral("Disconnected"));
+    m_statusLabel->setStyleSheet(QStringLiteral(
+        "color: #888888; font-size: 16pt; font-weight: bold; letter-spacing: 1px;"));
+    m_infoLabel->setText(QString());
+    m_currentState = VpnState::Disconnected;
+    m_activeCity.clear();
+    m_hadUnknownConnection = false;
+    m_locationPicker->setUnknownConnection(false);
+
+    auto* dlg = new QDialog(this);
+    dlg->setWindowTitle(QStringLiteral("Free Account"));
+    dlg->setAttribute(Qt::WA_DeleteOnClose);
+    dlg->setModal(true);
+    dlg->setMinimumWidth(400);
+
+    auto* layout = new QVBoxLayout(dlg);
+    layout->setSpacing(16);
+    layout->setContentsMargins(24, 24, 24, 20);
+
+    auto* msgLabel = new QLabel(
+        QStringLiteral(
+            "<b>Location selection is not available on the free plan.</b><br><br>"
+            "Would you like to connect to a <b>random free server</b> instead? "
+            "Proton will automatically choose a server for you."),
+        dlg);
+    msgLabel->setWordWrap(true);
+    msgLabel->setTextFormat(Qt::RichText);
+    layout->addWidget(msgLabel);
+
+    auto* btnRow = new QHBoxLayout();
+    btnRow->setSpacing(8);
+
+    auto* dismissBtn = new QPushButton(QStringLiteral("Dismiss"), dlg);
+    dismissBtn->setObjectName(QStringLiteral("secondaryButton"));
+
+    auto* connectBtn = new QPushButton(QStringLiteral("Auto Connect"), dlg);
+    connectBtn->setObjectName(QStringLiteral("primaryButton"));
+    connectBtn->setDefault(true);
+
+    const int btnH = connectBtn->sizeHint().height();
+    dismissBtn->setFixedHeight(btnH);
+    connectBtn->setFixedHeight(btnH);
+
+    btnRow->addWidget(dismissBtn, 1);
+    btnRow->addWidget(connectBtn, 1);
+    layout->addLayout(btnRow);
+
+    connect(dismissBtn, &QPushButton::clicked, dlg, &QDialog::reject);
+    connect(connectBtn, &QPushButton::clicked, dlg, &QDialog::accept);
+
+    if (dlg->exec() == QDialog::Accepted)
+    {
+        // Pick a random free server to connect to
+        emit connectRequested(QString(), QString());
+    }
 }
 

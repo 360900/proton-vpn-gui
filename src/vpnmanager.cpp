@@ -1,6 +1,7 @@
 #include "vpnmanager.h"
 
 #include <QProcess>
+#include <QTimer>
 #include <QDir>
 #include <QJsonDocument> // Ignore unused include warning; we do use QJsonDocument
 #include <QJsonObject>
@@ -78,11 +79,13 @@ void VpnManager::checkLoginStatus()
             }
         }
 
-        // Check actual connection state via ip a — the protonvpn CLI has no
-        // reliable status command, but the VPN tunnel always creates a
-        // "proton0" network interface when connected.
+        // Kick off an async `protonvpn status` check so the VPN page can show
+        // the correct connected/disconnected state as soon as the result arrives.
         if (loggedIn)
+        {
             checkConnectionStatus();
+            startPolling();
+        }
 
         emit loginStatusResult(loggedIn, username);
     });
@@ -185,6 +188,12 @@ void VpnManager::login(const QString& username, const QString& password)
                     }
                     if (errorMsg.isEmpty()) errorMsg = combined;
                 }
+                else
+                {
+                    // Start background polling now that we're logged in.
+                    checkConnectionStatus();
+                    startPolling();
+                }
                 emit loginFinished(ok, errorMsg);
             });
 
@@ -202,6 +211,7 @@ void VpnManager::submit2FA(const QString& token) const
 
 void VpnManager::signOut()
 {
+    stopPolling();
     runCommand({QStringLiteral("signout")}, [this](int exitCode, const QString&, const QString&)
     {
         m_state = VpnState::Disconnected;
@@ -373,101 +383,83 @@ void VpnManager::fetchInfo()
 void VpnManager::checkConnectionStatus()
 {
     auto* process = new QProcess(this);
+    // We connect to `finished`, not `readyRead`, so we receive the complete
+    // output in one go.  When the CLI needs to refresh its server list it
+    // prints "Server list is outdated, updating…" and pauses for a second or
+    // two before printing the actual status lines.  Because the process does
+    // not exit until all output has been written, `finished` fires only once
+    // everything — including the post-update status — is available.
     connect(process, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
             this, [this, process](int, QProcess::ExitStatus)
             {
-                const QString out = QString::fromUtf8(process->readAllStandardOutput());
+                // Combine stdout + stderr — the "Server list is outdated" notice
+                // can appear on either stream.
+                const QString combined = QString::fromUtf8(process->readAllStandardOutput())
+                                         + QLatin1Char('\n')
+                                         + QString::fromUtf8(process->readAllStandardError());
                 process->deleteLater();
 
-                const bool connected = out.contains(QStringLiteral("proton0"));
-                if (!connected)
+                // Strip noise lines (same filter used in connectVpn).
+                QStringList lines = combined.split(QLatin1Char('\n'));
+                lines.erase(std::ranges::remove_if(lines, [](const QString& l)
+                {
+                    const QString ll = l.toLower();
+                    return ll.contains(QLatin1String("outdated"))    ||
+                           ll.contains(QLatin1String("updating"))    ||
+                           ll.contains(QLatin1String("this may take"));
+                }).begin(), lines.end());
+
+                // Parse "Key: Value" lines into a map.
+                QMap<QString, QString> fields;
+                for (const QString& line : std::as_const(lines))
+                {
+                    const int colonPos = line.indexOf(QLatin1Char(':'));
+                    if (colonPos < 0) continue;
+                    const QString key   = line.left(colonPos).trimmed().toLower();
+                    const QString value = line.mid(colonPos + 1).trimmed();
+                    if (!key.isEmpty() && !value.isEmpty())
+                        fields.insert(key, value);
+                }
+
+                // "Status: Connected" / "Status: Disconnected"
+                const QString statusVal = fields.value(QStringLiteral("status")).toLower();
+
+                if (statusVal == QStringLiteral("connected"))
+                {
+                    m_state = VpnState::Connected;
+
+                    // "Server: US-NJ#203 in Secaucus, United States"
+                    const QString server = fields.value(QStringLiteral("server"));
+
+                    // Parse city: everything between " in " and the first comma.
+                    // e.g. "US-NJ#203 in Secaucus, United States" → "Secaucus"
+                    QString city;
+                    const int inPos = server.indexOf(QStringLiteral(" in "));
+                    if (inPos >= 0)
+                    {
+                        const QString rest     = server.mid(inPos + 4); // "Secaucus, United States"
+                        const int    commaPos  = rest.indexOf(QLatin1Char(','));
+                        city = (commaPos >= 0 ? rest.left(commaPos) : rest).trimmed();
+                    }
+
+                    // Emit city first so the VPN page can store it before
+                    // updateUi() runs in response to connectionStateChanged.
+                    if (!city.isEmpty())
+                        emit connectionCityKnown(city);
+
+                    const QString info = server.isEmpty()
+                        ? QString()
+                        : QStringLiteral("Connected to %1.").arg(server);
+
+                    emit connectionStateChanged(m_state, info);
+                }
+                else
                 {
                     m_state = VpnState::Disconnected;
                     emit connectionStateChanged(m_state, QString());
-                    return;
-                }
-
-                m_state = VpnState::Connected;
-
-                // If nmcli is available, extract the ProtonVPN server name from the
-                // active connection list (e.g. "ProtonVPN US-NY#618") and pass it as
-                // the info string so the VPN page can display it.
-                auto* nmcli = new QProcess(this);
-                connect(nmcli, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
-                        this, [this, nmcli](const int exitCode, QProcess::ExitStatus)
-                        {
-                            QString serverName;
-                            if (exitCode == 0)
-                            {
-                                const QString nmOut = QString::fromUtf8(nmcli->readAllStandardOutput());
-                                for (const QString& line : nmOut.split(QLatin1Char('\n')))
-                                {
-                                    if (line.trimmed().startsWith(QStringLiteral("ProtonVPN"), Qt::CaseInsensitive))
-                                    {
-                                        // Line format: "ProtonVPN US-NY#618   <uuid>   wireguard   proton0"
-                                        // The name is everything up to the first run of 2+ spaces.
-                                        const QStringList parts = line.split(QStringLiteral("  "), Qt::SkipEmptyParts);
-                                        if (!parts.isEmpty())
-                                            serverName = parts.first().trimmed();
-                                        break;
-                                    }
-                                }
-                            }
-                            nmcli->deleteLater();
-
-                            // Now fetch the public IP via curl ifconfig.me and compose the
-                            // full info string, matching the format used when actively connecting.
-                            auto* curl = new QProcess(this);
-                            connect(curl, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
-                                    this, [this, curl, serverName](int curlExit, QProcess::ExitStatus)
-                                    {
-                                        const QString ip = QString::fromUtf8(curl->readAllStandardOutput()).trimmed();
-                                        curl->deleteLater();
-
-                                        // Strip the redundant "ProtonVPN " prefix so we can use our own
-                                        // "Connected to" wording, e.g. "Connected to US-NY#618."
-                                        QString displayName = serverName;
-                                        if (displayName.startsWith(QStringLiteral("ProtonVPN "), Qt::CaseInsensitive))
-                                            displayName = displayName.mid(QString(QStringLiteral("ProtonVPN ")).length());
-
-                                        QString info;
-                                        if (!displayName.isEmpty() && !ip.isEmpty())
-                                            info = QStringLiteral("Connected to %1. Your IP address is %2.").arg(displayName, ip);
-                                        else if (!displayName.isEmpty())
-                                            info = QStringLiteral("Connected to %1.").arg(displayName);
-                                        else if (!ip.isEmpty())
-                                            info = QStringLiteral("Your IP address is %1.").arg(ip);
-
-                                        emit connectionStateChanged(m_state, info);
-                                    });
-                            curl->start(QStringLiteral("curl"),
-                                        QStringList{
-                                            QStringLiteral("-4"), // Show IPv4
-                                            QStringLiteral("--silent"),
-                                            QStringLiteral("--max-time"), QStringLiteral("5"),
-                                            QStringLiteral("ifconfig.me")
-                                        });
-                            if (!curl->waitForStarted(1000))
-                            {
-                                curl->deleteLater();
-                                emit connectionStateChanged(m_state, serverName);
-                            }
-                        });
-                nmcli->start(QStringLiteral("nmcli"),
-                             QStringList{
-                                 QStringLiteral("connection"),
-                                 QStringLiteral("show"),
-                                 QStringLiteral("--active")
-                             });
-                // If nmcli is not installed, the process will fail to start — handle
-                // that by emitting immediately with no info string.
-                if (!nmcli->waitForStarted(1000))
-                {
-                    nmcli->deleteLater();
-                    emit connectionStateChanged(m_state, QString());
                 }
             });
-    process->start(QStringLiteral("ip"), QStringList{QStringLiteral("a")});
+    process->start(QStringLiteral("protonvpn"), QStringList{QStringLiteral("status")});
 }
 
 QMap<QString, QString> VpnManager::parseDictOutput(const QString& output)
@@ -651,3 +643,133 @@ void VpnManager::fetchCliVersion()
     });
 }
 
+// ---------------------------------------------------------------------------
+// Background polling
+// ---------------------------------------------------------------------------
+
+void VpnManager::startPolling()
+{
+    if (m_pollTimer)
+        return; // already running
+
+    m_pollTimer = new QTimer(this);
+    m_pollTimer->setInterval(15'000); // 15 s
+    connect(m_pollTimer, &QTimer::timeout, this, &VpnManager::pollStatus);
+    m_pollTimer->start();
+}
+
+void VpnManager::stopPolling()
+{
+    if (m_pollTimer)
+    {
+        m_pollTimer->stop();
+        m_pollTimer->deleteLater();
+        m_pollTimer = nullptr;
+    }
+    m_pollActive = false;
+}
+
+void VpnManager::pollStatus()
+{
+    if (m_pollActive)
+        return; // previous poll still in flight
+
+    m_pollActive = true;
+
+    auto* process = new QProcess(this);
+    connect(process, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
+            this, [this, process](int, QProcess::ExitStatus)
+            {
+                m_pollActive = false;
+
+                const QString combined =
+                    QString::fromUtf8(process->readAllStandardOutput()) + QLatin1Char('\n') +
+                    QString::fromUtf8(process->readAllStandardError());
+                process->deleteLater();
+
+                // Don't let a background poll override an in-progress connect
+                // or disconnect initiated by the user.
+                if (m_state == VpnState::Connecting || m_state == VpnState::Disconnecting)
+                    return;
+
+                // Strip noise lines
+                QStringList lines = combined.split(QLatin1Char('\n'));
+                lines.erase(std::ranges::remove_if(lines, [](const QString& l)
+                {
+                    const QString ll = l.toLower();
+                    return ll.contains(QLatin1String("outdated"))    ||
+                           ll.contains(QLatin1String("updating"))    ||
+                           ll.contains(QLatin1String("this may take"));
+                }).begin(), lines.end());
+
+                QMap<QString, QString> fields;
+                for (const QString& line : std::as_const(lines))
+                {
+                    const int colonPos = line.indexOf(QLatin1Char(':'));
+                    if (colonPos < 0) continue;
+                    const QString key   = line.left(colonPos).trimmed().toLower();
+                    const QString value = line.mid(colonPos + 1).trimmed();
+                    if (!key.isEmpty() && !value.isEmpty())
+                        fields.insert(key, value);
+                }
+
+                const QString statusVal = fields.value(QStringLiteral("status")).toLower();
+                const VpnState newState = (statusVal == QStringLiteral("connected"))
+                                          ? VpnState::Connected
+                                          : VpnState::Disconnected;
+
+                // Parse server / city / info string regardless of which branch fires below.
+                QString server;
+                QString city;
+                QString info;
+                if (newState == VpnState::Connected)
+                {
+                    server = fields.value(QStringLiteral("server"));
+                    const int inPos = server.indexOf(QStringLiteral(" in "));
+                    if (inPos >= 0)
+                    {
+                        const QString rest    = server.mid(inPos + 4);
+                        const int    commaPos = rest.indexOf(QLatin1Char(','));
+                        city = (commaPos >= 0 ? rest.left(commaPos) : rest).trimmed();
+                    }
+                    info = server.isEmpty()
+                        ? QString()
+                        : QStringLiteral("Connected to %1.").arg(server);
+                }
+
+                const bool stateChanged = (newState != m_state);
+
+                // Also fire when the server/city changed while we stay Connected.
+                // Guard on m_connectedServer being non-empty so the first poll after
+                // an app-initiated connect silently learns the server without causing
+                // a spurious re-emit (which would restart the elapsed timer too soon).
+                const bool serverChanged = (!stateChanged &&
+                                             newState == VpnState::Connected &&
+                                             !m_connectedServer.isEmpty() &&
+                                             server != m_connectedServer);
+
+                if (stateChanged || serverChanged)
+                {
+                    m_state = newState;
+
+                    if (newState == VpnState::Connected)
+                    {
+                        m_connectedServer = server;
+                        if (!city.isEmpty())
+                            emit connectionCityKnown(city);
+                        emit connectionStateChanged(m_state, info);
+                    }
+                    else
+                    {
+                        m_connectedServer.clear();
+                        emit connectionStateChanged(m_state, QString());
+                    }
+                }
+                else if (newState == VpnState::Connected && m_connectedServer.isEmpty())
+                {
+                    // Silently record the current server so future polls can diff against it.
+                    m_connectedServer = server;
+                }
+            });
+    process->start(QStringLiteral("protonvpn"), QStringList{QStringLiteral("status")});
+}
