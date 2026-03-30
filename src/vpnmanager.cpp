@@ -1,6 +1,7 @@
 #include "vpnmanager.h"
 
 #include <QProcess>
+#include <QTimer>
 #include <QDir>
 #include <QJsonDocument> // Ignore unused include warning; we do use QJsonDocument
 #include <QJsonObject>
@@ -81,7 +82,10 @@ void VpnManager::checkLoginStatus()
         // Kick off an async `protonvpn status` check so the VPN page can show
         // the correct connected/disconnected state as soon as the result arrives.
         if (loggedIn)
+        {
             checkConnectionStatus();
+            startPolling();
+        }
 
         emit loginStatusResult(loggedIn, username);
     });
@@ -184,6 +188,12 @@ void VpnManager::login(const QString& username, const QString& password)
                     }
                     if (errorMsg.isEmpty()) errorMsg = combined;
                 }
+                else
+                {
+                    // Start background polling now that we're logged in.
+                    checkConnectionStatus();
+                    startPolling();
+                }
                 emit loginFinished(ok, errorMsg);
             });
 
@@ -201,6 +211,7 @@ void VpnManager::submit2FA(const QString& token) const
 
 void VpnManager::signOut()
 {
+    stopPolling();
     runCommand({QStringLiteral("signout")}, [this](int exitCode, const QString&, const QString&)
     {
         m_state = VpnState::Disconnected;
@@ -632,3 +643,103 @@ void VpnManager::fetchCliVersion()
     });
 }
 
+// ---------------------------------------------------------------------------
+// Background polling
+// ---------------------------------------------------------------------------
+
+void VpnManager::startPolling()
+{
+    if (m_pollTimer)
+        return; // already running
+
+    m_pollTimer = new QTimer(this);
+    m_pollTimer->setInterval(15'000); // 15 s
+    connect(m_pollTimer, &QTimer::timeout, this, &VpnManager::pollStatus);
+    m_pollTimer->start();
+}
+
+void VpnManager::stopPolling()
+{
+    if (m_pollTimer)
+    {
+        m_pollTimer->stop();
+        m_pollTimer->deleteLater();
+        m_pollTimer = nullptr;
+    }
+    m_pollActive = false;
+}
+
+void VpnManager::pollStatus()
+{
+    if (m_pollActive)
+        return; // previous poll still in flight
+
+    m_pollActive = true;
+
+    auto* process = new QProcess(this);
+    connect(process, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
+            this, [this, process](int, QProcess::ExitStatus)
+            {
+                m_pollActive = false;
+
+                const QString combined =
+                    QString::fromUtf8(process->readAllStandardOutput()) + QLatin1Char('\n') +
+                    QString::fromUtf8(process->readAllStandardError());
+                process->deleteLater();
+
+                // Strip noise lines
+                QStringList lines = combined.split(QLatin1Char('\n'));
+                lines.erase(std::ranges::remove_if(lines, [](const QString& l)
+                {
+                    const QString ll = l.toLower();
+                    return ll.contains(QLatin1String("outdated"))    ||
+                           ll.contains(QLatin1String("updating"))    ||
+                           ll.contains(QLatin1String("this may take"));
+                }).begin(), lines.end());
+
+                QMap<QString, QString> fields;
+                for (const QString& line : std::as_const(lines))
+                {
+                    const int colonPos = line.indexOf(QLatin1Char(':'));
+                    if (colonPos < 0) continue;
+                    const QString key   = line.left(colonPos).trimmed().toLower();
+                    const QString value = line.mid(colonPos + 1).trimmed();
+                    if (!key.isEmpty() && !value.isEmpty())
+                        fields.insert(key, value);
+                }
+
+                const QString statusVal = fields.value(QStringLiteral("status")).toLower();
+                const VpnState newState = (statusVal == QStringLiteral("connected"))
+                                          ? VpnState::Connected
+                                          : VpnState::Disconnected;
+
+                // Only emit if state actually changed to avoid noisy redraws.
+                if (newState != m_state)
+                {
+                    m_state = newState;
+
+                    if (newState == VpnState::Connected)
+                    {
+                        const QString server = fields.value(QStringLiteral("server"));
+                        const int inPos = server.indexOf(QStringLiteral(" in "));
+                        if (inPos >= 0)
+                        {
+                            const QString rest    = server.mid(inPos + 4);
+                            const int    commaPos = rest.indexOf(QLatin1Char(','));
+                            const QString city    = (commaPos >= 0 ? rest.left(commaPos) : rest).trimmed();
+                            if (!city.isEmpty())
+                                emit connectionCityKnown(city);
+                        }
+                        const QString info = server.isEmpty()
+                            ? QString()
+                            : QStringLiteral("Connected to %1.").arg(server);
+                        emit connectionStateChanged(m_state, info);
+                    }
+                    else
+                    {
+                        emit connectionStateChanged(m_state, QString());
+                    }
+                }
+            });
+    process->start(QStringLiteral("protonvpn"), QStringList{QStringLiteral("status")});
+}

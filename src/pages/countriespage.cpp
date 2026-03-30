@@ -1109,7 +1109,7 @@ void CountriesPage::addNarrowCityItem(QVBoxLayout* layout, const QString& city,
         f.setBold(true);
         f.setItalic(true);
         cityLabel->setFont(f);
-        cityLabel->setStyleSheet(QStringLiteral("color: #ab8fff;"));
+        cityLabel->setStyleSheet(QStringLiteral("color: #ab8fff; background-color: transparent;"));
         row->setStyleSheet(QStringLiteral("background-color: rgba(109, 74, 255, 40);"));
     }
     hbox->addWidget(cityLabel, 1, Qt::AlignVCenter);

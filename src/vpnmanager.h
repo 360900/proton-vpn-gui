@@ -3,6 +3,7 @@
 #include <QProcess>
 #include <QString>
 #include <QMap>
+#include <QTimer>
 
 enum class VpnState
 {
@@ -59,10 +60,21 @@ signals:
     void errorOccurred(const QString& error);
 
 private:
-    VpnState m_state = VpnState::Unknown;
+    VpnState  m_state         = VpnState::Unknown;
     QProcess* m_signinProcess = nullptr;
+    QTimer*   m_pollTimer     = nullptr;
+    bool      m_pollActive    = false; // true while a poll process is in flight
 
     void runCommand(const QStringList& args,
                     std::function<void(int exitCode, const QString& output, const QString& errOutput)> callback);
     static QMap<QString, QString> parseDictOutput(const QString& output);
+
+    // Shared helpers for parsing `protonvpn status` output.
+    static QMap<QString, QString> parseStatusFields(const QString& combined);
+    static QString                parseCityFromServer(const QString& server);
+
+    // Background polling (every 15 s while logged in).
+    void startPolling();
+    void stopPolling();
+    void pollStatus();
 };
