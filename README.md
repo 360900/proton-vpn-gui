@@ -40,8 +40,6 @@ A Qt GUI front-end for the [Proton VPN Linux CLI](https://protonvpn.com/support/
 |---|---|
 | `protonvpn` CLI | Core VPN control (sign in, connect, disconnect, country/city lists) |
 | Qt 6 (Core, Gui, Widgets, Svg, SvgWidgets) | UI framework |
-| `ip` (`iproute2`) | Detecting whether the VPN tunnel is active |
-| `nmcli` (NetworkManager) | **Optional** — shows the active server name when already connected on launch |
 | `curl` | **Optional** — fetches your public IP address when already connected on launch |
 | `systemd` (user session) | **Optional** — required for the "Launch on Startup" feature |
 

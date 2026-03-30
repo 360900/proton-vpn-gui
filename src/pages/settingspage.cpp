@@ -258,20 +258,14 @@ bool SettingsPage::setAutoStart(const bool enable, QString& errorOut)
         }
 
         // Write the .service file.
-        const QString serviceContent =
-            QStringLiteral("[Unit]\n"
-                "Description=ProtonVPN Qt App\n"
-                "After=graphical-session.target\n"
-                "PartOf=graphical-session.target\n"
-                "\n"
-                "[Service]\n"
-                "Type=simple\n"
-                "ExecStart=%1\n"
-                "Restart=on-failure\n"
-                "Environment=DISPLAY=:0\n"
-                "\n"
-                "[Install]\n"
-                "WantedBy=graphical-session.target\n").arg(exe);
+        QFile templateFile(QStringLiteral(":/init/systemd/proton-vpn-qt.service"));
+        if (!templateFile.open(QIODevice::ReadOnly | QIODevice::Text))
+        {
+            errorOut = QStringLiteral("Could not read service template from resources.");
+            return false;
+        }
+        const QString serviceContent = QString::fromUtf8(templateFile.readAll()).arg(exe);
+        templateFile.close();
 
         QFile f(serviceFilePath());
         if (!f.open(QIODevice::WriteOnly | QIODevice::Text))
