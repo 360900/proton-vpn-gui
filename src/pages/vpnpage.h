@@ -170,4 +170,5 @@ private:
     void showErrorDetails() const;
     void relayoutPickers(int width) const;
     void checkPrereleaseBanner();
+    void handleFreePlanError();
 };

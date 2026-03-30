@@ -1044,6 +1044,15 @@ void VpnPage::updateUi(const VpnState state, const QString& info)
 
         m_rawError = info;
 
+        // Detect free-plan location restriction and offer quick-connect instead
+        const bool isFreePlanError =
+            info.contains(QLatin1String("not available on the free plan"), Qt::CaseInsensitive);
+        if (isFreePlanError)
+        {
+            handleFreePlanError();
+            break;
+        }
+
         const bool isCliError = info.contains(QLatin1String("Traceback (most recent call last)"))
                              || info.contains(QLatin1String("File \"/usr/bin/protonvpn\""))
                              || info.contains(QLatin1String("File \"/usr/lib/python"));
@@ -1127,5 +1136,65 @@ void VpnPage::showErrorDetails() const
     layout->addLayout(btnRow);
 
     dlg->exec();
+}
+
+void VpnPage::handleFreePlanError()
+{
+    // Reset the UI to a friendly "disconnected" state instead of showing a
+    // scary red error — the user didn't do anything wrong.
+    m_powerBtn->setState(PowerButton::RingState::Disconnected);
+    m_powerBtn->setEnabled(true);
+    m_statusLabel->setText(QStringLiteral("Disconnected"));
+    m_statusLabel->setStyleSheet(QStringLiteral(
+        "color: #888888; font-size: 16pt; font-weight: bold; letter-spacing: 1px;"));
+    m_infoLabel->setText(QString());
+    m_currentState = VpnState::Disconnected;
+
+    auto* dlg = new QDialog(this);
+    dlg->setWindowTitle(QStringLiteral("Free Account"));
+    dlg->setAttribute(Qt::WA_DeleteOnClose);
+    dlg->setModal(true);
+    dlg->setMinimumWidth(400);
+
+    auto* layout = new QVBoxLayout(dlg);
+    layout->setSpacing(16);
+    layout->setContentsMargins(24, 24, 24, 20);
+
+    auto* msgLabel = new QLabel(
+        QStringLiteral(
+            "<b>Location selection is not available on the free plan.</b><br><br>"
+            "Would you like to connect to a <b>random free server</b> instead? "
+            "Proton will automatically choose a server for you."),
+        dlg);
+    msgLabel->setWordWrap(true);
+    msgLabel->setTextFormat(Qt::RichText);
+    layout->addWidget(msgLabel);
+
+    auto* btnRow = new QHBoxLayout();
+    btnRow->setSpacing(8);
+
+    auto* dismissBtn = new QPushButton(QStringLiteral("Dismiss"), dlg);
+    dismissBtn->setObjectName(QStringLiteral("secondaryButton"));
+
+    auto* connectBtn = new QPushButton(QStringLiteral("Auto Connect"), dlg);
+    connectBtn->setObjectName(QStringLiteral("primaryButton"));
+    connectBtn->setDefault(true);
+
+    const int btnH = connectBtn->sizeHint().height();
+    dismissBtn->setFixedHeight(btnH);
+    connectBtn->setFixedHeight(btnH);
+
+    btnRow->addWidget(dismissBtn, 1);
+    btnRow->addWidget(connectBtn, 1);
+    layout->addLayout(btnRow);
+
+    connect(dismissBtn, &QPushButton::clicked, dlg, &QDialog::reject);
+    connect(connectBtn, &QPushButton::clicked, dlg, &QDialog::accept);
+
+    if (dlg->exec() == QDialog::Accepted)
+    {
+        // Pick a random free server to connect to
+        emit connectRequested(QString(), QString());
+    }
 }
 
