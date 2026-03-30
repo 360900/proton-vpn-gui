@@ -61,6 +61,7 @@ signals:
 
 private:
     VpnState  m_state         = VpnState::Unknown;
+    QString   m_connectedServer;       // last server string seen while Connected
     QProcess* m_signinProcess = nullptr;
     QTimer*   m_pollTimer     = nullptr;
     bool      m_pollActive    = false; // true while a poll process is in flight

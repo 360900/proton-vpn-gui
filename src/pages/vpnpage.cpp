@@ -1028,6 +1028,16 @@ void VpnPage::updateUi(const VpnState state, const QString& info)
             startElapsedTimer();
             if (m_recentPicker) { m_recentPicker->refresh(); relayoutPickers(width()); }
         }
+        else if (prevState == VpnState::Connected)
+        {
+            // Server changed while staying connected (external CLI switch).
+            // Restart the elapsed timer for the new connection and update the
+            // location picker to reflect the new city.
+            startElapsedTimer();
+            m_hadUnknownConnection = false;
+            m_locationPicker->setUnknownConnection(false);
+            applyPendingStatusCity();
+        }
         else
         {
             stopElapsedTimer();
@@ -1197,6 +1207,9 @@ void VpnPage::handleFreePlanError()
         "color: #888888; font-size: 16pt; font-weight: bold; letter-spacing: 1px;"));
     m_infoLabel->setText(QString());
     m_currentState = VpnState::Disconnected;
+    m_activeCity.clear();
+    m_hadUnknownConnection = false;
+    m_locationPicker->setUnknownConnection(false);
 
     auto* dlg = new QDialog(this);
     dlg->setWindowTitle(QStringLiteral("Free Account"));

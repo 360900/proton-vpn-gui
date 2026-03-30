@@ -687,6 +687,11 @@ void VpnManager::pollStatus()
                     QString::fromUtf8(process->readAllStandardError());
                 process->deleteLater();
 
+                // Don't let a background poll override an in-progress connect
+                // or disconnect initiated by the user.
+                if (m_state == VpnState::Connecting || m_state == VpnState::Disconnecting)
+                    return;
+
                 // Strip noise lines
                 QStringList lines = combined.split(QLatin1Char('\n'));
                 lines.erase(std::ranges::remove_if(lines, [](const QString& l)
@@ -713,32 +718,57 @@ void VpnManager::pollStatus()
                                           ? VpnState::Connected
                                           : VpnState::Disconnected;
 
-                // Only emit if state actually changed to avoid noisy redraws.
-                if (newState != m_state)
+                // Parse server / city / info string regardless of which branch fires below.
+                QString server;
+                QString city;
+                QString info;
+                if (newState == VpnState::Connected)
+                {
+                    server = fields.value(QStringLiteral("server"));
+                    const int inPos = server.indexOf(QStringLiteral(" in "));
+                    if (inPos >= 0)
+                    {
+                        const QString rest    = server.mid(inPos + 4);
+                        const int    commaPos = rest.indexOf(QLatin1Char(','));
+                        city = (commaPos >= 0 ? rest.left(commaPos) : rest).trimmed();
+                    }
+                    info = server.isEmpty()
+                        ? QString()
+                        : QStringLiteral("Connected to %1.").arg(server);
+                }
+
+                const bool stateChanged = (newState != m_state);
+
+                // Also fire when the server/city changed while we stay Connected.
+                // Guard on m_connectedServer being non-empty so the first poll after
+                // an app-initiated connect silently learns the server without causing
+                // a spurious re-emit (which would restart the elapsed timer too soon).
+                const bool serverChanged = (!stateChanged &&
+                                             newState == VpnState::Connected &&
+                                             !m_connectedServer.isEmpty() &&
+                                             server != m_connectedServer);
+
+                if (stateChanged || serverChanged)
                 {
                     m_state = newState;
 
                     if (newState == VpnState::Connected)
                     {
-                        const QString server = fields.value(QStringLiteral("server"));
-                        const int inPos = server.indexOf(QStringLiteral(" in "));
-                        if (inPos >= 0)
-                        {
-                            const QString rest    = server.mid(inPos + 4);
-                            const int    commaPos = rest.indexOf(QLatin1Char(','));
-                            const QString city    = (commaPos >= 0 ? rest.left(commaPos) : rest).trimmed();
-                            if (!city.isEmpty())
-                                emit connectionCityKnown(city);
-                        }
-                        const QString info = server.isEmpty()
-                            ? QString()
-                            : QStringLiteral("Connected to %1.").arg(server);
+                        m_connectedServer = server;
+                        if (!city.isEmpty())
+                            emit connectionCityKnown(city);
                         emit connectionStateChanged(m_state, info);
                     }
                     else
                     {
+                        m_connectedServer.clear();
                         emit connectionStateChanged(m_state, QString());
                     }
+                }
+                else if (newState == VpnState::Connected && m_connectedServer.isEmpty())
+                {
+                    // Silently record the current server so future polls can diff against it.
+                    m_connectedServer = server;
                 }
             });
     process->start(QStringLiteral("protonvpn"), QStringList{QStringLiteral("status")});
