@@ -116,7 +116,7 @@ MainWindow::MainWindow(QWidget* parent)
     connect(m_vpnPage, &VpnPage::connectRequested, m_manager,
             [this](const QString& country, const QString& city)
             {
-                if (!country.isEmpty())
+                if (!country.isEmpty() && !city.isEmpty())
                 {
                     const QString name = GeoUtils::countryCodeToName(country);
                     ConnectionHistory::instance().record(country, name, city);
@@ -140,7 +140,7 @@ MainWindow::MainWindow(QWidget* parent)
             [this](const QString& country, const QString& city)
             {
                 m_vpnPage->notifyExternalConnect(city);
-                if (!country.isEmpty())
+                if (!country.isEmpty() && !city.isEmpty())
                 {
                     const QString name = GeoUtils::countryCodeToName(country);
                     ConnectionHistory::instance().record(country, name, city);
