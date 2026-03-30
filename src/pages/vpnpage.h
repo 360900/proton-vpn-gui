@@ -63,6 +63,9 @@ public:
     void populate(const QList<QPair<QString, QString>>& cities);
     void setLoading(bool loading);
     void setSelectedCity(const QString& city);
+    // Tries to select city in the populated list.
+    // Returns true if found; false if not found (falls back to "Active connection").
+    bool trySelectCity(const QString& city);
     void setUnknownConnection(bool unknown);
 
     [[nodiscard]] QString selectedCity() const { return m_selectedCity; }
@@ -121,6 +124,8 @@ public:
     void onStateChanged(VpnState state, const QString& info);
     void notifyExternalConnect(const QString& city);
     void refreshRecentPicker();
+    // Called when VpnManager has parsed a city from `protonvpn status`.
+    void onStatusCityKnown(const QString& city);
 
 signals:
     void connectRequested(const QString& country, const QString& city);
@@ -158,6 +163,7 @@ private:
 
     VpnState m_currentState = VpnState::Unknown;
     QString  m_activeCity;
+    QString  m_pendingStatusCity; // city from protonvpn status, applied after cities populate
     bool     m_hadUnknownConnection = false;
     bool     m_stateKnown = false;
     QList<QPair<QString, QString>> m_pendingCities;
@@ -170,4 +176,7 @@ private:
     void showErrorDetails() const;
     void relayoutPickers(int width) const;
     void checkPrereleaseBanner();
+    // After populate(), try to select m_pendingStatusCity; falls back to
+    // "Active connection" if the city is not in the list.
+    void applyPendingStatusCity();
 };

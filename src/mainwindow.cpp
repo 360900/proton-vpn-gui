@@ -164,6 +164,8 @@ MainWindow::MainWindow(QWidget* parent)
             m_vpnPage, &VpnPage::refreshRecentPicker);
 
     // VpnManager signals
+    connect(m_manager, &VpnManager::connectionCityKnown,
+            m_vpnPage, &VpnPage::onStatusCityKnown);
     connect(m_manager, &VpnManager::installedResult, this, [this](bool installed)
     {
         if (!installed)

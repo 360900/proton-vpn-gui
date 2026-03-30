@@ -339,6 +339,25 @@ void LocationPicker::setSelectedCity(const QString& city)
     m_list->setCurrentRow(0);
 }
 
+bool LocationPicker::trySelectCity(const QString& city)
+{
+    for (int i = 0; i < m_list->count(); ++i)
+    {
+        if (m_list->item(i)->data(Qt::UserRole).toString() == city)
+        {
+            m_unknownConnection = false;
+            m_selectedCity = city;
+            updateHeader();
+            m_list->setCurrentRow(i);
+            return true;
+        }
+    }
+    // City not in the list – show "Active connection" as fallback.
+    m_selectedCity.clear();
+    setUnknownConnection(true);
+    return false;
+}
+
 void LocationPicker::populate(const QList<QPair<QString, QString>>& cities)
 {
     setLoading(false);
@@ -822,6 +841,30 @@ void VpnPage::notifyExternalConnect(const QString& city)
     if (m_recentPicker) m_recentPicker->refresh();
 }
 
+void VpnPage::onStatusCityKnown(const QString& city)
+{
+    // Store the city so updateUi() (triggered by the subsequent
+    // connectionStateChanged signal) can skip the "Active connection" fallback,
+    // and applyPendingStatusCity() can select it once the list is populated.
+    m_pendingStatusCity = city;
+    m_activeCity        = city;
+}
+
+void VpnPage::applyPendingStatusCity()
+{
+    if (m_pendingStatusCity.isEmpty())
+        return;
+
+    const bool found = m_locationPicker->trySelectCity(m_pendingStatusCity);
+    if (!found)
+    {
+        // City not in the list – treat as unknown active connection.
+        m_activeCity.clear();
+        m_hadUnknownConnection = true;
+    }
+    m_pendingStatusCity.clear();
+}
+
 void VpnPage::refreshRecentPicker()
 {
     if (m_recentPicker)
@@ -877,6 +920,7 @@ void VpnPage::onCitiesReady(const QString& countryCode,
     }
 
     m_locationPicker->populate(cities);
+    applyPendingStatusCity();
 }
 
 void VpnPage::checkPrereleaseBanner()
@@ -987,6 +1031,9 @@ void VpnPage::updateUi(const VpnState state, const QString& info)
         else
         {
             stopElapsedTimer();
+            // Only fall back to "Active connection" when we have no city at
+            // all.  If onStatusCityKnown() was called first, m_activeCity is
+            // already set and we skip this so the picker can show the real city.
             if (prevState == VpnState::Unknown && m_activeCity.isEmpty())
             {
                 m_hadUnknownConnection = true;
@@ -997,6 +1044,7 @@ void VpnPage::updateUi(const VpnState state, const QString& info)
         {
             m_locationPicker->populate(m_pendingCities);
             m_pendingCities.clear();
+            applyPendingStatusCity();
         }
         break;
 

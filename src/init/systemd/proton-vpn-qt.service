@@ -1,0 +1,14 @@
+[Unit]
+Description=ProtonVPN Qt App
+After=graphical-session.target
+PartOf=graphical-session.target
+
+[Service]
+Type=simple
+ExecStart=%1
+Restart=on-failure
+Environment=DISPLAY=:0
+
+[Install]
+WantedBy=graphical-session.target
+

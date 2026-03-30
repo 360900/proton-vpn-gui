@@ -47,6 +47,9 @@ signals:
     void loginFinished(bool ok, const QString& error);
     void signOutFinished(bool ok);
     void connectionStateChanged(VpnState state, const QString& info);
+    // Emitted (before connectionStateChanged) when a city is parsed from
+    // `protonvpn status` output, so the UI can pre-select it in the picker.
+    void connectionCityKnown(const QString& city);
     void countriesReady(const QMap<QString, QString>& countries); // name → code
     void citiesReady(const QString& countryCode, const QList<QPair<QString, QString>>& cities); // (city, features)
     void infoReady(const QMap<QString, QString>& info);
