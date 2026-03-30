@@ -160,6 +160,8 @@ MainWindow::MainWindow(QWidget* parent)
     // Settings page (index 6)
     m_settingsPage = new SettingsPage(m_manager);
     m_stack->addWidget(m_settingsPage); // index 6
+    connect(m_settingsPage, &SettingsPage::recentConnectionsCleared,
+            m_vpnPage, &VpnPage::refreshRecentPicker);
 
     // VpnManager signals
     connect(m_manager, &VpnManager::installedResult, this, [this](bool installed)

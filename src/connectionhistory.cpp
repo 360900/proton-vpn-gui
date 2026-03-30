@@ -26,7 +26,8 @@ ConnectionHistory& ConnectionHistory::instance()
     return inst;
 }
 
-ConnectionHistory::ConnectionHistory()
+ConnectionHistory::ConnectionHistory(QObject* parent)
+    : QObject(parent)
 {
     load();
 }
@@ -62,6 +63,7 @@ void ConnectionHistory::record(const QString& countryCode,
             // Move to front
             m_entries.move(i, 0);
             save();
+            emit changed();
             return;
         }
     }
@@ -79,6 +81,14 @@ void ConnectionHistory::record(const QString& countryCode,
         m_entries.removeLast();
 
     save();
+    emit changed();
+}
+
+void ConnectionHistory::clear()
+{
+    m_entries.clear();
+    save();
+    emit changed();
 }
 
 void ConnectionHistory::load()

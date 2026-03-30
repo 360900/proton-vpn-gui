@@ -2,6 +2,7 @@
 
 #include <QDateTime>
 #include <QList>
+#include <QObject>
 #include <QString>
 
 // ---------------------------------------------------------------------------
@@ -17,8 +18,9 @@ struct ConnectionEntry
     QDateTime connectedAt;
 };
 
-class ConnectionHistory
+class ConnectionHistory : public QObject
 {
+    Q_OBJECT
 public:
     static ConnectionHistory& instance();
 
@@ -31,8 +33,19 @@ public:
                 const QString& countryName,
                 const QString& city);
 
+    // Returns true if there is any raw history data, regardless of the current
+    // recentConnectionsCount() setting (i.e. even when count is 0).
+    [[nodiscard]] bool hasAnyEntries() const { return !m_entries.isEmpty(); }
+
+    // Erase all history entries and persist the empty list.
+    void clear();
+
+signals:
+    // Emitted after entries are added via record() or removed via clear().
+    void changed();
+
 private:
-    ConnectionHistory();
+    explicit ConnectionHistory(QObject* parent = nullptr);
     void load();
     void save() const;
 

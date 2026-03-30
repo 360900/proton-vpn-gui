@@ -56,6 +56,9 @@ public:
     explicit SettingsPage(VpnManager* manager, QWidget* parent = nullptr);
     void refresh();
 
+signals:
+    void recentConnectionsCleared();
+
 private:
     // A simple on/off toggle row
     struct ToggleRow
@@ -93,7 +96,10 @@ private:
     ToggleSwitch* m_notificationsToggle = nullptr;
 
     // Recent connections count (0 = disabled)
-    class QSpinBox* m_recentConnectionsSpinBox = nullptr;
+    class NumberSpinner* m_recentConnectionsSpinBox = nullptr;
+
+    // "Clear history" row – shown only when history is non-empty
+    QWidget* m_clearRecentRow = nullptr;
 
     QPushButton* m_refreshBtn;
     QLabel* m_statusLabel;

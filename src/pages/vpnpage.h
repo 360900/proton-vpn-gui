@@ -120,6 +120,7 @@ public:
 
     void onStateChanged(VpnState state, const QString& info);
     void notifyExternalConnect(const QString& city);
+    void refreshRecentPicker();
 
 signals:
     void connectRequested(const QString& country, const QString& city);
