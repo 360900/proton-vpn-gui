@@ -31,8 +31,10 @@ set(SOURCES
         mainwindow.cpp
         widgets/elidalabel.h
         widgets/infobanner.h
+        widgets/numberspinner.h
         widgets/pickerbase.h
         widgets/svgbanner.h
+        widgets/toastnotification.h
         pages/notinstalledpage.h
         pages/notinstalledpage.cpp
         pages/loginpage.h

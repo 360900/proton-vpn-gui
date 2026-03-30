@@ -20,12 +20,12 @@ struct FeatureMeta
 };
 
 static constexpr FeatureMeta kServerFeatures[] = {
-    { "p2p",         ":/assets/server-p2p.svg",
-      "P2P — Optimized for peer-to-peer file sharing" },
-    { "secure core", ":/assets/server-secure-core.svg",
-      "Secure Core — Routes traffic through privacy-friendly countries" },
-    { "tor",         ":/assets/server-tor.svg",
-      "Tor — Routes traffic through the Tor anonymity network" },
+    { .keyword="p2p",         .resource=":/assets/server-p2p.svg",
+      .tooltip="P2P - Optimized for peer-to-peer file sharing" },
+    { .keyword="secure core", .resource=":/assets/server-secure-core.svg",
+      .tooltip="Secure Core - Routes traffic through privacy-friendly countries" },
+    { .keyword="tor",         .resource=":/assets/server-tor.svg",
+      .tooltip="Tor - Routes traffic through the Tor anonymity network" },
 };
 static constexpr int kServerFeatureCount = std::size(kServerFeatures);
 

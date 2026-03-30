@@ -822,6 +822,13 @@ void VpnPage::notifyExternalConnect(const QString& city)
     if (m_recentPicker) m_recentPicker->refresh();
 }
 
+void VpnPage::refreshRecentPicker()
+{
+    if (m_recentPicker)
+        m_recentPicker->refresh();
+    relayoutPickers(width());
+}
+
 void VpnPage::relayoutPickers(const int w) const
 {
     if (!m_recentPicker) return;
@@ -921,7 +928,7 @@ void VpnPage::onCliVersionReady(const QString& version)
         ? QStringLiteral(
               "Your Proton VPN CLI (<b>v%1</b>) is newer than the version this app was "
               "tested against (<b>v%2</b>). Things may work fine, but you could encounter "
-              "unexpected behaviour.")
+              "unexpected behavior.")
               .arg(version, testedVersionStr)
         : QStringLiteral(
               "Your Proton VPN CLI (<b>v%1</b>) is older than the version this app was "

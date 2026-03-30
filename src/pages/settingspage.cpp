@@ -1,12 +1,14 @@
 #include "settingspage.h"
 #include "../appconfig.h"
+#include "../connectionhistory.h"
 #include "../uihelpers.h"
 
 #include <QSpinBox>
 #include <QVBoxLayout>
 #include <QFrame>
 #include <QScrollArea>
-#include <QPainter>
+#include "../widgets/numberspinner.h"
+#include "../widgets/toastnotification.h"
 #include <QPropertyAnimation>
 #include <QMouseEvent>
 #include <QDialogButtonBox> // ignore unused include warning for QDialogButtonBox
@@ -459,17 +461,58 @@ SettingsPage::SettingsPage(VpnManager* manager, QWidget* parent)
                                   QStringLiteral("Recent Connections"),
                                   QStringLiteral("Number of recent VPN connections to remember and show "
                                       "on the home screen. Set to 0 to disable.")), 1);
-        m_recentConnectionsSpinBox = new QSpinBox(row);
-        m_recentConnectionsSpinBox->setMinimum(0);
-        m_recentConnectionsSpinBox->setMaximum(20);
+        m_recentConnectionsSpinBox = new NumberSpinner(row);
+        m_recentConnectionsSpinBox->setRange(0, 20);
         m_recentConnectionsSpinBox->setValue(AppConfig::instance().recentConnectionsCount());
-        m_recentConnectionsSpinBox->setFixedWidth(64);
-        connect(m_recentConnectionsSpinBox, QOverload<int>::of(&QSpinBox::valueChanged), this, [](const int val)
+        connect(m_recentConnectionsSpinBox, &NumberSpinner::valueChanged, this, [](const int val)
         {
             AppConfig::instance().setRecentConnectionsCount(val);
         });
         rl->addWidget(m_recentConnectionsSpinBox);
         addApp(row);
+    }
+
+    // ── Clear Recent Connections (only shown when history is non-empty) ────
+    {
+        // Wrap the divider and the row in one container so hiding the container
+        // also hides the divider, leaving no orphaned separator line.
+        m_clearRecentRow = new QWidget(appCard);
+        auto* cLayout = new QVBoxLayout(m_clearRecentRow);
+        cLayout->setContentsMargins(0, 0, 0, 0);
+        cLayout->setSpacing(0);
+
+        auto* div = new QFrame(m_clearRecentRow);
+        div->setFrameShape(QFrame::HLine);
+        div->setObjectName(QStringLiteral("divider"));
+        cLayout->addWidget(div);
+
+        auto* inner = new QWidget(m_clearRecentRow);
+        auto* rl = new QHBoxLayout(inner);
+        rl->setContentsMargins(16, 12, 16, 12);
+        rl->setSpacing(16);
+        rl->addWidget(makeTextCol(inner,
+                                  QStringLiteral("Clear Recent Connections"),
+                                  QStringLiteral("Remove all saved recent connection history.")), 1);
+        auto* clearBtn = new QPushButton(QStringLiteral("Clear"), inner);
+        clearBtn->setObjectName(QStringLiteral("dangerButton"));
+        clearBtn->setCursor(Qt::PointingHandCursor);
+        connect(clearBtn, &QPushButton::clicked, this, [this]()
+        {
+            ConnectionHistory::instance().clear();
+            m_clearRecentRow->setVisible(false);
+            emit recentConnectionsCleared();
+            ToastNotification::popup(this, QStringLiteral("Recent connection history cleared."));
+        });
+        rl->addWidget(clearBtn);
+        cLayout->addWidget(inner);
+
+        appCardLayout->addWidget(m_clearRecentRow);
+        m_clearRecentRow->setVisible(ConnectionHistory::instance().hasAnyEntries());
+
+        connect(&ConnectionHistory::instance(), &ConnectionHistory::changed, this, [this]()
+        {
+            m_clearRecentRow->setVisible(ConnectionHistory::instance().hasAnyEntries());
+        });
     }
 
     appCardLayout->addStretch();

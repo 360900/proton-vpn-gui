@@ -51,6 +51,7 @@ int main(int argc, char* argv[])
         QApplication::setStyle(QStyleFactory::create(QStringLiteral("Fusion")));
     }
 
+
     // Dark Proton-branded palette
     QPalette palette;
     constexpr QColor bg(0x1a, 0x1a, 0x2e); // deep navy background
@@ -384,39 +385,63 @@ int main(int argc, char* argv[])
             height: 0;
         }
 
-        QSpinBox {
+        QFrame#numberSpinner {
             background-color: #1a1a2e;
             border: 1px solid #3a3a55;
             border-radius: 6px;
-            padding: 4px 6px;
+        }
+        QFrame#numberSpinnerButtons {
+            background-color: transparent;
+            border-left: 1px solid #3a3a55;
+        }
+        QLineEdit#numberSpinnerDisplay {
+            background-color: transparent;
             color: #eaeaea;
+            border: none;
+            padding: 2px 4px;
+            selection-background-color: #6d4aff;
         }
-        QSpinBox:focus {
-            border-color: #6d4aff;
-        }
-        QSpinBox::up-button, QSpinBox::down-button {
+        QPushButton#numberSpinnerBtnUp,
+        QPushButton#numberSpinnerBtnDown {
             background-color: #25253d;
             border: none;
-            width: 18px;
+            padding: 0;
+            margin: 0;
+            min-height: 0;
         }
-        QSpinBox::up-button:hover, QSpinBox::down-button:hover {
+        QPushButton#numberSpinnerBtnUp {
+            border-top-right-radius: 5px;
+        }
+        QPushButton#numberSpinnerBtnDown {
+            border-bottom-right-radius: 5px;
+        }
+        QPushButton#numberSpinnerBtnUp:hover,
+        QPushButton#numberSpinnerBtnDown:hover {
             background-color: #3a3a55;
         }
-        QSpinBox::up-arrow {
-            image: none;
-            border-left: 4px solid transparent;
-            border-right: 4px solid transparent;
-            border-bottom: 5px solid #9999bb;
-            width: 0;
-            height: 0;
+        QPushButton#numberSpinnerBtnUp:disabled,
+        QPushButton#numberSpinnerBtnDown:disabled {
+            background-color: #1e1e32;
         }
-        QSpinBox::down-arrow {
-            image: none;
-            border-left: 4px solid transparent;
-            border-right: 4px solid transparent;
-            border-top: 5px solid #9999bb;
-            width: 0;
-            height: 0;
+
+        QFrame#toastNotification {
+            background-color: #1c3a28;
+            border: 1px solid #2d6a4f;
+            border-radius: 8px;
+        }
+        QFrame#toastNotification QLabel {
+            color: #6fcf97;
+            background: transparent;
+            border: none;
+        }
+        QPushButton#toastCloseBtn {
+            color: #6fcf97;
+            background: transparent;
+            border: none;
+            font-weight: bold;
+        }
+        QPushButton#toastCloseBtn:hover {
+            color: #a8e6c8;
         }
     )"));
 
