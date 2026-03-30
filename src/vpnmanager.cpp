@@ -221,6 +221,12 @@ void VpnManager::signOut()
 
 void VpnManager::connectVpn(const QString& country, const QString& city)
 {
+    // Clear the tracked server so the first poll after this app-initiated
+    // connection silently learns the new server instead of treating the change
+    // as an external location switch (which would spuriously re-fire the
+    // connectionStateChanged / connectionCityKnown signals).
+    m_connectedServer.clear();
+
     m_state = VpnState::Connecting;
     emit connectionStateChanged(m_state, QString());
 
@@ -737,18 +743,20 @@ void VpnManager::pollStatus()
                         : QStringLiteral("Connected to %1.").arg(server);
                 }
 
-                const bool stateChanged = (newState != m_state);
+                // Capture pre-update values so the debug report below can show what changed.
+#ifdef QT_DEBUG
+                const VpnState dbgPrevState  = m_state;
+                const QString  dbgPrevServer = m_connectedServer;
+#endif
 
                 // Also fire when the server/city changed while we stay Connected.
                 // Guard on m_connectedServer being non-empty so the first poll after
                 // an app-initiated connect silently learns the server without causing
                 // a spurious re-emit (which would restart the elapsed timer too soon).
-                const bool serverChanged = (!stateChanged &&
-                                             newState == VpnState::Connected &&
-                                             !m_connectedServer.isEmpty() &&
-                                             server != m_connectedServer);
-
-                if (stateChanged || serverChanged)
+                if (newState != m_state ||
+                    (newState == VpnState::Connected &&
+                     !m_connectedServer.isEmpty() &&
+                     server != m_connectedServer))
                 {
                     m_state = newState;
 
@@ -756,7 +764,9 @@ void VpnManager::pollStatus()
                     {
                         m_connectedServer = server;
                         if (!city.isEmpty())
+                        {
                             emit connectionCityKnown(city);
+                        }
                         emit connectionStateChanged(m_state, info);
                     }
                     else
@@ -770,6 +780,37 @@ void VpnManager::pollStatus()
                     // Silently record the current server so future polls can diff against it.
                     m_connectedServer = server;
                 }
+
+#ifdef QT_DEBUG
+                {
+                    auto stateToStr = [](const VpnState s) -> const char*
+                    {
+                        switch (s)
+                        {
+                            case VpnState::Connected:     return "Connected";
+                            case VpnState::Disconnected:  return "Disconnected";
+                            case VpnState::Connecting:    return "Connecting";
+                            case VpnState::Disconnecting: return "Disconnecting";
+                            default:                      return "Error";
+                        }
+                    };
+                    const bool stateChanged  =  newState != dbgPrevState;
+                    const bool serverChanged =  !stateChanged &&
+                                                newState == VpnState::Connected &&
+                                                !dbgPrevServer.isEmpty() &&
+                                                server != dbgPrevServer;
+                    if (stateChanged)
+                    {
+                        qDebug("[Status Polling] State changed:  %s → %s",
+                               stateToStr(dbgPrevState), stateToStr(newState));
+                    }
+                    else if (serverChanged)
+                    {
+                        qDebug("[Status Polling] Server changed: \"%s\" → \"%s\"",
+                               qUtf8Printable(dbgPrevServer), qUtf8Printable(server));
+                    }
+                }
+#endif
             });
     process->start(QStringLiteral("protonvpn"), QStringList{QStringLiteral("status")});
 }
