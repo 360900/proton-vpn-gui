@@ -176,6 +176,7 @@ private:
     void showErrorDetails() const;
     void relayoutPickers(int width) const;
     void checkPrereleaseBanner();
+    void handleFreePlanError();
     // After populate(), try to select m_pendingStatusCity; falls back to
     // "Active connection" if the city is not in the list.
     void applyPendingStatusCity();
