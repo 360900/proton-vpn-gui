@@ -358,3 +358,23 @@ QPushButton#toastCloseBtn:hover {
     color: #a8e6c8;
 }
 
+QLabel#upgradeLabel {
+    color: #aaaaaa;
+    font-size: 9pt;
+    padding: 4px 0px;
+}
+QLabel#upgradeLabel a {
+    color: #7B61FF;
+}
+
+/* ── Plus Members Only divider (VPN settings tab) ── */
+QLabel#plusDividerLabel {
+    color: #7B61FF;
+    font-size: 9pt;
+    font-weight: bold;
+    background-color: transparent;
+}
+QFrame#plusDividerLine {
+    color: #3a3a55;
+}
+

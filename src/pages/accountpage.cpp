@@ -47,8 +47,23 @@ AccountPage::AccountPage(VpnManager* manager, QWidget* parent)
     cardLayout->setSpacing(0);
 
     cardLayout->addWidget(makeInfoRow(QStringLiteral("Username"), m_nameLabel, card));
+    cardLayout->addWidget(makeInfoRow(QStringLiteral("Plan"),     m_planLabel, card));
 
     layout->addWidget(card);
+
+    // Upgrade prompt — shown only for Free accounts.
+    m_upgradeLabel = new QLabel(
+        QStringLiteral("To upgrade to VPN Plus visit: "
+                       "<a href=\"https://account.protonvpn.com/pricing\">"
+                       "https://account.protonvpn.com/pricing</a>"),
+        this);
+    m_upgradeLabel->setTextFormat(Qt::RichText);
+    m_upgradeLabel->setOpenExternalLinks(true);
+    m_upgradeLabel->setWordWrap(true);
+    m_upgradeLabel->setObjectName(QStringLiteral("upgradeLabel"));
+    m_upgradeLabel->hide();
+    layout->addWidget(m_upgradeLabel);
+
     layout->addStretch();
 
     // Sign out button
@@ -58,7 +73,12 @@ AccountPage::AccountPage(VpnManager* manager, QWidget* parent)
     connect(signOutBtn, &QPushButton::clicked, this, &AccountPage::signOutRequested);
     layout->addWidget(signOutBtn);
 
-    connect(m_manager, &VpnManager::infoReady, this, &AccountPage::onInfoReady);
+    connect(m_manager, &VpnManager::infoReady,        this, &AccountPage::onInfoReady);
+    connect(m_manager, &VpnManager::accountTypeReady, this, &AccountPage::onAccountTypeReady);
+
+    // Show the account type we already know (fetched at startup / login).
+    if (m_manager->accountType() != AccountType::Unknown)
+        onAccountTypeReady(m_manager->accountType());
 
     static constexpr const char* frames[] = {"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"};
     static constexpr int frameCount = 10;
@@ -80,6 +100,7 @@ void AccountPage::refresh()
     m_nameLabel->setText(QStringLiteral("⠋ Loading…"));
     m_spinnerTimer->start();
     m_manager->fetchInfo();
+    m_manager->fetchAccountType();
 }
 
 void AccountPage::onInfoReady(const QMap<QString, QString>& info) const
@@ -97,3 +118,24 @@ void AccountPage::onInfoReady(const QMap<QString, QString>& info) const
     m_nameLabel->setText(get(QStringLiteral("name")));
 }
 
+void AccountPage::onAccountTypeReady(AccountType type) const
+{
+    switch (type)
+    {
+        case AccountType::Free:
+            m_planLabel->setText(QStringLiteral("Free"));
+            m_planLabel->setStyleSheet(QStringLiteral("color: #aaaaaa;"));
+            m_upgradeLabel->show();
+            break;
+        case AccountType::Plus:
+            m_planLabel->setText(QStringLiteral("VPN Plus"));
+            m_planLabel->setStyleSheet(QStringLiteral("color: #7B61FF; font-weight: bold;"));
+            m_upgradeLabel->hide();
+            break;
+        default:
+            m_planLabel->setText(QStringLiteral("—"));
+            m_planLabel->setStyleSheet(QString());
+            m_upgradeLabel->hide();
+            break;
+    }
+}

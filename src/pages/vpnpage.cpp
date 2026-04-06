@@ -181,16 +181,16 @@ LocationPicker::LocationPicker(const QString& countryCode, const QString& countr
     setFixedWidth(260);
 
     // ── Header row (always visible, acts as the button) ──────────────────
-    auto* header = new QFrame(this);
-    header->setObjectName(QStringLiteral("locationPickerHeader"));
-    header->setCursor(Qt::PointingHandCursor);
+    m_header = new QFrame(this);
+    m_header->setObjectName(QStringLiteral("locationPickerHeader"));
+    m_header->setCursor(Qt::PointingHandCursor);
 
-    auto* headerLayout = new QHBoxLayout(header);
+    auto* headerLayout = new QHBoxLayout(m_header);
     headerLayout->setContentsMargins(10, 8, 10, 8);
     headerLayout->setSpacing(10);
 
     // Flag
-    m_flagLabel = new QLabel(header);
+    m_flagLabel = new QLabel(m_header);
     m_flagLabel->setFixedSize(28, 21);
     m_flagLabel->setAlignment(Qt::AlignCenter);
     if (!countryCode.isEmpty())
@@ -207,10 +207,10 @@ LocationPicker::LocationPicker(const QString& countryCode, const QString& countr
     textCol->setSpacing(1);
     textCol->setContentsMargins(0, 0, 0, 0);
 
-    m_topLine = new ElideLabel(QStringLiteral("Selected Location"), header);
+    m_topLine = new ElideLabel(QStringLiteral("Selected Location"), m_header);
     m_topLine->setObjectName(QStringLiteral("locationPickerTop"));
 
-    m_bottomLine = new ElideLabel(QStringLiteral("⚡  Fastest server"), header);
+    m_bottomLine = new ElideLabel(QStringLiteral("⚡  Fastest server"), m_header);
     m_bottomLine->setObjectName(QStringLiteral("locationPickerBottom"));
 
     textCol->addWidget(m_topLine);
@@ -218,7 +218,7 @@ LocationPicker::LocationPicker(const QString& countryCode, const QString& countr
     headerLayout->addLayout(textCol, 1);
 
     // Chevron
-    m_chevron = new QLabel(QStringLiteral("▾"), header);
+    m_chevron = new QLabel(QStringLiteral("▾"), m_header);
     m_chevron->setObjectName(QStringLiteral("locationPickerChevron"));
     headerLayout->addWidget(m_chevron);
 
@@ -226,11 +226,11 @@ LocationPicker::LocationPicker(const QString& countryCode, const QString& countr
     auto* outerLayout = new QVBoxLayout(this);
     outerLayout->setContentsMargins(0, 0, 0, 0);
     outerLayout->setSpacing(0);
-    outerLayout->addWidget(header);
+    outerLayout->addWidget(m_header);
 
     // ── Popup ─────────────────────────────────────────────────────────────
     initPopup();
-    header->installEventFilter(this);
+    m_header->installEventFilter(this);
     connect(m_list, &QListWidget::itemClicked, this, &LocationPicker::onRowClicked);
 
     // Start in loading state immediately
@@ -239,9 +239,36 @@ LocationPicker::LocationPicker(const QString& countryCode, const QString& countr
 
 bool LocationPicker::eventFilter(QObject* obj, QEvent* ev)
 {
+    // In free mode block the popup from opening on header click.
+    if (m_freeMode && ev->type() == QEvent::MouseButtonRelease)
+    {
+        auto* w = qobject_cast<QWidget*>(obj);
+        if (w && w->objectName() == QLatin1String("locationPickerHeader"))
+            return true; // consume — do not open popup
+    }
     if (handleCommonEvents(obj, ev))
         return true;
     return PickerBase::eventFilter(obj, ev);
+}
+
+void LocationPicker::setFreeMode(const bool free)
+{
+    m_freeMode = free;
+    if (m_header)
+    {
+        m_header->setCursor(free ? Qt::ForbiddenCursor : Qt::PointingHandCursor);
+        m_header->setToolTip(free
+            ? QStringLiteral("Location selection requires Proton VPN Plus.\n"
+                              "Proton will pick a free server for you automatically.")
+            : QString());
+    }
+    // Dim the top-line label to hint the control is inactive.
+    if (m_topLine)
+        m_topLine->setStyleSheet(free ? QStringLiteral("color: #666677;") : QString());
+    if (m_bottomLine)
+        m_bottomLine->setStyleSheet(free ? QStringLiteral("color: #666677;") : QString());
+    if (m_chevron)
+        m_chevron->setVisible(!free);
 }
 
 void LocationPicker::onRowClicked(QListWidgetItem* item)
@@ -621,8 +648,16 @@ VpnPage::VpnPage(VpnManager* manager, QWidget* parent)
             emit disconnectRequested();
         else if (m_currentState == VpnState::Disconnected || m_currentState == VpnState::Error)
         {
-            m_activeCity = m_locationPicker->selectedCity();
-            emit connectRequested(m_localCountryCode, m_activeCity);
+            if (m_isFreeUser)
+            {
+                // Free users: let protonvpn pick the best free server automatically.
+                emit connectRequested(QString(), QString());
+            }
+            else
+            {
+                m_activeCity = m_locationPicker->selectedCity();
+                emit connectRequested(m_localCountryCode, m_activeCity);
+            }
         }
     });
     topLayout->addWidget(m_powerBtn, 0, Qt::AlignCenter);
@@ -770,6 +805,19 @@ VpnPage::VpnPage(VpnManager* manager, QWidget* parent)
     // Show a banner if this is a pre-release build
     checkPrereleaseBanner();
 
+    // React to plan type (Free vs Plus) — affects picker visibility and connect behaviour.
+    connect(m_manager, &VpnManager::accountTypeReady, this, [this](AccountType type)
+    {
+        m_isFreeUser = (type == AccountType::Free);
+        applyFreeUserMode();
+    });
+    // Apply immediately if already known (e.g. app restart with cached state).
+    if (m_manager->accountType() != AccountType::Unknown)
+    {
+        m_isFreeUser = (m_manager->accountType() == AccountType::Free);
+        applyFreeUserMode();
+    }
+
     // When the user changes location while connected/connecting, ask what to do
     connect(m_locationPicker, &LocationPicker::selectionChanged,
             this, [this](const QString& city)
@@ -875,6 +923,15 @@ void VpnPage::refreshRecentPicker()
 void VpnPage::relayoutPickers(const int w) const
 {
     if (!m_recentPicker) return;
+
+    // Free users never see the recent connections picker.
+    if (m_isFreeUser)
+    {
+        m_recentPicker->setVisible(false);
+        m_locationPicker->setFixedWidth(260);
+        return;
+    }
+
     const bool hasHistory = !ConnectionHistory::instance().entries().isEmpty();
     if (!hasHistory)
     {
@@ -1026,7 +1083,11 @@ void VpnPage::updateUi(const VpnState state, const QString& info)
         if (prevState == VpnState::Connecting)
         {
             startElapsedTimer();
-            if (m_recentPicker) { m_recentPicker->refresh(); relayoutPickers(width()); }
+            if (!m_isFreeUser && m_recentPicker)
+            {
+                m_recentPicker->refresh();
+                relayoutPickers(width());
+            }
         }
         else if (prevState == VpnState::Connected)
         {
@@ -1101,15 +1162,6 @@ void VpnPage::updateUi(const VpnState state, const QString& info)
         stopElapsedTimer();
 
         m_rawError = info;
-
-        // Detect free-plan location restriction and offer quick-connect instead
-        const bool isFreePlanError =
-            info.contains(QLatin1String("not available on the free plan"), Qt::CaseInsensitive);
-        if (isFreePlanError)
-        {
-            handleFreePlanError();
-            break;
-        }
 
         const bool isCliError = info.contains(QLatin1String("Traceback (most recent call last)"))
                              || info.contains(QLatin1String("File \"/usr/bin/protonvpn\""))
@@ -1196,66 +1248,16 @@ void VpnPage::showErrorDetails() const
     dlg->exec();
 }
 
-void VpnPage::handleFreePlanError()
+void VpnPage::applyFreeUserMode()
 {
-    // Reset the UI to a friendly "disconnected" state instead of showing a
-    // scary red error — the user didn't do anything wrong.
-    m_powerBtn->setState(PowerButton::RingState::Disconnected);
-    m_powerBtn->setEnabled(true);
-    m_statusLabel->setText(QStringLiteral("Disconnected"));
-    m_statusLabel->setStyleSheet(QStringLiteral(
-        "color: #888888; font-size: 16pt; font-weight: bold; letter-spacing: 1px;"));
-    m_infoLabel->setText(QString());
-    m_currentState = VpnState::Disconnected;
-    m_activeCity.clear();
-    m_hadUnknownConnection = false;
-    m_locationPicker->setUnknownConnection(false);
+    // Location picker: block/unblock user interaction.
+    m_locationPicker->setFreeMode(m_isFreeUser);
 
-    auto* dlg = new QDialog(this);
-    dlg->setWindowTitle(QStringLiteral("Free Account"));
-    dlg->setAttribute(Qt::WA_DeleteOnClose);
-    dlg->setModal(true);
-    dlg->setMinimumWidth(400);
+    // Recent connections: never shown for free users.
+    if (m_recentPicker)
+        m_recentPicker->setVisible(
+            !m_isFreeUser && !ConnectionHistory::instance().entries().isEmpty());
 
-    auto* layout = new QVBoxLayout(dlg);
-    layout->setSpacing(16);
-    layout->setContentsMargins(24, 24, 24, 20);
-
-    auto* msgLabel = new QLabel(
-        QStringLiteral(
-            "<b>Location selection is not available on the free plan.</b><br><br>"
-            "Would you like to connect to a <b>random free server</b> instead? "
-            "Proton will automatically choose a server for you."),
-        dlg);
-    msgLabel->setWordWrap(true);
-    msgLabel->setTextFormat(Qt::RichText);
-    layout->addWidget(msgLabel);
-
-    auto* btnRow = new QHBoxLayout();
-    btnRow->setSpacing(8);
-
-    auto* dismissBtn = new QPushButton(QStringLiteral("Dismiss"), dlg);
-    dismissBtn->setObjectName(QStringLiteral("secondaryButton"));
-
-    auto* connectBtn = new QPushButton(QStringLiteral("Auto Connect"), dlg);
-    connectBtn->setObjectName(QStringLiteral("primaryButton"));
-    connectBtn->setDefault(true);
-
-    const int btnH = connectBtn->sizeHint().height();
-    dismissBtn->setFixedHeight(btnH);
-    connectBtn->setFixedHeight(btnH);
-
-    btnRow->addWidget(dismissBtn, 1);
-    btnRow->addWidget(connectBtn, 1);
-    layout->addLayout(btnRow);
-
-    connect(dismissBtn, &QPushButton::clicked, dlg, &QDialog::reject);
-    connect(connectBtn, &QPushButton::clicked, dlg, &QDialog::accept);
-
-    if (dlg->exec() == QDialog::Accepted)
-    {
-        // Pick a random free server to connect to
-        emit connectRequested(QString(), QString());
-    }
+    // Re-run layout so picker widths are recalculated correctly.
+    relayoutPickers(width());
 }
-

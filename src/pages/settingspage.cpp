@@ -11,6 +11,7 @@
 #include "../widgets/toastnotification.h"
 #include <QPropertyAnimation>
 #include <QMouseEvent>
+#include <QGraphicsOpacityEffect>
 #include <QDialogButtonBox> // ignore unused include warning for QDialogButtonBox
 #include <QTextBrowser>
 #include <QMessageBox>
@@ -57,18 +58,26 @@ void ToggleSwitch::paintEvent(QPaintEvent*)
 {
     QPainter p(this);
     p.setRenderHint(QPainter::Antialiasing);
+    const bool enabled = isEnabled();
     const int w = width(), h = height(), r = h / 2;
-    constexpr QColor trackOn(0x6d, 0x4a, 0xff), trackOff(0x55, 0x55, 0x66);
-    QColor track;
-    track.setRed(static_cast<int>(trackOff.red() + (trackOn.red() - trackOff.red()) * m_knobPos));
-    track.setGreen(static_cast<int>(trackOff.green() + (trackOn.green() - trackOff.green()) * m_knobPos));
-    track.setBlue(static_cast<int>(trackOff.blue() + (trackOn.blue() - trackOff.blue()) * m_knobPos));
-    p.setBrush(track);
+    if (enabled)
+    {
+        constexpr QColor trackOn(0x6d, 0x4a, 0xff), trackOff(0x55, 0x55, 0x66);
+        QColor track;
+        track.setRed(static_cast<int>(trackOff.red() + (trackOn.red() - trackOff.red()) * m_knobPos));
+        track.setGreen(static_cast<int>(trackOff.green() + (trackOn.green() - trackOff.green()) * m_knobPos));
+        track.setBlue(static_cast<int>(trackOff.blue() + (trackOn.blue() - trackOff.blue()) * m_knobPos));
+        p.setBrush(track);
+    }
+    else
+    {
+        p.setBrush(QColor(0x3a, 0x3a, 0x44));
+    }
     p.setPen(Qt::NoPen);
     p.drawRoundedRect(0, 0, w, h, r, r);
     const int knobD = h - 4, knobMin = 2, knobMax = w - knobD - 2;
     const int knobX = static_cast<int>(knobMin + (knobMax - knobMin) * m_knobPos);
-    p.setBrush(Qt::white);
+    p.setBrush(enabled ? Qt::white : QColor(0x66, 0x66, 0x77));
     p.drawEllipse(knobX, 2, knobD, knobD);
 }
 
@@ -92,6 +101,33 @@ void SettingsPage::addDivider(QVBoxLayout* layout, QWidget* parent)
     div->setFrameShape(QFrame::HLine);
     div->setObjectName(QStringLiteral("divider"));
     layout->addWidget(div);
+}
+
+QWidget* SettingsPage::makePlusDivider(QWidget* parent)
+{
+    auto* container = new QWidget(parent);
+    auto* hl = new QHBoxLayout(container);
+    hl->setContentsMargins(16, 10, 16, 10);
+    hl->setSpacing(10);
+
+    auto makeHLine = [&]() -> QFrame*
+    {
+        auto* line = new QFrame(container);
+        line->setFrameShape(QFrame::HLine);
+        line->setObjectName(QStringLiteral("plusDividerLine"));
+        return line;
+    };
+
+    hl->addWidget(makeHLine(), 1);
+
+    auto* label = new QLabel(QStringLiteral("✦  Available to Plus Members"), container);
+    label->setObjectName(QStringLiteral("plusDividerLabel"));
+    label->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Preferred);
+    hl->addWidget(label);
+
+    hl->addWidget(makeHLine(), 1);
+
+    return container;
 }
 
 static QWidget* makeTextCol(QWidget* parent, const QString& label, const QString& desc)
@@ -445,9 +481,28 @@ SettingsPage::SettingsPage(VpnManager* manager, QWidget* parent)
         addApp(row);
     }
 
+    // ── Plus Members Only divider (App tab) ───────────────────
+    m_appPlusDivider = makePlusDivider(appCard);
+    appCardLayout->addWidget(m_appPlusDivider);
+
+    // ── PLUS-ONLY section (App tab) ───────────────────────────
+    m_appPlusSection = new QWidget(appCard);
+    auto* appPlusLayout = new QVBoxLayout(m_appPlusSection);
+    appPlusLayout->setContentsMargins(0, 0, 0, 0);
+    appPlusLayout->setSpacing(0);
+    appCardLayout->addWidget(m_appPlusSection);
+
+    bool appPlusFirst = true;
+    auto addAppPlus = [&](QWidget* w)
+    {
+        if (!appPlusFirst) addDivider(appPlusLayout, m_appPlusSection);
+        appPlusFirst = false;
+        appPlusLayout->addWidget(w);
+    };
+
     // ── Recent Connections ────────────────────────────────────
     {
-        auto* row = new QWidget(appCard);
+        auto* row = new QWidget(m_appPlusSection);
         auto* rl = new QHBoxLayout(row);
         rl->setContentsMargins(16, 12, 16, 12);
         rl->setSpacing(16);
@@ -463,14 +518,12 @@ SettingsPage::SettingsPage(VpnManager* manager, QWidget* parent)
             AppConfig::instance().setRecentConnectionsCount(val);
         });
         rl->addWidget(m_recentConnectionsSpinBox);
-        addApp(row);
+        addAppPlus(row);
     }
 
     // ── Clear Recent Connections (only shown when history is non-empty) ────
     {
-        // Wrap the divider and the row in one container so hiding the container
-        // also hides the divider, leaving no orphaned separator line.
-        m_clearRecentRow = new QWidget(appCard);
+        m_clearRecentRow = new QWidget(m_appPlusSection);
         auto* cLayout = new QVBoxLayout(m_clearRecentRow);
         cLayout->setContentsMargins(0, 0, 0, 0);
         cLayout->setSpacing(0);
@@ -500,7 +553,7 @@ SettingsPage::SettingsPage(VpnManager* manager, QWidget* parent)
         rl->addWidget(clearBtn);
         cLayout->addWidget(inner);
 
-        appCardLayout->addWidget(m_clearRecentRow);
+        appPlusLayout->addWidget(m_clearRecentRow);
         m_clearRecentRow->setVisible(ConnectionHistory::instance().hasAnyEntries());
 
         connect(&ConnectionHistory::instance(), &ConnectionHistory::changed, this, [this]()
@@ -550,6 +603,7 @@ SettingsPage::SettingsPage(VpnManager* manager, QWidget* parent)
 
     tabs->addTab(vpnTab, QStringLiteral("VPN"));
 
+    // ── FREE rows (available to all plans) ───────────────────
     bool vpnFirst = true;
     auto addVpn = [&](QWidget* w)
     {
@@ -570,20 +624,6 @@ SettingsPage::SettingsPage(VpnManager* manager, QWidget* parent)
                          QStringLiteral("Enable IPv6 support over the VPN tunnel."),
                          QStringLiteral("ipv6")));
 
-    // ── NAT Type ──────────────────────────────────────────────
-    addVpn(makeComboRow(vpnCard,
-                        QStringLiteral("NAT Type"),
-                        QStringLiteral(
-                            "Controls how the VPN server maps your connection. "
-                            "<b>Strict (Type 3)</b> is the default and best for privacy. "
-                            "<b>Moderate (Type 2)</b> improves compatibility for online gaming and WebRTC, "
-                            "at a slight privacy trade-off. Requires a paid plan. "
-                            "<a href='https://protonvpn.com/support/moderate-nat'>Read more</a>"),
-                        QStringLiteral("moderate-nat"),
-                        {QStringLiteral("Strict (Type 3)"),
-                         QStringLiteral("Moderate (Type 2)")},
-                        {QStringLiteral("off"), QStringLiteral("on")}));
-
     // ── Kill Switch ───────────────────────────────────────────
     addVpn(makeComboRow(vpnCard,
                         QStringLiteral("Kill Switch"),
@@ -594,41 +634,74 @@ SettingsPage::SettingsPage(VpnManager* manager, QWidget* parent)
                         {QStringLiteral("Off"), QStringLiteral("Standard"), QStringLiteral("Permanent")},
                         {QStringLiteral("off"), QStringLiteral("standard"), QStringLiteral("full")}));
 
+    // ── Plus Members Only divider ─────────────────────────────
+    m_plusDivider = makePlusDivider(vpnCard);
+    vpnCardLayout->addWidget(m_plusDivider);
+
+    // ── PLUS-ONLY section ─────────────────────────────────────
+    m_plusSection = new QWidget(vpnCard);
+    auto* plusLayout = new QVBoxLayout(m_plusSection);
+    plusLayout->setContentsMargins(0, 0, 0, 0);
+    plusLayout->setSpacing(0);
+    vpnCardLayout->addWidget(m_plusSection);
+
+    bool plusFirst = true;
+    auto addPlus = [&](QWidget* w)
+    {
+        if (!plusFirst) addDivider(plusLayout, m_plusSection);
+        plusFirst = false;
+        plusLayout->addWidget(w);
+    };
+
+    // ── NAT Type ──────────────────────────────────────────────
+    addPlus(makeComboRow(m_plusSection,
+                         QStringLiteral("NAT Type"),
+                         QStringLiteral(
+                             "Controls how the VPN server maps your connection. "
+                             "<b>Strict (Type 3)</b> is the default and best for privacy. "
+                             "<b>Moderate (Type 2)</b> improves compatibility for online gaming and WebRTC, "
+                             "at a slight privacy trade-off. "
+                             "<a href='https://protonvpn.com/support/moderate-nat'>Read more</a>"),
+                         QStringLiteral("moderate-nat"),
+                         {QStringLiteral("Strict (Type 3)"),
+                          QStringLiteral("Moderate (Type 2)")},
+                         {QStringLiteral("off"), QStringLiteral("on")}));
+
     // ── VPN Accelerator ───────────────────────────────────────
-    addVpn(makeToggleRow(vpnCard,
-                         QStringLiteral("VPN Accelerator"),
-                         QStringLiteral("Boost connection speeds using advanced protocol techniques."),
-                         QStringLiteral("vpn-accelerator")));
+    addPlus(makeToggleRow(m_plusSection,
+                          QStringLiteral("VPN Accelerator"),
+                          QStringLiteral("Boost connection speeds using advanced protocol techniques."),
+                          QStringLiteral("vpn-accelerator")));
 
     // ── NetShield ─────────────────────────────────────────────
-    addVpn(makeComboRow(vpnCard,
-                        QStringLiteral("NetShield Ad-blocker"),
-                        QStringLiteral("Block malware, ads, and trackers at the DNS level."),
-                        QStringLiteral("netshield"),
-                        {
-                            QStringLiteral("Off"),
-                            QStringLiteral("Malware only"),
-                            QStringLiteral("Malware, ads & trackers")
-                        },
-                        {
-                            QStringLiteral("off"),
-                            QStringLiteral("malware-only"),
-                            QStringLiteral("malware-ads-trackers")
-                        }));
+    addPlus(makeComboRow(m_plusSection,
+                         QStringLiteral("NetShield Ad-blocker"),
+                         QStringLiteral("Block malware, ads, and trackers at the DNS level."),
+                         QStringLiteral("netshield"),
+                         {
+                             QStringLiteral("Off"),
+                             QStringLiteral("Malware only"),
+                             QStringLiteral("Malware, ads & trackers")
+                         },
+                         {
+                             QStringLiteral("off"),
+                             QStringLiteral("malware-only"),
+                             QStringLiteral("malware-ads-trackers")
+                         }));
 
     // ── Port Forwarding ───────────────────────────────────────
-    addVpn(makeToggleRow(vpnCard,
-                         QStringLiteral("Port Forwarding"),
-                         QStringLiteral("Bypass firewalls to connect to P2P servers and devices in your local network. "
-                             "<a href='https://protonvpn.com/support/port-forwarding'>Learn more</a> · "
-                             "<a href='https://protonvpn.com/support/port-forwarding-manual-setup#linux'>Guide</a>"),
-                         QStringLiteral("port-forwarding")));
+    addPlus(makeToggleRow(m_plusSection,
+                          QStringLiteral("Port Forwarding"),
+                          QStringLiteral("Bypass firewalls to connect to P2P servers and devices in your local network. "
+                              "<a href='https://protonvpn.com/support/port-forwarding'>Learn more</a> · "
+                              "<a href='https://protonvpn.com/support/port-forwarding-manual-setup#linux'>Guide</a>"),
+                          QStringLiteral("port-forwarding")));
 
     // ── Custom DNS ────────────────────────────────────────────
     {
-        addDivider(vpnCardLayout, vpnCard);
+        addDivider(plusLayout, m_plusSection);
 
-        auto* dnsRow = new QWidget(vpnCard);
+        auto* dnsRow = new QWidget(m_plusSection);
         auto* dnsRl = new QHBoxLayout(dnsRow);
         dnsRl->setContentsMargins(16, 12, 16, 4);
         dnsRl->setSpacing(16);
@@ -638,9 +711,9 @@ SettingsPage::SettingsPage(VpnManager* manager, QWidget* parent)
                                          "Separate multiple addresses with a comma.")), 1);
         m_dnsToggle = new ToggleSwitch(dnsRow);
         dnsRl->addWidget(m_dnsToggle);
-        vpnCardLayout->addWidget(dnsRow);
+        plusLayout->addWidget(dnsRow);
 
-        auto* dnsAddrRow = new QWidget(vpnCard);
+        auto* dnsAddrRow = new QWidget(m_plusSection);
         dnsAddrRow->setVisible(false);
         auto* dnsAddrRl = new QHBoxLayout(dnsAddrRow);
         dnsAddrRl->setContentsMargins(16, 0, 16, 12);
@@ -652,14 +725,13 @@ SettingsPage::SettingsPage(VpnManager* manager, QWidget* parent)
         m_dnsApplyBtn->setObjectName(QStringLiteral("secondaryButton"));
         m_dnsApplyBtn->setFixedHeight(28);
         dnsAddrRl->addWidget(m_dnsApplyBtn);
-        vpnCardLayout->addWidget(dnsAddrRow);
+        plusLayout->addWidget(dnsAddrRow);
 
         connect(m_dnsToggle, &ToggleSwitch::toggled, this, [this, dnsAddrRow](bool on)
         {
             dnsAddrRow->setVisible(on);
             if (!on)
                 m_manager->applyConfigValue(QStringLiteral("custom-dns"), QStringLiteral("off"));
-            // Reconnect detection handled via the configApplied signal.
         });
         connect(m_dnsApplyBtn, &QPushButton::clicked, this, [this]()
         {
@@ -668,15 +740,19 @@ SettingsPage::SettingsPage(VpnManager* manager, QWidget* parent)
             m_manager->applyConfigValue(
                 QStringLiteral("custom-dns"),
                 QStringLiteral("--dns %1 on").arg(dns));
-            // Reconnect detection handled via the configApplied signal.
         });
     }
 
     vpnCardLayout->addStretch();
 
+    // Apply the correct enabled/opacity state for the plus section right away
+    // if the account type is already known (e.g. user was already logged in).
+    updatePlusSectionState();
 
     // VpnManager signals
-    connect(m_manager, &VpnManager::settingsReady, this, &SettingsPage::onSettingsReady);
+    connect(m_manager, &VpnManager::settingsReady,    this, &SettingsPage::onSettingsReady);
+    connect(m_manager, &VpnManager::accountTypeReady, this, [this](AccountType) { updatePlusSectionState(); });
+
     connect(m_manager, &VpnManager::configApplied, this, &SettingsPage::maybeWarnReconnect);
 
     // Spinner timer
@@ -698,6 +774,37 @@ void SettingsPage::refresh()
 {
     setLoading(true);
     m_manager->fetchSettings();
+}
+
+void SettingsPage::updatePlusSectionState()
+{
+    const bool isFree = (m_manager->accountType() == AccountType::Free);
+
+    // Shared helper: show/hide the divider, enable/disable the section,
+    // and apply or remove a 45% opacity effect.
+    auto applyToSection = [&](QWidget* section, QWidget* divider)
+    {
+        if (!section || !divider) return;
+        divider->setVisible(isFree);
+        section->setEnabled(!isFree);
+        if (isFree)
+        {
+            auto* effect = qobject_cast<QGraphicsOpacityEffect*>(section->graphicsEffect());
+            if (!effect)
+            {
+                effect = new QGraphicsOpacityEffect(section);
+                section->setGraphicsEffect(effect);
+            }
+            effect->setOpacity(0.45);
+        }
+        else
+        {
+            section->setGraphicsEffect(nullptr);
+        }
+    };
+
+    applyToSection(m_plusSection,    m_plusDivider);
+    applyToSection(m_appPlusSection, m_appPlusDivider);
 }
 
 void SettingsPage::setLoading(const bool loading)
@@ -759,6 +866,10 @@ void SettingsPage::onSettingsReady(const QMap<QString, QString>& info)
     m_dnsToggle->setOn(dnsOn, false);
     if (dnsOn) m_dnsEdit->setText(dns);
     else m_dnsEdit->clear();
+
+    // Re-apply the plus section disabled state — setLoading(false) re-enables
+    // individual widgets, so we must restore the correct state afterwards.
+    updatePlusSectionState();
 }
 
 void SettingsPage::showAboutDialog()

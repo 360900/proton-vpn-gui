@@ -1,5 +1,6 @@
 #pragma once
 
+#include <QColor>
 #include <QIcon>
 #include <QPixmap>
 #include <QString>
@@ -26,6 +27,11 @@ namespace GeoUtils
     // Render an SVG resource path into a QPixmap with explicit dimensions.
     // Useful for non-square assets such as 4:3 flags.
     QPixmap svgPixmap(const QString& resourcePath, int width, int height);
+
+    // Same as above but colour-tints the rendered pixmap.
+    // Uses CompositionMode_SourceIn to replace colour while preserving alpha.
+    QPixmap svgPixmap(const QString& resourcePath, int size, const QColor& tint);
+    QPixmap svgPixmap(const QString& resourcePath, int width, int height, const QColor& tint);
 
     // Return a QIcon for the given country code using the embedded /flags/
     // resources (e.g. "US" → :/flags/us).  Icons are cached so each SVG is

@@ -85,6 +85,7 @@ void VpnManager::checkLoginStatus()
         {
             checkConnectionStatus();
             startPolling();
+            fetchAccountType();
         }
 
         emit loginStatusResult(loggedIn, username);
@@ -193,6 +194,7 @@ void VpnManager::login(const QString& username, const QString& password)
                     // Start background polling now that we're logged in.
                     checkConnectionStatus();
                     startPolling();
+                    fetchAccountType();
                 }
                 emit loginFinished(ok, errorMsg);
             });
@@ -383,6 +385,24 @@ void VpnManager::fetchInfo()
     runCommand({QStringLiteral("info")}, [this](int, const QString& out, const QString&)
     {
         emit infoReady(parseDictOutput(out));
+    });
+}
+
+void VpnManager::fetchAccountType()
+{
+    runCommand({QStringLiteral("config"), QStringLiteral("list")},
+               [this](int, const QString& out, const QString& err)
+    {
+        // If the output contains the "upgrade to VPN Plus" text, the user is on
+        // the Free plan.  Otherwise they are on Plus (or higher).
+        const QString combined = out + QLatin1Char('\n') + err;
+        const AccountType type =
+            combined.contains(QStringLiteral("To upgrade to VPN Plus"), Qt::CaseInsensitive)
+            ? AccountType::Free
+            : AccountType::Plus;
+
+        m_accountType = type;
+        emit accountTypeReady(type);
     });
 }
 

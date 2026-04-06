@@ -18,12 +18,14 @@ signals:
     void signOutRequested();
 
 private:
-    VpnManager* m_manager;
-    QLabel* m_nameLabel;
+    VpnManager*  m_manager;
+    QLabel*      m_nameLabel;
+    QLabel*      m_planLabel;
+    QLabel*      m_upgradeLabel;
     QPushButton* m_refreshBtn;
-    QTimer* m_spinnerTimer;
-    int m_spinnerFrame = 0;
+    QTimer*      m_spinnerTimer;
+    int          m_spinnerFrame = 0;
 
     void onInfoReady(const QMap<QString, QString>& info) const;
+    void onAccountTypeReady(AccountType type) const;
 };
-
