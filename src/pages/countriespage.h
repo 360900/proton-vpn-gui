@@ -53,6 +53,7 @@ private:
     bool m_filterSecureCore = false;
     bool m_filterTor        = false;
     bool m_portForwardingEnabled = false;
+    bool m_isFreeUser        = false;
 
     QLineEdit*   m_searchEdit     = nullptr;
     QPushButton* m_refreshBtn     = nullptr;
@@ -71,11 +72,12 @@ private:
     QPushButton* m_connectBtn    = nullptr;
 
     // Narrow layout
-    QWidget*     m_narrowWidget  = nullptr;
-    QScrollArea* m_narrowScroll  = nullptr;
-    QWidget*     m_narrowContent = nullptr;
-    QVBoxLayout* m_narrowLayout  = nullptr;
+    QWidget*     m_narrowWidget      = nullptr;
+    QScrollArea* m_narrowScroll      = nullptr;
+    QWidget*     m_narrowContent     = nullptr;
+    QVBoxLayout* m_narrowLayout      = nullptr;
     QLabel*      m_narrowLoadingLabel = nullptr;
+    QPushButton* m_narrowConnectBtn  = nullptr;
 
     struct AccordionItem {
         QToolButton* headerBtn    = nullptr;
@@ -113,6 +115,10 @@ private:
 
     void toggleAccordion(const QString& code);
     void ensureCities(const QString& code);
+
+    // Updates both connect buttons to show a lock when the account is Free,
+    // or restores normal styling for paid accounts.
+    void updateConnectBtnLockState();
 
     // Shows the "Disable Port Forwarding?" confirmation dialog.
     // bodyText is the message shown; onConfirm is called if the user confirms.

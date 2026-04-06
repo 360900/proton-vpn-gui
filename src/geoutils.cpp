@@ -328,6 +328,20 @@ QPixmap svgPixmap(const QString& resourcePath, int size)
     return svgPixmap(resourcePath, size, size);
 }
 
+QPixmap svgPixmap(const QString& resourcePath, int width, int height, const QColor& tint)
+{
+    QPixmap pixmap = svgPixmap(resourcePath, width, height);
+    QPainter painter(&pixmap);
+    painter.setCompositionMode(QPainter::CompositionMode_SourceIn);
+    painter.fillRect(pixmap.rect(), tint);
+    return pixmap;
+}
+
+QPixmap svgPixmap(const QString& resourcePath, int size, const QColor& tint)
+{
+    return svgPixmap(resourcePath, size, size, tint);
+}
+
 // ---------------------------------------------------------------------------
 // flagIcon
 // ---------------------------------------------------------------------------

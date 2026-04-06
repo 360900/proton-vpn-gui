@@ -311,9 +311,19 @@ CountriesPage::CountriesPage(VpnManager* manager, QWidget* parent)
     // Seed the initial port-forwarding state.
     m_manager->fetchSettings();
 
+    // ── Free-user lock state ──────────────────────────────────────────────
+    m_isFreeUser = (m_manager->accountType() == AccountType::Free);
+    connect(m_manager, &VpnManager::accountTypeReady, this, [this](AccountType type) {
+        m_isFreeUser = (type == AccountType::Free);
+        updateConnectBtnLockState();
+    });
+
     // ── Wide / narrow container ───────────────────────────────────────────
     buildWideLayout(mainLayout);
     buildNarrowLayout(mainLayout);
+
+    // Apply initial lock state now that buttons exist.
+    updateConnectBtnLockState();
 
     // ── Spinners ──────────────────────────────────────────────────────────
     m_spinnerTimer = new QTimer(this);
@@ -431,7 +441,8 @@ void CountriesPage::buildWideLayout(QVBoxLayout* parent)
     m_connectBtn->setEnabled(false);
     m_connectBtn->setCursor(Qt::PointingHandCursor);
     connect(m_connectBtn, &QPushButton::clicked, this, [this]() {
-        emit connectRequested(m_selectedCode, m_selectedCity);
+        if (!m_isFreeUser)
+            emit connectRequested(m_selectedCode, m_selectedCity);
     });
     wideLayout->addWidget(m_connectBtn);
 
@@ -469,13 +480,14 @@ void CountriesPage::buildNarrowLayout(QVBoxLayout* parent)
     // Share the same enabled/text state with the wide connect button by re-using m_connectBtn
     // (we keep them in sync manually)
     connect(narrowConnectBtn, &QPushButton::clicked, this, [this]() {
-        emit connectRequested(m_selectedCode, m_selectedCity);
+        if (!m_isFreeUser)
+            emit connectRequested(m_selectedCode, m_selectedCity);
     });
     // Store as the narrow connect button — we'll sync text/enabled with m_connectBtn
     narrowOuterLayout->addWidget(narrowConnectBtn);
 
     // Keep the narrow connect button pointer for sync
-    narrowConnectBtn->setObjectName(QStringLiteral("primaryButton"));
+    m_narrowConnectBtn = narrowConnectBtn;
     m_narrowWidget->setProperty("connectBtn", QVariant::fromValue(static_cast<QObject*>(narrowConnectBtn)));
 
     parent->addWidget(m_narrowWidget, 1);
@@ -524,6 +536,7 @@ void CountriesPage::refresh()
     m_refreshBtn->setText(QStringLiteral("Loading…"));
 
     if (m_connectBtn) m_connectBtn->setEnabled(false);
+    updateConnectBtnLockState();
 
     // Wide: show spinner
     if (m_countriesList)
@@ -634,15 +647,15 @@ void CountriesPage::applyFilter()
                 m_selectedCode.clear();
                 m_selectedCity.clear();
                 m_selectedCountry.clear();
-                if (auto* nbtn = qobject_cast<QPushButton*>(
-                        m_narrowWidget->property("connectBtn").value<QObject*>()))
+                if (m_narrowConnectBtn)
                 {
-                    nbtn->setEnabled(false);
-                    nbtn->setText(QStringLiteral("Connect to Selected"));
+                    m_narrowConnectBtn->setEnabled(false);
+                    m_narrowConnectBtn->setText(QStringLiteral("Connect to Selected"));
                 }
             }
         }
         populateNarrow();
+        updateConnectBtnLockState();
         return;
     }
 
@@ -662,6 +675,7 @@ void CountriesPage::applyFilter()
             m_connectBtn->setEnabled(false);
             m_connectBtn->setText(QStringLiteral("Connect to Selected"));
         }
+        updateConnectBtnLockState();
         return;
     }
 
@@ -701,6 +715,7 @@ void CountriesPage::applyFilter()
             else
                 m_connectBtn->setText(QStringLiteral("Connect to Selected"));
         }
+        updateConnectBtnLockState();
         return;
     }
 
@@ -794,6 +809,69 @@ void CountriesPage::updateBubbleStyles() const
     m_bubbleP2P->setStyleSheet(bubbleStyle(m_filterP2P));
     m_bubbleSecureCore->setStyleSheet(bubbleStyle(m_filterSecureCore));
     m_bubbleTor->setStyleSheet(bubbleStyle(m_filterTor));
+}
+
+// ============================================================
+// updateConnectBtnLockState
+// ============================================================
+void CountriesPage::updateConnectBtnLockState()
+{
+    // Locked style: muted dark button with a subtle purple tint — looks
+    // "disabled" but stays interactive so the hover tooltip is reachable.
+    static const QString kLockedStyle = QStringLiteral(
+        "QPushButton {"
+        "  background-color: #2a2a45;"
+        "  color: #6a6a85;"
+        "  border: 1px solid #3a3a55;"
+        "  border-radius: 6px;"
+        "  padding: 10px 24px;"
+        "  font-weight: bold;"
+        "  font-size: 14px;"
+        "  min-width: 140px;"
+        "}"
+        "QPushButton:hover {"
+        "  background-color: #2e2e4e;"
+        "  color: #8888aa;"
+        "  border-color: rgba(109,74,255,0.45);"
+        "}");
+
+    static const QString kLockedTooltip = QStringLiteral(
+        "Country and city selection requires Proton VPN Plus.\n"
+        "Free accounts are connected to a server chosen by Proton.\n"
+        "Upgrade your plan to choose any country or city.");
+
+    const QPixmap lockPix = GeoUtils::svgPixmap(QStringLiteral(":/assets/lock-fill.svg"), 14, QColor(0xAA, 0xAA, 0xAA));
+    const QIcon   lockIcon(lockPix);
+
+    auto applyLock = [&](QPushButton* btn) {
+        if (!btn) return;
+        btn->setEnabled(true);           // keep enabled so tooltip fires on hover
+        btn->setText(QStringLiteral("Plus Only"));
+        btn->setIcon(lockIcon);
+        btn->setIconSize(QSize(14, 14));
+        btn->setStyleSheet(kLockedStyle);
+        btn->setToolTip(kLockedTooltip);
+        btn->setCursor(Qt::ForbiddenCursor);
+    };
+
+    auto clearLock = [](QPushButton* btn) {
+        if (!btn) return;
+        btn->setIcon(QIcon());
+        btn->setStyleSheet(QString());   // restore QSS object-name styling
+        btn->setToolTip(QString());
+        btn->setCursor(Qt::PointingHandCursor);
+    };
+
+    if (m_isFreeUser)
+    {
+        applyLock(m_connectBtn);
+        applyLock(m_narrowConnectBtn);
+    }
+    else
+    {
+        clearLock(m_connectBtn);
+        clearLock(m_narrowConnectBtn);
+    }
 }
 
 // ============================================================
@@ -1185,6 +1263,7 @@ void CountriesPage::onWideCountrySelected(QListWidgetItem* item)
         m_spinnerTimer->start();
         m_manager->fetchCities(m_selectedCode);
     }
+    updateConnectBtnLockState();
 }
 
 void CountriesPage::onWideCitySelected(QListWidgetItem* item)
@@ -1196,6 +1275,7 @@ void CountriesPage::onWideCitySelected(QListWidgetItem* item)
     else
         m_connectBtn->setText(QStringLiteral("Connect to %1, %2")
                               .arg(m_selectedCountry, m_selectedCity));
+    updateConnectBtnLockState();
 }
 
 // ============================================================
@@ -1242,12 +1322,12 @@ void CountriesPage::toggleAccordion(const QString& code)
         m_selectedCountry = m_allCountries.key(code, code);
 
         // Sync narrow connect button
-        if (auto* nbtn = qobject_cast<QPushButton*>(
-                m_narrowWidget->property("connectBtn").value<QObject*>()))
+        if (m_narrowConnectBtn)
         {
-            nbtn->setEnabled(true);
-            nbtn->setText(QStringLiteral("Connect to %1").arg(m_selectedCountry));
+            m_narrowConnectBtn->setEnabled(true);
+            m_narrowConnectBtn->setText(QStringLiteral("Connect to %1").arg(m_selectedCountry));
         }
+        updateConnectBtnLockState();
 
         if (m_cityCache.contains(code))
         {

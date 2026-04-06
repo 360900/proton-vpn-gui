@@ -24,7 +24,7 @@ public:
     {
         setObjectName(QStringLiteral("numberSpinner"));
         setFixedWidth(64);
-        setFixedHeight(32);
+        setFixedHeight(38);
 
         auto* outer = new QHBoxLayout(this);
         outer->setContentsMargins(0, 0, 0, 0);
@@ -123,7 +123,7 @@ private:
         btn->setIcon(svgIcon(resource));
         btn->setIconSize({10, 10});
         btn->setFixedWidth(24);
-        btn->setFixedHeight(16); // half of the spinner's fixed 32 px height
+        btn->setFixedHeight(19); // half of the spinner's fixed 38 px height
         btn->setCursor(Qt::PointingHandCursor);
         btn->setFocusPolicy(Qt::NoFocus);
         return btn;

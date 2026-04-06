@@ -67,6 +67,8 @@ public:
     // Returns true if found; false if not found (falls back to "Active connection").
     bool trySelectCity(const QString& city);
     void setUnknownConnection(bool unknown);
+    // Disables interaction for free-plan users (no popup, forbidden cursor, tooltip).
+    void setFreeMode(bool free);
 
     [[nodiscard]] QString selectedCity() const { return m_selectedCity; }
 
@@ -85,7 +87,9 @@ private:
     QString m_countryName;
     QString m_selectedCity;
     bool    m_unknownConnection = false;
+    bool    m_freeMode = false;
 
+    QFrame*  m_header = nullptr;
     QLabel*  m_flagLabel;
     QTimer*  m_loadingTimer = nullptr;
     int      m_loadingFrame = 0;
@@ -143,6 +147,7 @@ private slots:
 private:
     VpnManager* m_manager;
     QString m_localCountryCode;
+    bool m_isFreeUser = false;
 
     PowerButton*    m_powerBtn;
     QLabel*         m_statusLabel;
@@ -177,7 +182,7 @@ private:
     void relayoutPickers(int width) const;
     void checkPrereleaseBanner();
     void handleFreePlanError();
+    void applyFreeUserMode();
     // After populate(), try to select m_pendingStatusCity; falls back to
-    // "Active connection" if the city is not in the list.
     void applyPendingStatusCity();
 };

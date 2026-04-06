@@ -15,6 +15,13 @@ enum class VpnState
     Error
 };
 
+enum class AccountType
+{
+    Unknown,
+    Free,
+    Plus
+};
+
 class VpnManager : public QObject
 {
     Q_OBJECT
@@ -38,8 +45,10 @@ public:
     void applyConfigValue(const QString& key, const QString& value);
     void checkConnectionStatus();
     void fetchCliVersion();
+    void fetchAccountType();
 
-    VpnState currentState() const { return m_state; }
+    VpnState    currentState()   const { return m_state; }
+    AccountType accountType()    const { return m_accountType; }
 
 signals:
     void installedResult(bool installed);
@@ -57,14 +66,16 @@ signals:
     void settingsReady(const QMap<QString, QString>& settings);
     void configApplied(const QString& output);
     void cliVersionReady(const QString& version);
+    void accountTypeReady(AccountType type);
     void errorOccurred(const QString& error);
 
 private:
-    VpnState  m_state         = VpnState::Unknown;
-    QString   m_connectedServer;       // last server string seen while Connected
-    QProcess* m_signinProcess = nullptr;
-    QTimer*   m_pollTimer     = nullptr;
-    bool      m_pollActive    = false; // true while a poll process is in flight
+    VpnState    m_state         = VpnState::Unknown;
+    AccountType m_accountType   = AccountType::Unknown;
+    QString     m_connectedServer;       // last server string seen while Connected
+    QProcess*   m_signinProcess = nullptr;
+    QTimer*     m_pollTimer     = nullptr;
+    bool        m_pollActive    = false; // true while a poll process is in flight
 
     void runCommand(const QStringList& args,
                     std::function<void(int exitCode, const QString& output, const QString& errOutput)> callback);

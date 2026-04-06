@@ -101,6 +101,14 @@ private:
     // "Clear history" row – shown only when history is non-empty
     QWidget* m_clearRecentRow = nullptr;
 
+    // Plus Members Only section (VPN tab)
+    QWidget* m_plusSection  = nullptr;
+    QWidget* m_plusDivider  = nullptr;
+
+    // Plus Members Only section (App tab)
+    QWidget* m_appPlusSection = nullptr;
+    QWidget* m_appPlusDivider = nullptr;
+
     QPushButton* m_refreshBtn;
     QLabel* m_statusLabel;
     QTimer* m_spinnerTimer;
@@ -114,6 +122,8 @@ private:
                           const QString& cliKey, const QStringList& labels,
                           const QStringList& cliValues);
     static void addDivider(QVBoxLayout* layout, QWidget* parent);
+    static QWidget* makePlusDivider(QWidget* parent);
+    void updatePlusSectionState();
     void maybeWarnReconnect(const QString& cliOutput);
 
     // Auto-start helpers
