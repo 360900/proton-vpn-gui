@@ -166,6 +166,11 @@ MainWindow::MainWindow(QWidget* parent)
     // VpnManager signals
     connect(m_manager, &VpnManager::connectionCityKnown,
             m_vpnPage, &VpnPage::onStatusCityKnown);
+
+    // Show CLI version-mismatch banner on the login page as well as the VPN page.
+    connect(m_manager, &VpnManager::cliVersionReady,
+            m_loginPage, &LoginPage::onCliVersionReady);
+
     connect(m_manager, &VpnManager::installedResult, this, [this](bool installed)
     {
         if (!installed)

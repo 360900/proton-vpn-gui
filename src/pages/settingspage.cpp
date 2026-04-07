@@ -21,6 +21,8 @@
 #include <QCoreApplication>
 #include <QJsonDocument> // Ignore unused include warning; we do use QJsonDocument
 #include <QJsonObject>
+#include <QVersionNumber>
+#include <QGridLayout>
 #include <QDebug>
 
 // ============================================================
@@ -752,6 +754,7 @@ SettingsPage::SettingsPage(VpnManager* manager, QWidget* parent)
     // VpnManager signals
     connect(m_manager, &VpnManager::settingsReady,    this, &SettingsPage::onSettingsReady);
     connect(m_manager, &VpnManager::accountTypeReady, this, [this](AccountType) { updatePlusSectionState(); });
+    connect(m_manager, &VpnManager::cliVersionReady,  this, [this](const QString& v) { m_installedCliVersion = v; });
 
     connect(m_manager, &VpnManager::configApplied, this, &SettingsPage::maybeWarnReconnect);
 
@@ -875,8 +878,8 @@ void SettingsPage::onSettingsReady(const QMap<QString, QString>& info)
 void SettingsPage::showAboutDialog()
 {
     // Load versions from the embedded version.json resource
-    QString appVersion = QStringLiteral("unknown");
-    QString cliVersion = QStringLiteral("unknown");
+    QString appVersion     = QStringLiteral("unknown");
+    QString testedVersionStr = QStringLiteral("unknown");
     QFile vf(QStringLiteral(":/version.json"));
     if (vf.open(QIODevice::ReadOnly))
     {
@@ -885,26 +888,86 @@ void SettingsPage::showAboutDialog()
         if (obj.contains(QStringLiteral("app_version")))
             appVersion = obj[QStringLiteral("app_version")].toString();
         if (obj.contains(QStringLiteral("cli_version_tested")))
-            cliVersion = obj[QStringLiteral("cli_version_tested")].toString();
+            testedVersionStr = obj[QStringLiteral("cli_version_tested")].toString();
     }
 
     auto* dlg = new QDialog(this);
     dlg->setWindowTitle(QStringLiteral("About ProtonVPN Qt App"));
-    dlg->setMinimumSize(520, 400);
+    dlg->setMinimumSize(520, 440);
 
     auto* layout = new QVBoxLayout(dlg);
-    layout->setSpacing(16);
+    layout->setSpacing(10);
 
+    // ── Title / subtitle ─────────────────────────────────────
+    auto* titleLabel = new QLabel(QStringLiteral("<h2 style=\"margin-bottom:2px;\">ProtonVPN Qt App</h2>"), dlg);
+    titleLabel->setTextFormat(Qt::RichText);
+    layout->addWidget(titleLabel);
+
+    auto* subtitleLabel = new QLabel(
+        QStringLiteral("<span style=\"color:#888;\">A community-built Qt front-end for the Proton VPN CLI.</span>"), dlg);
+    subtitleLabel->setTextFormat(Qt::RichText);
+    layout->addWidget(subtitleLabel);
+
+    // ── Version table (QLabels so tooltips work) ─────────────
+    auto* versionWidget = new QWidget(dlg);
+    auto* versionGrid = new QGridLayout(versionWidget);
+    versionGrid->setContentsMargins(0, 4, 0, 8);
+    versionGrid->setHorizontalSpacing(8);
+    versionGrid->setVerticalSpacing(4);
+    versionGrid->setColumnStretch(1, 1);
+
+    auto makeKey = [&](const QString& text) -> QLabel*
+    {
+        auto* l = new QLabel(QStringLiteral("<b>%1</b>").arg(text), versionWidget);
+        l->setTextFormat(Qt::RichText);
+        return l;
+    };
+
+    // App version
+    versionGrid->addWidget(makeKey(QStringLiteral("App version:")),        0, 0);
+    versionGrid->addWidget(new QLabel(appVersion, versionWidget),          0, 1);
+
+    // Tested CLI version
+    versionGrid->addWidget(makeKey(QStringLiteral("Tested against CLI:")), 1, 0);
+    versionGrid->addWidget(new QLabel(testedVersionStr, versionWidget),    1, 1);
+
+    // Installed CLI version — only shown (with color + arrow + tooltip) when it differs
+    if (!m_installedCliVersion.isEmpty())
+    {
+        const QVersionNumber installed = QVersionNumber::fromString(m_installedCliVersion);
+        const QVersionNumber tested    = QVersionNumber::fromString(testedVersionStr);
+
+        if (!installed.isNull() && !tested.isNull() && installed != tested)
+        {
+            const bool newer = installed > tested;
+            const QString arrow   = newer ? QStringLiteral(" ▲") : QStringLiteral(" ▼");
+            const QString color   = newer ? QStringLiteral("#f59e0b") : QStringLiteral("#ef4444");
+            const QString tooltip = newer
+                ? QStringLiteral("Your installed CLI (v%1) is newer than the version this app was "
+                                  "tested against (v%2). Things may work fine, but you could "
+                                  "encounter unexpected behavior.")
+                      .arg(m_installedCliVersion, testedVersionStr)
+                : QStringLiteral("Your installed CLI (v%1) is older than the version this app was "
+                                  "tested against (v%2). Some features may not work correctly. "
+                                  "Consider upgrading the CLI.")
+                      .arg(m_installedCliVersion, testedVersionStr);
+
+            auto* valLabel = new QLabel(m_installedCliVersion + arrow, versionWidget);
+            valLabel->setStyleSheet(QStringLiteral("color: %1; font-weight: bold;").arg(color));
+            valLabel->setToolTip(tooltip);
+
+            versionGrid->addWidget(makeKey(QStringLiteral("Installed CLI:")), 2, 0);
+            versionGrid->addWidget(valLabel, 2, 1);
+        }
+    }
+
+    layout->addWidget(versionWidget);
+
+    // ── Disclaimer + Credits (QTextBrowser) ─────────────────
     auto* browser = new QTextBrowser(dlg);
     browser->setOpenExternalLinks(true);
     browser->setFrameShape(QFrame::NoFrame);
     browser->setHtml(QStringLiteral(R"(
-<h2 style="margin-bottom:4px;">ProtonVPN Qt App</h2>
-<p style="color:#888;margin-top:0;">A community-built Qt front-end for the Proton VPN CLI.</p>
-<table style="margin-bottom:8px;">
-  <tr><td><b>App version:&nbsp;</b></td><td>%1</td></tr>
-  <tr><td><b>Tested against CLI:&nbsp;</b></td><td>%2</td></tr>
-</table>
 <p><b>⚠ Disclaimer:</b> This project is <b>not affiliated with, endorsed by, or
 supported by Proton AG</b> in any way. ProtonVPN and the Proton logo are
 trademarks of Proton AG.</p>
@@ -926,7 +989,7 @@ trademarks of Proton AG.</p>
 <p style="color:#888;font-size:small;">
   This software is provided as-is, without warranty of any kind. Use at your own risk.
 </p>
-)").arg(appVersion, cliVersion));
+)"));
     layout->addWidget(browser);
 
     auto* btns = new QDialogButtonBox(QDialogButtonBox::Close, dlg);

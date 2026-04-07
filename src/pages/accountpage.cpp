@@ -115,7 +115,7 @@ void AccountPage::onInfoReady(const QMap<QString, QString>& info) const
         return (val == QStringLiteral("None") || val.isEmpty()) ? QStringLiteral("—") : val;
     };
 
-    m_nameLabel->setText(get(QStringLiteral("name")));
+    m_nameLabel->setText(get(QStringLiteral("Account")));
 }
 
 void AccountPage::onAccountTypeReady(AccountType type) const

@@ -1,11 +1,15 @@
 #include "loginpage.h"
 #include "../widgets/svgbanner.h"
 
+#include <QFile>
 #include <QHBoxLayout>
+#include <QJsonDocument>
+#include <QJsonObject>
 #include <QLabel>
 #include <QPixmap>
 #include <QSvgRenderer>
 #include <QPainter>
+#include <QVersionNumber>
 
 static QIcon svgIcon(const QString& path, const QSize& size = {20, 20})
 {
@@ -20,8 +24,8 @@ static QIcon svgIcon(const QString& path, const QSize& size = {20, 20})
 LoginPage::LoginPage(QWidget* parent)
     : QWidget(parent)
 {
-    auto* outerLayout = new QVBoxLayout(this);
-    outerLayout->setAlignment(Qt::AlignCenter);
+    m_outerLayout = new QVBoxLayout(this);
+    m_outerLayout->setAlignment(Qt::AlignCenter);
 
     auto* card = new QWidget(this);
     card->setObjectName(QStringLiteral("loginCard"));
@@ -49,7 +53,10 @@ LoginPage::LoginPage(QWidget* parent)
     m_errorLabel->setContentsMargins(32, 0, 32, 16);
     cardLayout->addWidget(m_errorLabel);
 
-    outerLayout->addWidget(card, 0, Qt::AlignCenter);
+    m_outerLayout->addWidget(card, 0, Qt::AlignCenter);
+
+    // Show a banner if this is a pre-release build
+    checkPrereleaseBanner();
 }
 
 void LoginPage::buildCredsWidget()
@@ -241,3 +248,67 @@ void LoginPage::togglePasswordVisibility() const
         m_togglePasswordBtn->setIcon(svgIcon(QStringLiteral(":/assets/eye-show.svg")));
     }
 }
+
+void LoginPage::checkPrereleaseBanner()
+{
+    QFile vf(QStringLiteral(":/version.json"));
+    if (!vf.open(QIODevice::ReadOnly)) return;
+
+    const QJsonObject obj = QJsonDocument::fromJson(vf.readAll()).object();
+    vf.close();
+
+    if (!obj.value(QStringLiteral("prerelease")).toBool(false)) return;
+
+    const QString appVersion = obj.value(QStringLiteral("app_version")).toString();
+    const QString msg = QStringLiteral(
+        "You are running a <b>pre-release</b> version of this app (<b>v%1</b>). "
+        "It may contain bugs or incomplete features. Use with caution.")
+        .arg(appVersion.toHtmlEscaped());
+
+    m_prereleaseBanner = new InfoBanner(msg, this);
+    connect(m_prereleaseBanner, &InfoBanner::dismissed, this, [this]() {
+        m_prereleaseBanner = nullptr;
+    });
+    m_outerLayout->addWidget(m_prereleaseBanner);
+}
+
+void LoginPage::onCliVersionReady(const QString& version)
+{
+    QString testedVersionStr;
+    QFile vf(QStringLiteral(":/version.json"));
+    if (vf.open(QIODevice::ReadOnly))
+    {
+        const QJsonObject obj = QJsonDocument::fromJson(vf.readAll()).object();
+        vf.close();
+        testedVersionStr = obj.value(QStringLiteral("cli_version_tested")).toString();
+    }
+
+    if (version.isEmpty() || testedVersionStr.isEmpty()) return;
+
+    const QVersionNumber installed = QVersionNumber::fromString(version);
+    const QVersionNumber tested    = QVersionNumber::fromString(testedVersionStr);
+    if (installed == tested) return;
+
+    static const QString kWorkaround = QStringLiteral(
+        " If you cannot log in due to this incompatibility, open a terminal and run "
+        "<code>protonvpn connect</code> as a workaround until an update is released.");
+
+    const QString msg = (installed > tested)
+        ? QStringLiteral(
+              "Your Proton VPN CLI (<b>v%1</b>) is newer than the version this app was "
+              "tested against (<b>v%2</b>). Things may work fine, but you could encounter "
+              "unexpected behavior.%3")
+              .arg(version, testedVersionStr, kWorkaround)
+        : QStringLiteral(
+              "Your Proton VPN CLI (<b>v%1</b>) is older than the version this app was "
+              "tested against (<b>v%2</b>). Some features may not work correctly. "
+              "Consider upgrading the CLI.%3")
+              .arg(version, testedVersionStr, kWorkaround);
+
+    m_versionBanner = new InfoBanner(msg, this);
+    connect(m_versionBanner, &InfoBanner::dismissed, this, [this]() {
+        m_versionBanner = nullptr;
+    });
+    m_outerLayout->addWidget(m_versionBanner);
+}
+

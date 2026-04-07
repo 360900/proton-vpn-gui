@@ -79,7 +79,6 @@ private:
 
     void runCommand(const QStringList& args,
                     std::function<void(int exitCode, const QString& output, const QString& errOutput)> callback);
-    static QMap<QString, QString> parseDictOutput(const QString& output);
 
     // Shared helpers for parsing `protonvpn status` output.
     static QMap<QString, QString> parseStatusFields(const QString& combined);
