@@ -109,6 +109,9 @@ private:
     QWidget* m_appPlusSection = nullptr;
     QWidget* m_appPlusDivider = nullptr;
 
+    // Installed CLI version (cached when cliVersionReady fires)
+    QString m_installedCliVersion;
+
     QPushButton* m_refreshBtn;
     QLabel* m_statusLabel;
     QTimer* m_spinnerTimer;

@@ -62,20 +62,20 @@ void VpnManager::checkLoginStatus()
 {
     runCommand({QStringLiteral("info")}, [this](int, const QString& out, const QString&)
     {
-        // CLI returns something like: {'name': None} when not logged in
-        // or {'name': 'username', 'status': 'Connected', ...} when logged in
+        // New CLI format: "Account: 'username@example.com'"
+        // Not logged in → no match (or the value is empty / None).
         bool loggedIn = false;
         QString username;
 
-        const QRegularExpression re(QStringLiteral("'name'\\s*:\\s*'?([^'\\}]+)'?"));
+        const QRegularExpression re(QStringLiteral(R"(Account:\s*'([^']+)')"));
         const auto match = re.match(out);
         if (match.hasMatch())
         {
-            const QString nameVal = match.captured(1).trimmed();
-            if (nameVal != QStringLiteral("None") && !nameVal.isEmpty())
+            const QString accountVal = match.captured(1).trimmed();
+            if (accountVal != QStringLiteral("None") && !accountVal.isEmpty())
             {
                 loggedIn = true;
-                username = nameVal;
+                username = accountVal;
             }
         }
 
@@ -384,7 +384,16 @@ void VpnManager::fetchInfo()
 {
     runCommand({QStringLiteral("info")}, [this](int, const QString& out, const QString&)
     {
-        emit infoReady(parseDictOutput(out));
+        // New CLI format: lines like "Account: 'username@example.com'"
+        QMap<QString, QString> result;
+        const QRegularExpression re(QStringLiteral(R"((\w[\w ]*):\s*'([^']*)')"));
+        QRegularExpressionMatchIterator it = re.globalMatch(out);
+        while (it.hasNext())
+        {
+            const auto m = it.next();
+            result.insert(m.captured(1).trimmed(), m.captured(2).trimmed());
+        }
+        emit infoReady(result);
     });
 }
 
@@ -488,21 +497,6 @@ void VpnManager::checkConnectionStatus()
     process->start(QStringLiteral("protonvpn"), QStringList{QStringLiteral("status")});
 }
 
-QMap<QString, QString> VpnManager::parseDictOutput(const QString& output)
-{
-    QMap<QString, QString> result;
-    // Parse Python-dict-like output: {'key': 'value', 'key2': None, ...}
-    const QRegularExpression re(QStringLiteral("'([^']+)'\\s*:\\s*(?:'([^']*)'|(None|True|False|[\\d.]+))"));
-    QRegularExpressionMatchIterator it = re.globalMatch(output);
-    while (it.hasNext())
-    {
-        auto match = it.next();
-        QString key = match.captured(1);
-        QString val = match.captured(2).isEmpty() ? match.captured(3) : match.captured(2);
-        result.insert(key, val);
-    }
-    return result;
-}
 
 // ---------------------------------------------------------------------------
 // Settings

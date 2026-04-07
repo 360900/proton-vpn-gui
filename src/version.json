@@ -1,6 +1,6 @@
 {
-    "app_version": "1.6.0",
+    "app_version": "1.6.1",
     "prerelease": false,
-    "cli_version_tested": "0.1.8"
+    "cli_version_tested": "0.1.9"
 }
 
