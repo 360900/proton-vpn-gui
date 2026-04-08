@@ -1,5 +1,6 @@
 #pragma once
 
+#include <optional>
 #include <QFrame>
 #include <QLabel>
 #include <QListWidget>
@@ -171,7 +172,9 @@ private:
     QString  m_pendingStatusCity; // city from protonvpn status, applied after cities populate
     bool     m_hadUnknownConnection = false;
     bool     m_stateKnown = false;
-    QList<QPair<QString, QString>> m_pendingCities;
+    // nullopt = citiesReady has not yet fired for the local country;
+    // empty list = fired but the CLI returned no cities.
+    std::optional<QList<QPair<QString, QString>>> m_pendingCities;
 
     static constexpr int kWideThreshold = 580; // px
 

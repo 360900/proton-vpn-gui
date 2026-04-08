@@ -6,6 +6,8 @@ A Qt GUI front-end for the [Proton VPN Linux CLI](https://protonvpn.com/support/
 
 ---
 
+[![Packaging status](https://repology.org/badge/vertical-allrepos/proton-vpn-qt-app.svg)](https://repology.org/project/proton-vpn-qt-app/versions)
+
 ## Features
 
 ### General

@@ -797,6 +797,8 @@ VpnPage::VpnPage(VpnManager* manager, QWidget* parent)
     connect(m_manager, &VpnManager::citiesReady, this, &VpnPage::onCitiesReady);
     if (!m_localCountryCode.isEmpty())
         m_manager->fetchCities(m_localCountryCode);
+    else
+        m_locationPicker->populate({}); // No local country detected — stop spinner immediately
 
     // Check the installed CLI version against the tested version
     connect(m_manager, &VpnManager::cliVersionReady, this, &VpnPage::onCliVersionReady);
@@ -972,7 +974,7 @@ void VpnPage::onCitiesReady(const QString& countryCode,
 
     if (!m_stateKnown)
     {
-        m_pendingCities = cities;
+        m_pendingCities = cities; // wraps in optional — even an empty list is "received"
         return;
     }
 
@@ -1111,10 +1113,10 @@ void VpnPage::updateUi(const VpnState state, const QString& info)
                 m_locationPicker->setUnknownConnection(true);
             }
         }
-        if (justBecameKnown && !m_pendingCities.isEmpty())
+        if (justBecameKnown && m_pendingCities.has_value())
         {
-            m_locationPicker->populate(m_pendingCities);
-            m_pendingCities.clear();
+            m_locationPicker->populate(*m_pendingCities);
+            m_pendingCities.reset();
             applyPendingStatusCity();
         }
         break;
@@ -1129,10 +1131,10 @@ void VpnPage::updateUi(const VpnState state, const QString& info)
         m_hadUnknownConnection = false;
         m_locationPicker->setUnknownConnection(false);
         stopElapsedTimer();
-        if (justBecameKnown && !m_pendingCities.isEmpty())
+        if (justBecameKnown && m_pendingCities.has_value())
         {
-            m_locationPicker->populate(m_pendingCities);
-            m_pendingCities.clear();
+            m_locationPicker->populate(*m_pendingCities);
+            m_pendingCities.reset();
         }
         break;
 
