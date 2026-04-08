@@ -242,6 +242,23 @@ MainWindow::MainWindow(QWidget* parent)
                 m_vpnPage->onStateChanged(state, info);
                 updateTrayIcon(state);
 
+                // If the CLI reports that the session has expired / is not
+                // authenticated, sign the user out automatically so they land
+                // back on the login page rather than being stuck on an error.
+                if (state == VpnState::Error)
+                {
+                    const QString lower = info.toLower();
+                    const bool isAuthError =
+                        lower.contains(QLatin1String("authentication required")) ||
+                        lower.contains(QLatin1String("please sign in with"))     ||
+                        lower.contains(QLatin1String("401"));
+                    if (isAuthError)
+                    {
+                        m_manager->signOut();
+                        return;
+                    }
+                }
+
                 // Auto-connect: if we flagged a pending connect and we just confirmed
                 // the VPN is disconnected, initiate the connection now.
                 if (m_startupAutoConnectPending && state == VpnState::Disconnected)
