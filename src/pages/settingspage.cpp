@@ -179,7 +179,8 @@ void SettingsPage::maybeWarnReconnect(const QString& cliOutput)
 }
 
 QWidget* SettingsPage::makeToggleRow(QWidget* parent, const QString& label,
-                                     const QString& desc, const QString& cliKey)
+                                     const QString& desc, const QString& cliKey,
+                                     const QString& onValue)
 {
     auto* row = new QWidget(parent);
     auto* rl = new QHBoxLayout(row);
@@ -189,13 +190,13 @@ QWidget* SettingsPage::makeToggleRow(QWidget* parent, const QString& label,
     auto* toggle = new ToggleSwitch(row);
     rl->addWidget(toggle, 0);
 
-    connect(toggle, &ToggleSwitch::toggled, this, [this, cliKey](bool on)
+    connect(toggle, &ToggleSwitch::toggled, this, [this, cliKey, onValue](bool on)
     {
-        m_manager->applyConfigValue(cliKey, on ? QStringLiteral("on") : QStringLiteral("off"));
+        m_manager->applyConfigValue(cliKey, on ? onValue : QStringLiteral("off"));
         // Reconnect detection is handled via the configApplied signal.
     });
 
-    m_toggleRows.append({cliKey, toggle});
+    m_toggleRows.append({cliKey, toggle, onValue});
     return row;
 }
 
@@ -483,6 +484,26 @@ SettingsPage::SettingsPage(VpnManager* manager, QWidget* parent)
         addApp(row);
     }
 
+    // ── Start Hidden ───────────────────────────────────────────
+    {
+        auto* row = new QWidget(appCard);
+        auto* rl = new QHBoxLayout(row);
+        rl->setContentsMargins(16, 12, 16, 12);
+        rl->setSpacing(16);
+        rl->addWidget(makeTextCol(row,
+                                  QStringLiteral("Start Hidden"),
+                                  QStringLiteral("Launch the app in the background without opening a "
+                                      "window. Access it anytime via the system tray icon.")), 1);
+        auto* toggle = new ToggleSwitch(row);
+        toggle->setOn(AppConfig::instance().startHidden(), false);
+        connect(toggle, &ToggleSwitch::toggled, this, [](bool on)
+        {
+            AppConfig::instance().setStartHidden(on);
+        });
+        rl->addWidget(toggle);
+        addApp(row);
+    }
+
     // ── Plus Members Only divider (App tab) ───────────────────
     m_appPlusDivider = makePlusDivider(appCard);
     appCardLayout->addWidget(m_appPlusDivider);
@@ -627,14 +648,12 @@ SettingsPage::SettingsPage(VpnManager* manager, QWidget* parent)
                          QStringLiteral("ipv6")));
 
     // ── Kill Switch ───────────────────────────────────────────
-    addVpn(makeComboRow(vpnCard,
-                        QStringLiteral("Kill Switch"),
-                        QStringLiteral("Block traffic if the VPN connection drops. "
-                            "\"Standard\" only blocks while reconnecting; "
-                            "\"Permanent\" blocks even when the VPN is off."),
-                        QStringLiteral("kill-switch"),
-                        {QStringLiteral("Off"), QStringLiteral("Standard"), QStringLiteral("Permanent")},
-                        {QStringLiteral("off"), QStringLiteral("standard"), QStringLiteral("full")}));
+    addVpn(makeToggleRow(vpnCard,
+                         QStringLiteral("Kill Switch"),
+                         QStringLiteral("Block internet access if the VPN connection drops unexpectedly. "
+                             "Internet is only blocked while the VPN is active and reconnecting."),
+                         QStringLiteral("kill-switch"),
+                         QStringLiteral("standard")));
 
     // ── Plus Members Only divider ─────────────────────────────
     m_plusDivider = makePlusDivider(vpnCard);
@@ -844,9 +863,14 @@ void SettingsPage::onSettingsReady(const QMap<QString, QString>& info)
         return info.value(key).toLower().trimmed();
     };
 
-    // Toggle rows
+    // Toggle rows – a row is ON if the value matches the row's onValue OR
+    // one of the generic truthy strings (for standard "on"/"true" settings).
     for (const auto& row : std::as_const(m_toggleRows))
-        row.toggle->setOn(isOnString(val(row.cliKey)), false);
+    {
+        const QString v = val(row.cliKey);
+        const bool on = (v == row.onValue) || isOnString(v);
+        row.toggle->setOn(on, false);
+    }
 
     // Combo rows – find the matching CLI value and select that index
     for (const auto& row : std::as_const(m_comboRows))

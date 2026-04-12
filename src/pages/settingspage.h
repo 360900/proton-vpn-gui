@@ -65,6 +65,9 @@ private:
     {
         QString cliKey;
         ToggleSwitch* toggle = nullptr;
+        // Value sent to the CLI (and expected when loading) for the ON state.
+        // Most settings use "on"; kill-switch uses "standard".
+        QString onValue = QStringLiteral("on");
     };
 
     // A combo-box row (multi-value setting)
@@ -120,7 +123,8 @@ private:
 
     // Helpers
     QWidget* makeToggleRow(QWidget* parent, const QString& label, const QString& desc,
-                           const QString& cliKey);
+                           const QString& cliKey,
+                           const QString& onValue = QStringLiteral("on"));
     QWidget* makeComboRow(QWidget* parent, const QString& label, const QString& desc,
                           const QString& cliKey, const QStringList& labels,
                           const QStringList& cliValues);

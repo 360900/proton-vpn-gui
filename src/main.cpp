@@ -8,6 +8,7 @@
 #include <QJsonDocument> // Ignore unused include warning; we do use QJsonDocument
 #include <QJsonObject>
 #include "mainwindow.h"
+#include "appconfig.h"
 
 int main(int argc, char* argv[])
 {
@@ -88,7 +89,10 @@ int main(int argc, char* argv[])
         app.setStyleSheet(QString::fromUtf8(qssFile.readAll()));
 
     MainWindow w;
-    w.show();
+    if (AppConfig::instance().startHidden())
+        w.hide();
+    else
+        w.show();
     return QApplication::exec();
 }
 

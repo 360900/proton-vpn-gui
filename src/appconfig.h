@@ -15,10 +15,12 @@ public:
     bool autoConnect() const;
     bool notifications() const;
     int  recentConnectionsCount() const;
+    bool startHidden() const;
 
     void setAutoConnect(bool value);
     void setNotifications(bool value);
     void setRecentConnectionsCount(int value);
+    void setStartHidden(bool value);
 
 private:
     AppConfig();
@@ -28,5 +30,6 @@ private:
     bool m_autoConnect    = false;
     bool m_notifications  = true;
     int  m_recentConnectionsCount = 5;
+    bool m_startHidden = false;
 };
 

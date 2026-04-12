@@ -533,21 +533,12 @@ void VpnManager::fetchSettings()
     };
 
     // ── top-level keys ────────────────────────────────────────────────────
-    // killswitch: 0 = off, 1 = standard, 2 = permanent/full
+    // killswitch: 0 = off, 1 = standard
     if (root.contains(QStringLiteral("killswitch")))
     {
         const int ks = root[QStringLiteral("killswitch")].toInt(0);
-        QString ksVal;
-        switch (ks)
-        {
-        case 1: ksVal = QStringLiteral("standard");
-            break;
-        case 2: ksVal = QStringLiteral("full");
-            break;
-        default: ksVal = QStringLiteral("off");
-            break;
-        }
-        settings.insert(QStringLiteral("kill-switch"), ksVal);
+        settings.insert(QStringLiteral("kill-switch"),
+                        ks == 1 ? QStringLiteral("standard") : QStringLiteral("off"));
     }
 
     if (root.contains(QStringLiteral("ipv6")))
