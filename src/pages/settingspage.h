@@ -6,6 +6,7 @@
 #include <QComboBox>
 #include <QVBoxLayout>
 #include <QTimer>
+#include <functional>
 #include "../vpnmanager.h"
 
 // ---------------------------------------------------------------------------
@@ -87,6 +88,13 @@ private:
     QLineEdit* m_dnsEdit = nullptr;
     QPushButton* m_dnsApplyBtn = nullptr;
 
+    // Kill switch toggle + collapsible radio-button sub-panel
+    ToggleSwitch* m_killSwitchToggle   = nullptr;
+    QWidget*      m_killSwitchSubPanel = nullptr;
+    // True while an applyConfigValueAndReconnect() sequence is in flight;
+    // keeps the whole VPN card disabled through the Disconnected interim.
+    bool m_sequencePending = false;
+
     // Auto-start (systemd user service)
     ToggleSwitch* m_autoStartToggle = nullptr;
     QWidget* m_autoStartRow = nullptr;
@@ -108,6 +116,10 @@ private:
     QWidget* m_plusSection  = nullptr;
     QWidget* m_plusDivider  = nullptr;
 
+    // The card widget that wraps all VPN-tab settings — disabled en-masse
+    // while the VPN is connecting or disconnecting.
+    QWidget* m_vpnCard = nullptr;
+
     // Plus Members Only section (App tab)
     QWidget* m_appPlusSection = nullptr;
     QWidget* m_appPlusDivider = nullptr;
@@ -124,10 +136,16 @@ private:
     // Helpers
     QWidget* makeToggleRow(QWidget* parent, const QString& label, const QString& desc,
                            const QString& cliKey,
-                           const QString& onValue = QStringLiteral("on"));
+                           const QString& onValue = QStringLiteral("on"),
+                           bool requiresReconnect = false);
     QWidget* makeComboRow(QWidget* parent, const QString& label, const QString& desc,
                           const QString& cliKey, const QStringList& labels,
                           const QStringList& cliValues);
+    // Shows the standard "Disconnect, Apply & Reconnect" dialog for any setting
+    // that cannot be changed while the VPN is active.  onAccept is called if
+    // the user clicks the primary button; nothing extra is called on dismiss.
+    void showReconnectDialog(const QString& settingLabel,
+                             std::function<void()> onAccept);
     static void addDivider(QVBoxLayout* layout, QWidget* parent);
     static QWidget* makePlusDivider(QWidget* parent);
     void updatePlusSectionState();

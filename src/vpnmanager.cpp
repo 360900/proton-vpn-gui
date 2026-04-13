@@ -223,6 +223,10 @@ void VpnManager::signOut()
 
 void VpnManager::connectVpn(const QString& country, const QString& city)
 {
+    // Remember the location so changeKillSwitchAndReconnect can restore it.
+    m_lastConnectCountry = country;
+    m_lastConnectCity    = city;
+
     // Clear the tracked server so the first poll after this app-initiated
     // connection silently learns the new server instead of treating the change
     // as an external location switch (which would spuriously re-fire the
@@ -295,6 +299,43 @@ void VpnManager::disconnectVpnSync()
     QProcess process;
     process.start(QStringLiteral("protonvpn"), QStringList{QStringLiteral("disconnect")});
     process.waitForFinished(10000); // up to 10 s
+}
+
+void VpnManager::applyConfigValueAndReconnect(const QString& key, const QString& value)
+{
+    // Snapshot the reconnect target before we clear m_connectedServer.
+    const QString country = m_lastConnectCountry;
+    const QString city    = m_lastConnectCity;
+
+    m_state = VpnState::Disconnecting;
+    emit connectionStateChanged(m_state, QString());
+
+    runCommand({QStringLiteral("disconnect")},
+               [this, key, value, country, city](int exitCode, const QString&, const QString& err)
+    {
+        if (exitCode != 0)
+        {
+            m_state = VpnState::Error;
+            emit connectionStateChanged(m_state, err);
+            emit errorOccurred(err);
+            return;
+        }
+
+        m_state = VpnState::Disconnected;
+        emit connectionStateChanged(m_state, QString());
+
+        // Apply the config setting now that we're disconnected.
+        QStringList args{QStringLiteral("config"), QStringLiteral("set")};
+        args << key;
+        args << value.split(QLatin1Char(' '), Qt::SkipEmptyParts);
+
+        runCommand(args, [this, country, city](int, const QString& out, const QString& err2)
+        {
+            emit configApplied((out + QLatin1Char('\n') + err2).trimmed());
+            // Reconnect to wherever the user was before.
+            connectVpn(country, city);
+        });
+    });
 }
 
 void VpnManager::fetchCountries()
