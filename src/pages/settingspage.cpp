@@ -23,6 +23,8 @@
 #include <QJsonObject>
 #include <QVersionNumber>
 #include <QGridLayout>
+#include <QRadioButton>
+#include <QButtonGroup>
 #include <QDebug>
 
 // ============================================================
@@ -42,9 +44,11 @@ void ToggleSwitch::setOn(const bool on, const bool animate)
 {
     if (m_on == on) return;
     m_on = on;
+
+    m_anim->stop();
+
     if (animate)
     {
-        m_anim->stop();
         m_anim->setStartValue(m_knobPos);
         m_anim->setEndValue(on ? 1.0 : 0.0);
         m_anim->start();
@@ -178,9 +182,67 @@ void SettingsPage::maybeWarnReconnect(const QString& cliOutput)
     mb.exec();
 }
 
+void SettingsPage::showReconnectDialog(const QString& settingLabel,
+                                       std::function<void()> onAccept)
+{
+    auto* dlg = new QDialog(this);
+    dlg->setAttribute(Qt::WA_DeleteOnClose);
+    dlg->setWindowTitle(QStringLiteral("Reconnect Required"));
+    dlg->setModal(true);
+    dlg->setMinimumWidth(440);
+
+    auto* layout = new QVBoxLayout(dlg);
+    layout->setSpacing(16);
+    layout->setContentsMargins(24, 24, 24, 20);
+
+    auto* heading = new QLabel(
+        QStringLiteral("<b>%1 — Reconnect Required</b>").arg(settingLabel), dlg);
+    heading->setTextFormat(Qt::RichText);
+
+    auto* body = new QLabel(
+        QStringLiteral(
+            "Changing this setting requires reconnecting to the VPN.\n\n"
+            "You can disconnect, apply the change, and reconnect to the same "
+            "location automatically, or dismiss this dialog and do it manually."),
+        dlg);
+    body->setWordWrap(true);
+
+    layout->addWidget(heading);
+    layout->addWidget(body);
+
+    auto* btnRow = new QHBoxLayout();
+    btnRow->setSpacing(8);
+
+    auto* dismissBtn = new QPushButton(QStringLiteral("Dismiss"), dlg);
+    dismissBtn->setObjectName(QStringLiteral("secondaryButton"));
+    connect(dismissBtn, &QPushButton::clicked, dlg, &QDialog::reject);
+
+    auto* reconnectBtn = new QPushButton(
+        QStringLiteral("Disconnect, Apply && Reconnect"), dlg);
+    reconnectBtn->setObjectName(QStringLiteral("primaryButton"));
+    reconnectBtn->setDefault(true);
+
+    const int btnH = reconnectBtn->sizeHint().height();
+    dismissBtn->setFixedHeight(btnH);
+    reconnectBtn->setFixedHeight(btnH);
+
+    connect(reconnectBtn, &QPushButton::clicked, dlg,
+            [dlg, onAccept = std::move(onAccept)]()
+    {
+        dlg->accept();
+        onAccept();
+    });
+
+    btnRow->addWidget(dismissBtn, 1);
+    btnRow->addWidget(reconnectBtn, 1);
+    layout->addLayout(btnRow);
+
+    dlg->exec();
+}
+
 QWidget* SettingsPage::makeToggleRow(QWidget* parent, const QString& label,
                                      const QString& desc, const QString& cliKey,
-                                     const QString& onValue)
+                                     const QString& onValue, const bool requiresReconnect)
 {
     auto* row = new QWidget(parent);
     auto* rl = new QHBoxLayout(row);
@@ -190,10 +252,30 @@ QWidget* SettingsPage::makeToggleRow(QWidget* parent, const QString& label,
     auto* toggle = new ToggleSwitch(row);
     rl->addWidget(toggle, 0);
 
-    connect(toggle, &ToggleSwitch::toggled, this, [this, cliKey, onValue](bool on)
+    connect(toggle, &ToggleSwitch::toggled, this,
+            [this, cliKey, onValue, label, toggle, requiresReconnect](bool on)
     {
+        if (requiresReconnect && m_manager->currentState() != VpnState::Disconnected)
+        {
+            // Revert the toggle immediately — it will be flipped back optimistically
+            // if the user accepts the dialog.
+            toggle->blockSignals(true);
+            toggle->setOn(!on, false);
+            toggle->blockSignals(false);
+
+            const QString newValue = on ? onValue : QStringLiteral("off");
+            showReconnectDialog(label, [this, toggle, on, cliKey, newValue]()
+            {
+                // Optimistically show the intended new state while reconnecting.
+                toggle->blockSignals(true);
+                toggle->setOn(on, true);
+                toggle->blockSignals(false);
+                m_sequencePending = true;
+                m_manager->applyConfigValueAndReconnect(cliKey, newValue);
+            });
+            return;
+        }
         m_manager->applyConfigValue(cliKey, on ? onValue : QStringLiteral("off"));
-        // Reconnect detection is handled via the configApplied signal.
     });
 
     m_toggleRows.append({cliKey, toggle, onValue});
@@ -602,6 +684,7 @@ SettingsPage::SettingsPage(VpnManager* manager, QWidget* parent)
     // ============================================================
     auto* vpnTab = new QWidget();
     auto [vpnCard, vpnCardLayout] = makeCard(vpnTab);
+    m_vpnCard = vpnCard; // kept so we can bulk-disable during VPN transitions
 
     // Refresh button + spinner live inside the VPN tab's page layout
     {
@@ -645,15 +728,151 @@ SettingsPage::SettingsPage(VpnManager* manager, QWidget* parent)
     addVpn(makeToggleRow(vpnCard,
                          QStringLiteral("IPv6"),
                          QStringLiteral("Enable IPv6 support over the VPN tunnel."),
-                         QStringLiteral("ipv6")));
+                         QStringLiteral("ipv6"),
+                         QStringLiteral("on"),
+                         /*requiresReconnect=*/true));
 
     // ── Kill Switch ───────────────────────────────────────────
-    addVpn(makeToggleRow(vpnCard,
-                         QStringLiteral("Kill Switch"),
-                         QStringLiteral("Block internet access if the VPN connection drops unexpectedly. "
-                             "Internet is only blocked while the VPN is active and reconnecting."),
-                         QStringLiteral("kill-switch"),
-                         QStringLiteral("standard")));
+    {
+        // Outer container: toggle row on top + collapsible radio sub-panel below.
+        auto* ksContainer = new QWidget(vpnCard);
+        auto* ksVLayout = new QVBoxLayout(ksContainer);
+        ksVLayout->setContentsMargins(0, 0, 0, 0);
+        ksVLayout->setSpacing(0);
+
+        // --- Toggle row ---
+        auto* ksRow = new QWidget(ksContainer);
+        auto* ksRowLayout = new QHBoxLayout(ksRow);
+        ksRowLayout->setContentsMargins(16, 12, 16, 12);
+        ksRowLayout->setSpacing(16);
+        ksRowLayout->addWidget(makeTextCol(ksRow,
+            QStringLiteral("Kill Switch"),
+            QStringLiteral("Block internet access if the VPN connection drops unexpectedly.")), 1);
+        m_killSwitchToggle = new ToggleSwitch(ksRow);
+        ksRowLayout->addWidget(m_killSwitchToggle, 0);
+        ksVLayout->addWidget(ksRow);
+
+        // --- Sub-panel: Standard / Advanced radio buttons ---
+        m_killSwitchSubPanel = new QWidget(ksContainer);
+        m_killSwitchSubPanel->setVisible(false);
+        auto* spLayout = new QVBoxLayout(m_killSwitchSubPanel);
+        spLayout->setContentsMargins(16, 0, 16, 12);
+        spLayout->setSpacing(0);
+
+        // Thin separator between toggle row and radio options
+        auto* spSep = new QFrame(m_killSwitchSubPanel);
+        spSep->setFrameShape(QFrame::HLine);
+        spSep->setObjectName(QStringLiteral("divider"));
+        spLayout->addWidget(spSep);
+
+        auto* radioGroup = new QButtonGroup(m_killSwitchSubPanel);
+
+        // Helper: build a radio-button option row and append it to spLayout
+        auto makeKsOption = [&](const QString& title, const QString& desc,
+                                bool enabled, bool checked) -> QRadioButton*
+        {
+            auto* optRow = new QWidget(m_killSwitchSubPanel);
+            auto* hl = new QHBoxLayout(optRow);
+            hl->setContentsMargins(0, 10, 0, 10);
+            hl->setSpacing(10);
+
+            auto* radio = new QRadioButton(optRow);
+            radio->setChecked(checked);
+            radio->setEnabled(enabled);
+            hl->addWidget(radio, 0, Qt::AlignTop);
+
+            auto* textCol = new QWidget(optRow);
+            auto* vl = new QVBoxLayout(textCol);
+            vl->setContentsMargins(0, 0, 0, 0);
+            vl->setSpacing(2);
+
+            auto* titleLbl = new QLabel(title, textCol);
+            titleLbl->setObjectName(QStringLiteral("infoKey"));
+            if (!enabled)
+                titleLbl->setStyleSheet(QStringLiteral("color: #555;"));
+            vl->addWidget(titleLbl);
+
+            auto* descLbl = new QLabel(desc, textCol);
+            descLbl->setObjectName(QStringLiteral("settingsDesc"));
+            descLbl->setWordWrap(true);
+            QFont f = descLbl->font();
+            f.setPointSize(qMax(f.pointSize() - 1, 7));
+            descLbl->setFont(f);
+            descLbl->setStyleSheet(enabled
+                ? QStringLiteral("color: #888;")
+                : QStringLiteral("color: #444;"));
+            vl->addWidget(descLbl);
+
+            hl->addWidget(textCol, 1);
+            spLayout->addWidget(optRow);
+            return radio;
+        };
+
+        // Standard (enabled, always selected)
+        auto* standardRadio = makeKsOption(
+            QStringLiteral("Standard"),
+            QStringLiteral("Automatically disconnect from the internet if the VPN connection is lost."),
+            true, true);
+        radioGroup->addButton(standardRadio);
+
+        // Divider between options
+        auto* optSep = new QFrame(m_killSwitchSubPanel);
+        optSep->setFrameShape(QFrame::HLine);
+        optSep->setObjectName(QStringLiteral("divider"));
+        spLayout->addWidget(optSep);
+
+        // Advanced (disabled – temporarily removed from the CLI)
+        auto* advancedRadio = makeKsOption(
+            QStringLiteral("Advanced"),
+            QStringLiteral("Only allow internet access when connected to ProtonVPN. "
+                "Advanced kill switch will remain active even when you restart your device."),
+            false, false);
+        radioGroup->addButton(advancedRadio);
+        const QString advTooltip = QStringLiteral(
+            "Temporarily removed from the Proton VPN CLI — not currently available.");
+        advancedRadio->setToolTip(advTooltip);
+        // Propagate the tooltip to the whole row so hovering anywhere on it shows it
+        advancedRadio->parentWidget()->setToolTip(advTooltip);
+
+        ksVLayout->addWidget(m_killSwitchSubPanel);
+
+        // Wire toggle → apply CLI value + show/hide sub-panel
+        connect(m_killSwitchToggle, &ToggleSwitch::toggled, this, [this](bool on)
+        {
+            // The CLI refuses to change kill-switch while the VPN is active.
+            // Guard against any non-Disconnected state.
+            if (m_manager->currentState() != VpnState::Disconnected)
+            {
+                // Revert the toggle back without re-emitting the signal.
+                m_killSwitchToggle->blockSignals(true);
+                m_killSwitchToggle->setOn(!on, false);
+                m_killSwitchToggle->blockSignals(false);
+                m_killSwitchSubPanel->setVisible(!on);
+
+                showReconnectDialog(QStringLiteral("Kill Switch"), [this, on]()
+                {
+                    // Optimistically set the toggle to the new state.
+                    m_killSwitchToggle->blockSignals(true);
+                    m_killSwitchToggle->setOn(on, true);
+                    m_killSwitchToggle->blockSignals(false);
+                    m_killSwitchSubPanel->setVisible(on);
+                    // Lock the whole VPN card until the sequence completes.
+                    m_sequencePending = true;
+                    const QString val = on ? QStringLiteral("standard")
+                                           : QStringLiteral("off");
+                    m_manager->applyConfigValueAndReconnect(
+                        QStringLiteral("kill-switch"), val);
+                });
+                return;
+            }
+
+            m_killSwitchSubPanel->setVisible(on);
+            m_manager->applyConfigValue(QStringLiteral("kill-switch"),
+                                        on ? QStringLiteral("standard") : QStringLiteral("off"));
+        });
+
+        addVpn(ksContainer);
+    }
 
     // ── Plus Members Only divider ─────────────────────────────
     m_plusDivider = makePlusDivider(vpnCard);
@@ -750,17 +969,52 @@ SettingsPage::SettingsPage(VpnManager* manager, QWidget* parent)
 
         connect(m_dnsToggle, &ToggleSwitch::toggled, this, [this, dnsAddrRow](bool on)
         {
+            // Turning DNS off while connected requires a reconnect — show dialog
+            // and revert the toggle until the user confirms.
+            if (!on && m_manager->currentState() != VpnState::Disconnected)
+            {
+                m_dnsToggle->blockSignals(true);
+                m_dnsToggle->setOn(true, false); // revert — keep address row visible
+                m_dnsToggle->blockSignals(false);
+
+                showReconnectDialog(QStringLiteral("Custom DNS"), [this, dnsAddrRow]()
+                {
+                    // Now that the user confirmed, hide the row and reconnect.
+                    dnsAddrRow->setVisible(false);
+                    m_dnsToggle->blockSignals(true);
+                    m_dnsToggle->setOn(false, true);
+                    m_dnsToggle->blockSignals(false);
+                    m_sequencePending = true;
+                    m_manager->applyConfigValueAndReconnect(
+                        QStringLiteral("custom-dns"), QStringLiteral("off"));
+                });
+                return;
+            }
+
             dnsAddrRow->setVisible(on);
             if (!on)
                 m_manager->applyConfigValue(QStringLiteral("custom-dns"), QStringLiteral("off"));
         });
+
         connect(m_dnsApplyBtn, &QPushButton::clicked, this, [this]()
         {
             const QString dns = m_dnsEdit->text().trimmed();
             if (dns.isEmpty()) return;
-            m_manager->applyConfigValue(
-                QStringLiteral("custom-dns"),
-                QStringLiteral("--dns %1 on").arg(dns));
+
+            const QString cliValue = QStringLiteral("--dns %1 on").arg(dns);
+
+            if (m_manager->currentState() != VpnState::Disconnected)
+            {
+                showReconnectDialog(QStringLiteral("Custom DNS"), [this, cliValue]()
+                {
+                    m_sequencePending = true;
+                    m_manager->applyConfigValueAndReconnect(
+                        QStringLiteral("custom-dns"), cliValue);
+                });
+                return;
+            }
+
+            m_manager->applyConfigValue(QStringLiteral("custom-dns"), cliValue);
         });
     }
 
@@ -774,8 +1028,55 @@ SettingsPage::SettingsPage(VpnManager* manager, QWidget* parent)
     connect(m_manager, &VpnManager::settingsReady,    this, &SettingsPage::onSettingsReady);
     connect(m_manager, &VpnManager::accountTypeReady, this, [this](AccountType) { updatePlusSectionState(); });
     connect(m_manager, &VpnManager::cliVersionReady,  this, [this](const QString& v) { m_installedCliVersion = v; });
-
     connect(m_manager, &VpnManager::configApplied, this, &SettingsPage::maybeWarnReconnect);
+
+    // Disable all VPN-tab settings while the VPN is connecting or disconnecting,
+    // and keep them disabled throughout an applyConfigValueAndReconnect() sequence.
+    connect(m_manager, &VpnManager::connectionStateChanged, this,
+            [this](VpnState state, const QString&)
+    {
+        const bool transitioning = state == VpnState::Connecting
+                                || state == VpnState::Disconnecting;
+
+        if (m_sequencePending && !transitioning)
+        {
+            // We're in a change-and-reconnect sequence.
+            // Keep the whole card locked through the Disconnected interim.
+            if (state == VpnState::Connected || state == VpnState::Error)
+            {
+                // Sequence complete — restore everything.
+                m_sequencePending = false;
+                if (m_vpnCard)    m_vpnCard->setEnabled(true);
+                if (m_refreshBtn) m_refreshBtn->setEnabled(true);
+                updatePlusSectionState();
+            }
+            else
+            {
+                // Disconnected interim: re-disable what the card re-enable exposed.
+                if (m_vpnCard)    m_vpnCard->setEnabled(false);
+                if (m_refreshBtn) m_refreshBtn->setEnabled(false);
+            }
+            return;
+        }
+
+        // Normal (non-sequence) state change.
+        if (m_vpnCard)    m_vpnCard->setEnabled(!transitioning);
+        if (m_refreshBtn) m_refreshBtn->setEnabled(!transitioning);
+        if (!transitioning) updatePlusSectionState();
+    });
+
+    // Apply the transitioning state immediately in case the VPN is already
+    // mid-transition when the settings page is first constructed.
+    {
+        const VpnState s = m_manager->currentState();
+        const bool transitioning = s == VpnState::Connecting
+                                || s == VpnState::Disconnecting;
+        if (transitioning)
+        {
+            if (m_vpnCard)    m_vpnCard->setEnabled(false);
+            if (m_refreshBtn) m_refreshBtn->setEnabled(false);
+        }
+    }
 
     // Spinner timer
     m_spinnerTimer = new QTimer(this);
@@ -847,6 +1148,7 @@ void SettingsPage::setLoading(const bool loading)
     }
     for (const auto& r : std::as_const(m_toggleRows)) r.toggle->setEnabled(!loading);
     for (const auto& r : std::as_const(m_comboRows)) r.combo->setEnabled(!loading);
+    if (m_killSwitchToggle) m_killSwitchToggle->setEnabled(!loading);
     if (m_autoStartToggle) m_autoStartToggle->setEnabled(!loading);
     if (m_notificationsToggle) m_notificationsToggle->setEnabled(!loading);
     if (m_recentConnectionsSpinBox) m_recentConnectionsSpinBox->setEnabled(!loading);
@@ -870,6 +1172,18 @@ void SettingsPage::onSettingsReady(const QMap<QString, QString>& info)
         const QString v = val(row.cliKey);
         const bool on = (v == row.onValue) || isOnString(v);
         row.toggle->setOn(on, false);
+    }
+
+    // Kill switch – handled separately since it drives a collapsible sub-panel.
+    // Block signals so the toggled handler (which guards against changes while
+    // connected) cannot fire and accidentally revert the loaded state.
+    if (m_killSwitchToggle && m_killSwitchSubPanel)
+    {
+        const bool ksOn = val(QStringLiteral("kill-switch")) == QLatin1String("standard");
+        m_killSwitchToggle->blockSignals(true);
+        m_killSwitchToggle->setOn(ksOn, false);
+        m_killSwitchToggle->blockSignals(false);
+        m_killSwitchSubPanel->setVisible(ksOn);
     }
 
     // Combo rows – find the matching CLI value and select that index

@@ -37,6 +37,8 @@ public:
     void connectVpn(const QString& country = QString(), const QString& city = QString());
     void disconnectVpn();
     static void disconnectVpnSync(); // blocking disconnect — safe to call just before app exit
+    // Disconnect, change any config key/value, then reconnect to the previous location.
+    void applyConfigValueAndReconnect(const QString& key, const QString& value);
     void fetchCountries();
     void fetchCities(const QString& countryCode);
     void fetchInfo();
@@ -47,8 +49,11 @@ public:
     void fetchCliVersion();
     void fetchAccountType();
 
-    VpnState    currentState()   const { return m_state; }
-    AccountType accountType()    const { return m_accountType; }
+    VpnState    currentState()       const { return m_state; }
+    AccountType accountType()        const { return m_accountType; }
+    // Last country / city passed to connectVpn() — empty if connected via CLI.
+    QString     lastConnectCountry() const { return m_lastConnectCountry; }
+    QString     lastConnectCity()    const { return m_lastConnectCity; }
 
 signals:
     void installedResult(bool installed);
@@ -73,6 +78,8 @@ private:
     VpnState    m_state         = VpnState::Unknown;
     AccountType m_accountType   = AccountType::Unknown;
     QString     m_connectedServer;       // last server string seen while Connected
+    QString     m_lastConnectCountry;    // country arg last passed to connectVpn()
+    QString     m_lastConnectCity;       // city    arg last passed to connectVpn()
     QProcess*   m_signinProcess = nullptr;
     QTimer*     m_pollTimer     = nullptr;
     bool        m_pollActive    = false; // true while a poll process is in flight
