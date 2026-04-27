@@ -255,7 +255,10 @@ void VpnManager::connectVpn(const QString& country, const QString& city)
                 const QString ll = l.toLower();
                 return ll.contains(QLatin1String("outdated")) ||
                     ll.contains(QLatin1String("updating")) ||
-                    ll.contains(QLatin1String("this may take"));
+                    ll.contains(QLatin1String("this may take")) ||
+                    ll.contains(QLatin1String("to get your forwarded port")) ||
+                    ll.contains(QLatin1String("natpmpc")) ||
+                    (ll.startsWith(QLatin1String("guide:")) && ll.contains(QLatin1String("http")));
             }).begin(), lines.end());
             // Remove leading/trailing blank lines left after filtering
             while (!lines.isEmpty() && lines.first().trimmed().isEmpty())

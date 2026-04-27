@@ -14,6 +14,8 @@
 #include <QGuiApplication>
 #include <QVersionNumber>
 #include <QHBoxLayout>
+#include <QProcess>
+#include <QRegularExpression>
 #include "../vpnmanager.h"
 #include "../widgets/elidalabel.h"
 #include "../widgets/pickerbase.h"
@@ -131,6 +133,8 @@ public:
     void refreshRecentPicker();
     // Called when VpnManager has parsed a city from `protonvpn status`.
     void onStatusCityKnown(const QString& city);
+    // Returns true while the natpmpc keep-alive loop is running (port forwarding active).
+    bool isPortForwardingActive() const { return m_natPmpTimer != nullptr; }
 
 signals:
     void connectRequested(const QString& country, const QString& city);
@@ -167,6 +171,14 @@ private:
     int   m_checkingSpinnerFrame = 0;
     QString m_rawError;
 
+    // Port forwarding (natpmpc keep-alive loop)
+    QWidget*     m_portRow       = nullptr;
+    QLabel*      m_portLabel     = nullptr;
+    QTimer*      m_natPmpTimer   = nullptr;
+    bool         m_natPmpActive  = false;
+    int          m_forwardedPort = 0;
+    InfoBanner*  m_natpmpcBanner = nullptr;
+
     VpnState m_currentState = VpnState::Unknown;
     QString  m_activeCity;
     QString  m_pendingStatusCity; // city from protonvpn status, applied after cities populate
@@ -186,6 +198,9 @@ private:
     void checkPrereleaseBanner();
     void handleFreePlanError();
     void applyFreeUserMode();
+    void startNatPmpLoop();
+    void stopNatPmpLoop();
+    void runNatPmp();
     // After populate(), try to select m_pendingStatusCity; falls back to
     void applyPendingStatusCity();
 };
