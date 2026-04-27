@@ -314,6 +314,17 @@ MainWindow::MainWindow(QWidget* parent)
         msgLabel->setTextFormat(Qt::RichText);
         layout->addWidget(msgLabel);
 
+        if (m_vpnPage->isPortForwardingActive())
+        {
+            auto* pfLabel = new QLabel(
+                QStringLiteral("<i>Note: the forwarded port lease will lapse shortly after "
+                               "the app closes, as the keep-alive loop will no longer be running.</i>"),
+                dlg);
+            pfLabel->setWordWrap(true);
+            pfLabel->setTextFormat(Qt::RichText);
+            layout->addWidget(pfLabel);
+        }
+
         auto* btnRow = new QHBoxLayout();
         btnRow->setSpacing(8);
 

@@ -218,7 +218,7 @@ void SettingsPage::showReconnectDialog(const QString& settingLabel,
     connect(dismissBtn, &QPushButton::clicked, dlg, &QDialog::reject);
 
     auto* reconnectBtn = new QPushButton(
-        QStringLiteral("Disconnect, Apply && Reconnect"), dlg);
+        QStringLiteral("Apply && Reconnect"), dlg);
     reconnectBtn->setObjectName(QStringLiteral("primaryButton"));
     reconnectBtn->setDefault(true);
 
@@ -933,8 +933,7 @@ SettingsPage::SettingsPage(VpnManager* manager, QWidget* parent)
     addPlus(makeToggleRow(m_plusSection,
                           QStringLiteral("Port Forwarding"),
                           QStringLiteral("Bypass firewalls to connect to P2P servers and devices in your local network. "
-                              "<a href='https://protonvpn.com/support/port-forwarding'>Learn more</a> · "
-                              "<a href='https://protonvpn.com/support/port-forwarding-manual-setup#linux'>Guide</a>"),
+                              "<a href='https://protonvpn.com/support/port-forwarding'>Learn more</a>"),
                           QStringLiteral("port-forwarding")));
 
     // ── Custom DNS ────────────────────────────────────────────

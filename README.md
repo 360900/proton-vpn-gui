@@ -43,6 +43,20 @@ A Qt GUI front-end for the [Proton VPN Linux CLI](https://protonvpn.com/support/
 - Anonymous Crash Reports, IPv6, Kill Switch — available on all plans
 - *(Plus)* NAT Type, VPN Accelerator, NetShield Ad-blocker, Port Forwarding, Custom DNS
 
+### Port Forwarding *(Plus)*
+
+When Port Forwarding is enabled in Settings and you are connected to a P2P server, the app automatically manages the NAT-PMP lease using `natpmpc`:
+
+- The **forwarded port number** is displayed on the main VPN page with a one-click **Copy** button for easy use with torrent clients (e.g. Transmission, qBittorrent)
+- A **keep-alive loop** runs every 45 seconds to renew the 60-second NAT-PMP lease — the port stays valid as long as the app is open
+- If the app is closed while port forwarding is active, the lease will lapse within 60 seconds. A warning is shown in the quit dialog when this applies
+- If `natpmpc` is not installed, a banner is shown when you connect to a P2P server with port forwarding enabled. Install it with:
+  - **Debian / Ubuntu:** `sudo apt install natpmpc`
+  - **Fedora:** `sudo dnf install libnatpmp`
+  - **Arch:** `sudo pacman -S libnatpmp`
+
+`natpmpc` is an **optional** dependency — users who do not use port forwarding are unaffected by its absence.
+
 ---
 
 ## Screenshots
@@ -67,6 +81,9 @@ A Qt GUI front-end for the [Proton VPN Linux CLI](https://protonvpn.com/support/
 | `systemd` (user session) | **Optional** — required for the "Launch on Startup" feature |
 
 The app communicates exclusively with the `protonvpn` CLI. `curl` degrades gracefully if absent.
+
+> [!WARNING]
+> **The official Proton VPN GTK app is not supported alongside this app and will cause problems.** Both apps will conflict over connection state and session management. The CLI will produce errors when two front-ends are running at the same time. If you have the GTK app installed, it is advised that you uninstall it before using this app.
 
 ---
 
