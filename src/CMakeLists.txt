@@ -27,6 +27,9 @@ set(SOURCES
         uihelpers.h
         vpnmanager.h
         vpnmanager.cpp
+        cli/protonvpncli.cpp
+        cli/natpmpmanager.h
+        cli/natpmpmanager.cpp
         mainwindow.h
         mainwindow.cpp
         widgets/elidalabel.h

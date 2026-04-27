@@ -45,6 +45,11 @@ public:
     void fetchSettings();
     void applyConfig(const QString& key, bool enabled);
     void applyConfigValue(const QString& key, const QString& value);
+    // Async: fetch the features string for a specific city in a country.
+    // Parses `protonvpn cities list <countryCode>` and calls back with the
+    // features string (e.g. "P2P, Tor") or an empty string if not found.
+    void fetchCityFeatures(const QString& countryCode, const QString& city,
+                           std::function<void(const QString& features)> callback);
     void checkConnectionStatus();
     void fetchCliVersion();
     void fetchAccountType();
@@ -54,6 +59,8 @@ public:
     // Last country / city passed to connectVpn() — empty if connected via CLI.
     QString     lastConnectCountry() const { return m_lastConnectCountry; }
     QString     lastConnectCity()    const { return m_lastConnectCity; }
+    // Reads the port-forwarding setting directly from the settings JSON file.
+    bool        portForwardingEnabled() const;
 
 signals:
     void installedResult(bool installed);
@@ -65,6 +72,9 @@ signals:
     // Emitted (before connectionStateChanged) when a city is parsed from
     // `protonvpn status` output, so the UI can pre-select it in the picker.
     void connectionCityKnown(const QString& city);
+    // Emitted alongside connectionCityKnown with the 2-letter country code
+    // extracted from the connected server name (e.g. "US" from "US-NJ#189").
+    void connectionCountryKnown(const QString& countryCode);
     void countriesReady(const QMap<QString, QString>& countries); // name → code
     void citiesReady(const QString& countryCode, const QList<QPair<QString, QString>>& cities); // (city, features)
     void infoReady(const QMap<QString, QString>& info);

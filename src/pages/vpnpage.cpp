@@ -24,9 +24,6 @@
 #include <QCursor>
 #include <QScrollArea>
 #include <QVersionNumber>
-#include <QProcess>
-#include <QRegularExpression>
-#include <QStandardPaths>
 #include <cmath>
 
 // ============================================================
@@ -781,8 +778,9 @@ VpnPage::VpnPage(VpnManager* manager, QWidget* parent)
     portCopyBtn->setCursor(Qt::PointingHandCursor);
     connect(portCopyBtn, &QPushButton::clicked, this, [this]()
     {
-        if (m_forwardedPort > 0)
-            QGuiApplication::clipboard()->setText(QString::number(m_forwardedPort));
+        if (m_natPmpManager && m_natPmpManager->forwardedPort() > 0)
+            QGuiApplication::clipboard()->setText(
+                QString::number(m_natPmpManager->forwardedPort()));
     });
     portRowLayout->addWidget(portCopyBtn, 0, Qt::AlignVCenter);
 
@@ -848,6 +846,58 @@ VpnPage::VpnPage(VpnManager* manager, QWidget* parent)
     {
         if (m_currentState == VpnState::Connected)
             startNatPmpLoop();
+    });
+
+    // Track the country code of the currently connected server so we can look
+    // up city features via fetchCityFeatures() on startup.
+    connect(m_manager, &VpnManager::connectionCountryKnown, this, [this](const QString& cc)
+    {
+        m_connectedCountryCode = cc;
+    });
+
+    // ── NatPmpManager ────────────────────────────────────────────────────
+    m_natPmpManager = new NatPmpManager(this);
+
+    connect(m_natPmpManager, &NatPmpManager::portAcquired, this, [this](int port)
+    {
+        if (m_portLabel)
+            m_portLabel->setText(QString::number(port));
+        if (m_portRow)
+            m_portRow->setVisible(true);
+    });
+
+    connect(m_natPmpManager, &NatPmpManager::portLost, this, [this]()
+    {
+        if (m_portRow)
+            m_portRow->setVisible(false);
+    });
+
+    connect(m_natPmpManager, &NatPmpManager::natpmpcMissing, this, [this]()
+    {
+        if (m_natpmpcBanner)
+            return; // already showing
+        const auto* scrollArea = findChild<QScrollArea*>(QStringLiteral("vpnScrollArea"));
+        if (!scrollArea || !scrollArea->widget()) return;
+        auto* scrollLayout = qobject_cast<QVBoxLayout*>(scrollArea->widget()->layout());
+        if (!scrollLayout) return;
+
+        m_natpmpcBanner = new InfoBanner(
+            QStringLiteral(
+                "<b>natpmpc is not installed.</b> "
+                "The forwarded port cannot be displayed or kept alive automatically. "
+                "Install it to use port forwarding "
+                "(<code>sudo apt install natpmpc</code> on Debian/Ubuntu, "
+                "<code>sudo dnf install libnatpmp</code> on Fedora, "
+                "<code>sudo pacman -S libnatpmp</code> on Arch)."),
+            this);
+        connect(m_natpmpcBanner, &InfoBanner::dismissed, this, [this]()
+        {
+            m_natpmpcBanner = nullptr;
+        });
+        int pos = 0;
+        if (m_prereleaseBanner) ++pos;
+        if (m_versionBanner)    ++pos;
+        scrollLayout->insertWidget(pos, m_natpmpcBanner);
     });
     // Show a banner if this is a pre-release build
     checkPrereleaseBanner();
@@ -1025,6 +1075,23 @@ void VpnPage::onCitiesReady(const QString& countryCode,
 
     m_locationPicker->populate(cities);
     applyPendingStatusCity();
+
+    // Update the tracked features for the currently active city so
+    // refreshConnectedInfoLabel() can show "Port forwarding is active" when
+    // the app starts with the VPN already connected to a P2P server.
+    if (!m_activeCity.isEmpty())
+    {
+        for (const auto& [city, features] : cities)
+        {
+            if (city.compare(m_activeCity, Qt::CaseInsensitive) == 0)
+            {
+                m_currentCityFeatures = features;
+                break;
+            }
+        }
+    }
+    if (m_currentState == VpnState::Connected)
+        refreshConnectedInfoLabel();
 }
 
 void VpnPage::checkPrereleaseBanner()
@@ -1126,8 +1193,29 @@ void VpnPage::updateUi(const VpnState state, const QString& info)
         m_powerBtn->setEnabled(true);
         m_statusLabel->setText(QStringLiteral("Connected"));
         m_statusLabel->setStyleSheet(QStringLiteral("color: #1a9c5b; font-size: 16pt; font-weight: bold; letter-spacing: 1px;"));
-        m_infoLabel->setText(info.isEmpty() ? QString() : info);
+        m_lastConnectedInfo = info;
+        refreshConnectedInfoLabel();
         startNatPmpLoop();
+
+        // On app startup with VPN already connected, the CLI connect output is
+        // not available, so "Port forwarding is active on this server." won't be
+        // in `info`.  Fetch the city features explicitly and update the label once
+        // we know whether it's a P2P server.
+        if (m_manager->portForwardingEnabled() &&
+            !m_connectedCountryCode.isEmpty() && !m_activeCity.isEmpty())
+        {
+            const QString cc   = m_connectedCountryCode;
+            const QString city = m_activeCity;
+            m_manager->fetchCityFeatures(cc, city, [this, cc, city](const QString& features)
+            {
+                // Guard: still connected to the same server when the result arrives.
+                if (m_currentState != VpnState::Connected ||
+                    m_connectedCountryCode != cc || m_activeCity != city)
+                    return;
+                m_currentCityFeatures = features;
+                refreshConnectedInfoLabel();
+            });
+        }
         if (prevState == VpnState::Connecting)
         {
             startElapsedTimer();
@@ -1315,125 +1403,46 @@ void VpnPage::applyFreeUserMode()
 }
 
 // ---------------------------------------------------------------------------
-// Port forwarding (natpmpc keep-alive loop)
+// Port forwarding — NatPmpManager integration
 // ---------------------------------------------------------------------------
+
+void VpnPage::refreshConnectedInfoLabel()
+{
+    QString text = m_lastConnectedInfo;
+
+    // Append the port-forwarding notice if:
+    //   1. The setting is enabled in the VPN configuration, AND
+    //   2. The active city's server features include P2P, AND
+    //   3. The text doesn't already contain the notice (avoids duplicates from
+    //      the live CLI connect path, which already includes it).
+    const bool pfEnabled = m_manager->portForwardingEnabled();
+    const bool isP2P     = m_currentCityFeatures.contains(
+                               QLatin1String("p2p"), Qt::CaseInsensitive);
+    const QString pfNote = QStringLiteral("Port forwarding is active on this server.");
+    if (pfEnabled && isP2P && !text.contains(pfNote))
+    {
+        if (!text.isEmpty())
+            text += QLatin1Char('\n');
+        text += pfNote;
+    }
+
+    m_infoLabel->setText(text);
+}
 
 void VpnPage::startNatPmpLoop()
 {
-    if (m_natPmpTimer)
-        return; // already running
-
-    // If natpmpc is not installed, show a one-time warning banner and bail out.
-    // The banner is only created once per connect; dismissing it clears the
-    // pointer so it can appear again on the next connection if still missing.
-    if (QStandardPaths::findExecutable(QStringLiteral("natpmpc")).isEmpty())
-    {
-        if (!m_natpmpcBanner)
-        {
-            const auto* scrollArea = findChild<QScrollArea*>(QStringLiteral("vpnScrollArea"));
-            if (scrollArea && scrollArea->widget())
-            {
-                auto* scrollLayout = qobject_cast<QVBoxLayout*>(scrollArea->widget()->layout());
-                if (scrollLayout)
-                {
-                    m_natpmpcBanner = new InfoBanner(
-                        QStringLiteral(
-                            "<b>natpmpc is not installed.</b> "
-                            "The forwarded port cannot be displayed or kept alive automatically. "
-                            "Install it to use port forwarding "
-                            "(<code>sudo apt install natpmpc</code> on Debian/Ubuntu, "
-                            "<code>sudo dnf install libnatpmp</code> on Fedora, "
-                            "<code>sudo pacman -S libnatpmp</code> on Arch)."),
-                        this);
-                    connect(m_natpmpcBanner, &InfoBanner::dismissed, this, [this]()
-                    {
-                        m_natpmpcBanner = nullptr;
-                    });
-                    // Insert below any existing version/prerelease banners.
-                    int pos = 0;
-                    if (m_prereleaseBanner) ++pos;
-                    if (m_versionBanner)    ++pos;
-                    scrollLayout->insertWidget(pos, m_natpmpcBanner);
-                }
-            }
-        }
-        return; // don't start the loop without natpmpc
-    }
-
-    m_natPmpTimer = new QTimer(this);
-    // 45 s interval keeps a 60 s NAT-PMP lease comfortably alive.
-    m_natPmpTimer->setInterval(45'000);
-    connect(m_natPmpTimer, &QTimer::timeout, this, &VpnPage::runNatPmp);
-    m_natPmpTimer->start();
-
-    runNatPmp(); // fire immediately on connect
+    m_natPmpManager->start();
 }
 
 void VpnPage::stopNatPmpLoop()
 {
-    if (m_natPmpTimer)
-    {
-        m_natPmpTimer->stop();
-        m_natPmpTimer->deleteLater();
-        m_natPmpTimer = nullptr;
-    }
-    m_natPmpActive  = false;
-    m_forwardedPort = 0;
-    if (m_portRow) m_portRow->setVisible(false);
-}
+    m_natPmpManager->stop();
 
-void VpnPage::runNatPmp()
-{
-    if (m_natPmpActive)
-        return; // previous invocation still in flight
+    m_currentCityFeatures.clear();
+    m_lastConnectedInfo.clear();
+    m_connectedCountryCode.clear();
 
-    m_natPmpActive = true;
-
-    auto* process = new QProcess(this);
-    connect(process, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
-            this, [this, process](int exitCode, QProcess::ExitStatus)
-    {
-        m_natPmpActive = false;
-        const QString out = QString::fromUtf8(process->readAllStandardOutput())
-                          + QString::fromUtf8(process->readAllStandardError());
-        process->deleteLater();
-
-        if (exitCode != 0)
-        {
-            // natpmpc not installed, server doesn't support port forwarding,
-            // or port forwarding is disabled in VPN settings — stay hidden.
-            if (m_forwardedPort != 0)
-            {
-                m_forwardedPort = 0;
-                if (m_portRow) m_portRow->setVisible(false);
-            }
-            return;
-        }
-
-        // Example natpmpc output line:
-        //   "Mapped public port 53186 protocol UDP lifetime 60"
-        const QRegularExpression re(QStringLiteral(R"(Mapped public port (\d+))"));
-        const QRegularExpressionMatch match = re.match(out);
-        if (match.hasMatch())
-        {
-            const int port = match.captured(1).toInt();
-            if (port != m_forwardedPort)
-            {
-                m_forwardedPort = port;
-                if (m_portLabel)
-                    m_portLabel->setText(QString::number(port));
-            }
-            if (m_portRow) m_portRow->setVisible(true);
-        }
-    });
-
-    // Run UDP mapping then TCP mapping in one shell invocation.
-    // Both mappings are required by the ProtonVPN port forwarding spec;
-    // the allocated port number is the same for both and is parsed from
-    // the UDP response.
-    process->start(QStringLiteral("/bin/sh"),
-                   {QStringLiteral("-c"),
-                    QStringLiteral("natpmpc -a 1 0 udp 60 -g 10.2.0.1 "
-                                   "&& natpmpc -a 1 0 tcp 60 -g 10.2.0.1")});
+    if (m_portRow)
+        m_portRow->setVisible(false);
 }
 
