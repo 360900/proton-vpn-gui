@@ -218,7 +218,7 @@ void SettingsPage::showReconnectDialog(const QString& settingLabel,
     connect(dismissBtn, &QPushButton::clicked, dlg, &QDialog::reject);
 
     auto* reconnectBtn = new QPushButton(
-        QStringLiteral("Disconnect, Apply && Reconnect"), dlg);
+        QStringLiteral("Apply && Reconnect"), dlg);
     reconnectBtn->setObjectName(QStringLiteral("primaryButton"));
     reconnectBtn->setDefault(true);
 

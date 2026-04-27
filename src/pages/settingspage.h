@@ -141,7 +141,7 @@ private:
     QWidget* makeComboRow(QWidget* parent, const QString& label, const QString& desc,
                           const QString& cliKey, const QStringList& labels,
                           const QStringList& cliValues);
-    // Shows the standard "Disconnect, Apply & Reconnect" dialog for any setting
+    // Shows the standard "Apply & Reconnect" dialog for any setting
     // that cannot be changed while the VPN is active.  onAccept is called if
     // the user clicks the primary button; nothing extra is called on dismiss.
     void showReconnectDialog(const QString& settingLabel,
