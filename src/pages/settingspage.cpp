@@ -15,6 +15,12 @@
 #include <QDialogButtonBox> // ignore unused include warning for QDialogButtonBox
 #include <QTextBrowser>
 #include <QMessageBox>
+#include <QStyle>
+#include <QFontDatabase>
+#include <QSvgRenderer>
+#include <QPainter>
+#include <QClipboard>
+#include <QApplication>
 #include <QDir>
 #include <QStandardPaths>
 #include <QProcess>
@@ -440,8 +446,8 @@ void SettingsPage::updateAutoConnectRowVisibility() const
     }
 }
 
-SettingsPage::SettingsPage(VpnManager* manager, QWidget* parent)
-    : QWidget(parent), m_manager(manager)
+SettingsPage::SettingsPage(VpnManager* manager, NatPmpManager* natPmpManager, QWidget* parent)
+    : QWidget(parent), m_manager(manager), m_natPmpManager(natPmpManager)
 {
     auto* outerLayout = new QVBoxLayout(this);
     outerLayout->setContentsMargins(16, 16, 16, 16);
@@ -930,11 +936,221 @@ SettingsPage::SettingsPage(VpnManager* manager, QWidget* parent)
                          }));
 
     // ── Port Forwarding ───────────────────────────────────────
-    addPlus(makeToggleRow(m_plusSection,
-                          QStringLiteral("Port Forwarding"),
-                          QStringLiteral("Bypass firewalls to connect to P2P servers and devices in your local network. "
-                              "<a href='https://protonvpn.com/support/port-forwarding'>Learn more</a>"),
-                          QStringLiteral("port-forwarding")));
+    {
+        auto* pfRow = makeToggleRow(m_plusSection,
+                                    QStringLiteral("Port Forwarding"),
+                                    QStringLiteral("Bypass firewalls to connect to P2P servers and devices in your local network. "
+                                        "<a href='https://protonvpn.com/support/port-forwarding'>Learn more</a>"),
+                                    QStringLiteral("port-forwarding"));
+        // Grab the toggle widget that makeToggleRow just appended to m_toggleRows.
+        m_portForwardingToggle = m_toggleRows.last().toggle;
+
+        // Show a warning popup if the user enables port forwarding without natpmpc installed.
+        connect(m_portForwardingToggle, &ToggleSwitch::toggled, this, [this](bool on)
+        {
+            if (on && !NatPmpManager::isInstalled())
+            {
+                auto* dlg = new QDialog(this);
+                dlg->setWindowTitle(QStringLiteral("natpmpc Not Installed"));
+                dlg->setAttribute(Qt::WA_DeleteOnClose);
+                dlg->setMinimumWidth(480);
+
+                auto* layout = new QVBoxLayout(dlg);
+                layout->setSpacing(12);
+                layout->setContentsMargins(20, 20, 20, 16);
+
+                // Icon + title row
+                auto* titleRow = new QHBoxLayout();
+                auto* iconLabel = new QLabel(dlg);
+                iconLabel->setPixmap(dlg->style()->standardIcon(QStyle::SP_MessageBoxWarning)
+                                         .pixmap(32, 32));
+                titleRow->addWidget(iconLabel);
+                titleRow->addSpacing(8);
+                auto* titleLabel = new QLabel(QStringLiteral("<b>natpmpc is not installed.</b>"), dlg);
+                titleLabel->setTextFormat(Qt::RichText);
+                titleRow->addWidget(titleLabel, 1);
+                layout->addLayout(titleRow);
+
+                // Description
+                auto* descLabel = new QLabel(
+                    QStringLiteral("Port forwarding requires the <code>natpmpc</code> binary to display "
+                                   "and keep the forwarded port alive. Without it, the forwarded port "
+                                   "will not be shown in the app.<br><br>"
+                                   "Install it using the command for your distribution:"),
+                    dlg);
+                descLabel->setTextFormat(Qt::RichText);
+                descLabel->setWordWrap(true);
+                layout->addWidget(descLabel);
+
+                // Build the clipboard icon once from the SVG asset, tinted white.
+                const auto makeClipboardIcon = [](int size) -> QIcon
+                {
+                    QPixmap pix(size, size);
+                    pix.fill(Qt::transparent);
+                    QPainter p(&pix);
+                    QSvgRenderer renderer(QStringLiteral(":/assets/clipboard2-plus.svg"));
+                    renderer.render(&p);
+                    // Tint every opaque pixel white.
+                    p.setCompositionMode(QPainter::CompositionMode_SourceIn);
+                    p.fillRect(pix.rect(), Qt::white);
+                    p.end();
+                    return QIcon(pix);
+                };
+                const QIcon clipIcon = makeClipboardIcon(16);
+
+                // Helper lambda to add a labelled read-only command input with a copy button.
+                auto addCmd = [&](const QString& distro, const QString& cmd)
+                {
+                    layout->addWidget(new QLabel(distro, dlg));
+
+                    auto* row  = new QWidget(dlg);
+                    auto* hbox = new QHBoxLayout(row);
+                    hbox->setContentsMargins(0, 0, 0, 0);
+                    hbox->setSpacing(4);
+
+                    auto* edit = new QLineEdit(cmd, row);
+                    edit->setReadOnly(true);
+                    edit->setObjectName(QStringLiteral("codeInput"));
+                    edit->setFont(QFontDatabase::systemFont(QFontDatabase::FixedFont));
+                    hbox->addWidget(edit, 1);
+
+                    auto* copyBtn = new QPushButton(row);
+                    copyBtn->setIcon(clipIcon);
+                    copyBtn->setIconSize({16, 16});
+                    copyBtn->setFixedSize(28, 28);
+                    copyBtn->setToolTip(QStringLiteral("Copy to Clipboard"));
+                    copyBtn->setStyleSheet(QStringLiteral(
+                        "QPushButton {"
+                        "  border: 1px solid palette(mid);"
+                        "  border-radius: 4px;"
+                        "  padding: 2px;"
+                        "  background: transparent;"
+                        "}"
+                        "QPushButton:hover {"
+                        "  border-color: palette(highlight);"
+                        "  background: rgba(255,255,255,15);"
+                        "}"
+                        "QPushButton:pressed {"
+                        "  background: rgba(255,255,255,30);"
+                        "}"));
+                    connect(copyBtn, &QPushButton::clicked, dlg, [cmd]()
+                    {
+                        QApplication::clipboard()->setText(cmd);
+                    });
+                    hbox->addWidget(copyBtn);
+
+                    layout->addWidget(row);
+                };
+
+                addCmd(QStringLiteral("Debian / Ubuntu:"), QStringLiteral("sudo apt install natpmpc"));
+                addCmd(QStringLiteral("Fedora:"),          QStringLiteral("sudo dnf install libnatpmp"));
+                addCmd(QStringLiteral("Arch Linux:"),      QStringLiteral("sudo pacman -S libnatpmp"));
+
+                // OK button
+                auto* btnBox = new QDialogButtonBox(QDialogButtonBox::Ok, dlg);
+                connect(btnBox, &QDialogButtonBox::accepted, dlg, &QDialog::accept);
+                layout->addSpacing(4);
+                layout->addWidget(btnBox);
+
+                dlg->exec();
+            }
+        });
+
+        // Hide the forwarded port row when port forwarding is turned off.
+        connect(m_portForwardingToggle, &ToggleSwitch::toggled, this, [this](bool on)
+        {
+            if (!on && m_settingsPortRow)
+                m_settingsPortRow->setVisible(false);
+        });
+
+        addPlus(pfRow);
+
+        // ── Forwarded port display ────────────────────────────────────────
+        // Shown below the toggle when port forwarding is on and natpmpc is installed.
+        m_settingsPortRow = new QWidget(m_plusSection);
+        m_settingsPortRow->setObjectName(QStringLiteral("settingsPortRow"));
+        auto* portRowLayout = new QHBoxLayout(m_settingsPortRow);
+        portRowLayout->setContentsMargins(16, 0, 16, 12);
+        portRowLayout->setSpacing(8);
+
+        auto* portTitleLabel = new QLabel(QStringLiteral("Forwarded Port:"), m_settingsPortRow);
+        portTitleLabel->setObjectName(QStringLiteral("infoLabel"));
+        portRowLayout->addWidget(portTitleLabel, 0, Qt::AlignVCenter);
+
+        // Button group
+        auto* btnGroup = new QWidget(m_settingsPortRow);
+        auto* btnGroupLayout = new QHBoxLayout(btnGroup);
+        btnGroupLayout->setContentsMargins(0, 0, 0, 0);
+        btnGroupLayout->setSpacing(0);
+
+        m_settingsPortLabel = new QLabel(QStringLiteral("—"), btnGroup);
+        m_settingsPortLabel->setObjectName(QStringLiteral("portValueLabel"));
+        m_settingsPortLabel->setAlignment(Qt::AlignCenter);
+        {
+            QFont f = m_settingsPortLabel->font();
+            f.setBold(true);
+            f.setPointSize(f.pointSize() + 1);
+            m_settingsPortLabel->setFont(f);
+        }
+        btnGroupLayout->addWidget(m_settingsPortLabel);
+
+        // Build white-tinted clipboard icon
+        QPixmap clipPix(16, 16);
+        clipPix.fill(Qt::transparent);
+        {
+            QPainter clipPainter(&clipPix);
+            QSvgRenderer clipRenderer(QStringLiteral(":/assets/clipboard2-plus.svg"));
+            clipRenderer.render(&clipPainter);
+            clipPainter.setCompositionMode(QPainter::CompositionMode_SourceIn);
+            clipPainter.fillRect(clipPix.rect(), Qt::white);
+        }
+        auto* portCopyBtn = new QPushButton(btnGroup);
+        portCopyBtn->setObjectName(QStringLiteral("portCopyBtn"));
+        portCopyBtn->setIcon(QIcon(clipPix));
+        portCopyBtn->setIconSize({16, 16});
+        portCopyBtn->setFixedSize(34, 30);
+        portCopyBtn->setCursor(Qt::PointingHandCursor);
+        portCopyBtn->setToolTip(QStringLiteral("Copy to Clipboard"));
+        connect(portCopyBtn, &QPushButton::clicked, this, [this]()
+        {
+            if (m_natPmpManager && m_natPmpManager->forwardedPort() > 0)
+                QApplication::clipboard()->setText(QString::number(m_natPmpManager->forwardedPort()));
+        });
+        btnGroupLayout->addWidget(portCopyBtn);
+
+        portRowLayout->addWidget(btnGroup, 0, Qt::AlignVCenter);
+        portRowLayout->addStretch();
+        plusLayout->addWidget(m_settingsPortRow);
+        m_settingsPortRow->setVisible(false);
+
+        // Wire NatPmpManager signals to update this display.
+        if (m_natPmpManager)
+        {
+            connect(m_natPmpManager, &NatPmpManager::portAcquired, this, [this](int port)
+            {
+                if (m_settingsPortLabel)
+                    m_settingsPortLabel->setText(QString::number(port));
+                if (m_settingsPortRow)
+                    m_settingsPortRow->setVisible(true);
+            });
+            connect(m_natPmpManager, &NatPmpManager::portLost, this, [this]()
+            {
+                if (m_settingsPortRow)
+                    m_settingsPortRow->setVisible(false);
+            });
+            connect(m_natPmpManager, &NatPmpManager::natpmpcMissing, this, [this]()
+            {
+                if (m_settingsPortRow)
+                    m_settingsPortRow->setVisible(false);
+            });
+            // If a port is already active when settings is opened, show it immediately.
+            if (m_natPmpManager->forwardedPort() > 0)
+            {
+                m_settingsPortLabel->setText(QString::number(m_natPmpManager->forwardedPort()));
+                m_settingsPortRow->setVisible(true);
+            }
+        }
+    }
 
     // ── Custom DNS ────────────────────────────────────────────
     {

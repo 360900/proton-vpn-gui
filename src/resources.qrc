@@ -23,6 +23,7 @@
         <file alias="server-smart-routing.svg">assets/servers/smart-routing.svg</file>
         <file alias="server-streaming.svg">assets/servers/streaming.svg</file>
         <file alias="server-tor.svg">assets/servers/tor.svg</file>
+        <file alias="clipboard2-plus.svg">assets/clipboard2-plus.svg</file>
     </qresource>
     <qresource prefix="/">
         <file>version.json</file>

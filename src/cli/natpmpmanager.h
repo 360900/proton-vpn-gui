@@ -21,10 +21,19 @@ class NatPmpManager : public QObject
 public:
     explicit NatPmpManager(QObject* parent = nullptr);
 
+    // Returns true if the natpmpc binary is available on PATH.
+    static bool isInstalled();
+
     // Start the keep-alive loop.
     // Emits natpmpcMissing() immediately and returns without starting if the
     // natpmpc binary is not found on PATH.
     void start();
+
+    // If the loop is already running, fires an immediate port-mapping request
+    // without waiting for the next 45-second tick.  If the loop is not yet
+    // running, calls start().  Safe to call when a request is already in flight
+    // (it will be a no-op in that case).
+    void refresh();
 
     // Stop the loop and reset internal state.
     void stop();

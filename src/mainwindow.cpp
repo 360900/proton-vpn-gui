@@ -158,7 +158,7 @@ MainWindow::MainWindow(QWidget* parent)
     });
 
     // Settings page (index 6)
-    m_settingsPage = new SettingsPage(m_manager);
+    m_settingsPage = new SettingsPage(m_manager, m_vpnPage->natPmpManager());
     m_stack->addWidget(m_settingsPage); // index 6
     connect(m_settingsPage, &SettingsPage::recentConnectionsCleared,
             m_vpnPage, &VpnPage::refreshRecentPicker);

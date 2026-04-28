@@ -8,6 +8,7 @@
 #include <QTimer>
 #include <functional>
 #include "../vpnmanager.h"
+#include "../cli/natpmpmanager.h"
 
 // ---------------------------------------------------------------------------
 // ToggleSwitch – animated on/off switch
@@ -54,7 +55,7 @@ class SettingsPage : public QWidget
     Q_OBJECT
 
 public:
-    explicit SettingsPage(VpnManager* manager, QWidget* parent = nullptr);
+    explicit SettingsPage(VpnManager* manager, NatPmpManager* natPmpManager, QWidget* parent = nullptr);
     void refresh();
 
 signals:
@@ -80,6 +81,7 @@ private:
     };
 
     VpnManager* m_manager;
+    NatPmpManager* m_natPmpManager = nullptr;
     QList<ToggleRow> m_toggleRows;
     QList<ComboRow> m_comboRows;
 
@@ -87,6 +89,11 @@ private:
     ToggleSwitch* m_dnsToggle = nullptr;
     QLineEdit* m_dnsEdit = nullptr;
     QPushButton* m_dnsApplyBtn = nullptr;
+
+    // Port forwarding toggle
+    ToggleSwitch* m_portForwardingToggle = nullptr;
+    QWidget* m_settingsPortRow = nullptr;
+    QLabel*  m_settingsPortLabel = nullptr;
 
     // Kill switch toggle + collapsible radio-button sub-panel
     ToggleSwitch* m_killSwitchToggle   = nullptr;
