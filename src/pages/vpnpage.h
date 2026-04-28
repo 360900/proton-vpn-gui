@@ -134,6 +134,7 @@ public:
     void onStatusCityKnown(const QString& city);
     // Returns true while the natpmpc keep-alive loop is running (port forwarding active).
     bool isPortForwardingActive() const { return m_natPmpManager && m_natPmpManager->isRunning(); }
+    NatPmpManager* natPmpManager() const { return m_natPmpManager; }
 
 signals:
     void connectRequested(const QString& country, const QString& city);
@@ -200,6 +201,7 @@ private:
     void applyFreeUserMode();
     void startNatPmpLoop();
     void stopNatPmpLoop();
+    void showNatpmpcBanner();
     void refreshConnectedInfoLabel();
     // After populate(), try to select m_pendingStatusCity; falls back to
     void applyPendingStatusCity();

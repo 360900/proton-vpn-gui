@@ -15,6 +15,11 @@ NatPmpManager::NatPmpManager(QObject* parent)
 {
 }
 
+bool NatPmpManager::isInstalled()
+{
+    return !QStandardPaths::findExecutable(QStringLiteral("natpmpc")).isEmpty();
+}
+
 void NatPmpManager::start()
 {
     if (m_timer)
@@ -32,6 +37,18 @@ void NatPmpManager::start()
     m_timer->start();
 
     run(); // fire immediately so the port appears without a 45 s wait
+}
+
+void NatPmpManager::refresh()
+{
+    if (!m_timer)
+    {
+        start(); // not yet running — start() calls run() immediately
+        return;
+    }
+    // Loop already running: fire an immediate request if none is in flight.
+    if (!m_active)
+        run();
 }
 
 void NatPmpManager::stop()
@@ -64,7 +81,19 @@ void NatPmpManager::run()
 
         if (exitCode != 0)
         {
-            if (m_forwardedPort != 0)
+            if (!isInstalled())
+            {
+                // natpmpc was uninstalled during runtime — clear the displayed
+                // port first, then stop the loop and signal the missing binary.
+                if (m_forwardedPort != 0)
+                {
+                    m_forwardedPort = 0;
+                    emit portLost();
+                }
+                stop();
+                emit natpmpcMissing();
+            }
+            else if (m_forwardedPort != 0)
             {
                 m_forwardedPort = 0;
                 emit portLost();

@@ -756,33 +756,63 @@ VpnPage::VpnPage(VpnManager* manager, QWidget* parent)
     m_portRow = new QWidget(scrollContent);
     auto* portRowLayout = new QHBoxLayout(m_portRow);
     portRowLayout->setContentsMargins(0, 4, 0, 4);
-    portRowLayout->setSpacing(10);
+    portRowLayout->setSpacing(8);
 
     auto* portTitleLabel = new QLabel(QStringLiteral("Forwarded Port:"), m_portRow);
     portTitleLabel->setObjectName(QStringLiteral("infoLabel"));
     portRowLayout->addWidget(portTitleLabel, 0, Qt::AlignVCenter);
 
-    m_portLabel = new QLabel(QStringLiteral("—"), m_portRow);
+    // ── Button-group container ────────────────────────────────────────────
+    // Left segment : port number label
+    // Right segment: clipboard icon button
+    // Styled to look like a Bootstrap input-group / btn-group.
+    auto* btnGroup = new QWidget(m_portRow);
+    btnGroup->setObjectName(QStringLiteral("portBtnGroup"));
+    auto* btnGroupLayout = new QHBoxLayout(btnGroup);
+    btnGroupLayout->setContentsMargins(0, 0, 0, 0);
+    btnGroupLayout->setSpacing(0);
+
+    // Left segment — port number
+    m_portLabel = new QLabel(QStringLiteral("—"), btnGroup);
     m_portLabel->setObjectName(QStringLiteral("portValueLabel"));
+    m_portLabel->setAlignment(Qt::AlignCenter);
     {
         QFont f = m_portLabel->font();
         f.setBold(true);
         f.setPointSize(f.pointSize() + 1);
         m_portLabel->setFont(f);
     }
-    portRowLayout->addWidget(m_portLabel, 0, Qt::AlignVCenter);
+    btnGroupLayout->addWidget(m_portLabel);
 
-    auto* portCopyBtn = new QPushButton(QStringLiteral("Copy"), m_portRow);
-    portCopyBtn->setObjectName(QStringLiteral("secondaryButton"));
-    portCopyBtn->setFixedHeight(26);
+    // Right segment — clipboard icon button
+    // Build a white-tinted icon from the SVG asset.
+    QPixmap clipPix(16, 16);
+    clipPix.fill(Qt::transparent);
+    {
+        QPainter clipPainter(&clipPix);
+        QSvgRenderer clipRenderer(QStringLiteral(":/assets/clipboard2-plus.svg"));
+        clipRenderer.render(&clipPainter);
+        clipPainter.setCompositionMode(QPainter::CompositionMode_SourceIn);
+        clipPainter.fillRect(clipPix.rect(), Qt::white);
+    }
+
+    auto* portCopyBtn = new QPushButton(btnGroup);
+    portCopyBtn->setObjectName(QStringLiteral("portCopyBtn"));
+    portCopyBtn->setIcon(QIcon(clipPix));
+    portCopyBtn->setIconSize({16, 16});
+    portCopyBtn->setFixedSize(34, m_portLabel->sizeHint().height() > 0
+                                      ? m_portLabel->sizeHint().height() : 30);
     portCopyBtn->setCursor(Qt::PointingHandCursor);
+    portCopyBtn->setToolTip(QStringLiteral("Copy to Clipboard"));
     connect(portCopyBtn, &QPushButton::clicked, this, [this]()
     {
         if (m_natPmpManager && m_natPmpManager->forwardedPort() > 0)
             QGuiApplication::clipboard()->setText(
                 QString::number(m_natPmpManager->forwardedPort()));
     });
-    portRowLayout->addWidget(portCopyBtn, 0, Qt::AlignVCenter);
+    btnGroupLayout->addWidget(portCopyBtn);
+
+    portRowLayout->addWidget(btnGroup, 0, Qt::AlignVCenter);
 
     m_portRow->setVisible(false);
     scrollLayout->addWidget(m_portRow, 0, Qt::AlignCenter);
@@ -840,12 +870,27 @@ VpnPage::VpnPage(VpnManager* manager, QWidget* parent)
     connect(m_manager, &VpnManager::cliVersionReady, this, &VpnPage::onCliVersionReady);
     m_manager->fetchCliVersion();
 
-    // If the user enables port forwarding while already connected, kick off
-    // the natpmpc loop immediately rather than waiting for the next reconnect.
+    // If the user enables/disables port forwarding while already connected,
+    // start or stop the natpmpc loop immediately without waiting for reconnect.
     connect(m_manager, &VpnManager::configApplied, this, [this](const QString&)
     {
         if (m_currentState == VpnState::Connected)
-            startNatPmpLoop();
+        {
+            if (m_manager->portForwardingEnabled())
+            {
+                startNatPmpLoop();
+            }
+            else
+            {
+                stopNatPmpLoop();
+                // Remove the "natpmpc not installed" banner if it is still visible.
+                if (m_natpmpcBanner)
+                {
+                    m_natpmpcBanner->deleteLater();
+                    m_natpmpcBanner = nullptr;
+                }
+            }
+        }
     });
 
     // Track the country code of the currently connected server so we can look
@@ -874,30 +919,7 @@ VpnPage::VpnPage(VpnManager* manager, QWidget* parent)
 
     connect(m_natPmpManager, &NatPmpManager::natpmpcMissing, this, [this]()
     {
-        if (m_natpmpcBanner)
-            return; // already showing
-        const auto* scrollArea = findChild<QScrollArea*>(QStringLiteral("vpnScrollArea"));
-        if (!scrollArea || !scrollArea->widget()) return;
-        auto* scrollLayout = qobject_cast<QVBoxLayout*>(scrollArea->widget()->layout());
-        if (!scrollLayout) return;
-
-        m_natpmpcBanner = new InfoBanner(
-            QStringLiteral(
-                "<b>natpmpc is not installed.</b> "
-                "The forwarded port cannot be displayed or kept alive automatically. "
-                "Install it to use port forwarding "
-                "(<code>sudo apt install natpmpc</code> on Debian/Ubuntu, "
-                "<code>sudo dnf install libnatpmp</code> on Fedora, "
-                "<code>sudo pacman -S libnatpmp</code> on Arch)."),
-            this);
-        connect(m_natpmpcBanner, &InfoBanner::dismissed, this, [this]()
-        {
-            m_natpmpcBanner = nullptr;
-        });
-        int pos = 0;
-        if (m_prereleaseBanner) ++pos;
-        if (m_versionBanner)    ++pos;
-        scrollLayout->insertWidget(pos, m_natpmpcBanner);
+        showNatpmpcBanner();
     });
     // Show a banner if this is a pre-release build
     checkPrereleaseBanner();
@@ -1431,7 +1453,51 @@ void VpnPage::refreshConnectedInfoLabel()
 
 void VpnPage::startNatPmpLoop()
 {
-    m_natPmpManager->start();
+    if (!NatPmpManager::isInstalled())
+    {
+        showNatpmpcBanner();
+        return;
+    }
+
+    // natpmpc is available — dismiss any stale "not installed" banner that
+    // may have been shown before the user installed the package at runtime.
+    if (m_natpmpcBanner)
+    {
+        m_natpmpcBanner->deleteLater();
+        m_natpmpcBanner = nullptr;
+    }
+
+    // refresh() fires an immediate port-mapping request whether or not the
+    // keep-alive loop was already running, preventing a 45-second wait.
+    m_natPmpManager->refresh();
+}
+
+void VpnPage::showNatpmpcBanner()
+{
+    if (!m_manager->portForwardingEnabled())
+        return; // port forwarding is off — don't nag the user
+    if (m_natpmpcBanner)
+        return; // already showing
+
+    const auto* scrollArea = findChild<QScrollArea*>(QStringLiteral("vpnScrollArea"));
+    if (!scrollArea || !scrollArea->widget()) return;
+    auto* scrollLayout = qobject_cast<QVBoxLayout*>(scrollArea->widget()->layout());
+    if (!scrollLayout) return;
+
+    m_natpmpcBanner = new InfoBanner(
+        QStringLiteral(
+            "<b>natpmpc is not installed.</b> "
+            "The forwarded port cannot be displayed or kept alive automatically. "
+            "Install it to use port forwarding."),
+        this);
+    connect(m_natpmpcBanner, &InfoBanner::dismissed, this, [this]()
+    {
+        m_natpmpcBanner = nullptr;
+    });
+    int pos = 0;
+    if (m_prereleaseBanner) ++pos;
+    if (m_versionBanner)    ++pos;
+    scrollLayout->insertWidget(pos, m_natpmpcBanner);
 }
 
 void VpnPage::stopNatPmpLoop()

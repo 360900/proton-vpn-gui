@@ -378,3 +378,29 @@ QFrame#plusDividerLine {
     color: #3a3a55;
 }
 
+/* ── Forwarded-port button group ── */
+/* Left segment: port number label */
+QLabel#portValueLabel {
+    border: 1px solid palette(mid);
+    border-right: none;
+    border-top-left-radius: 5px;
+    border-bottom-left-radius: 5px;
+    background: transparent;
+    padding: 4px 12px;
+    font-weight: bold;
+}
+/* Right segment: clipboard copy button */
+QPushButton#portCopyBtn {
+    border: 1px solid palette(mid);
+    border-top-right-radius: 5px;
+    border-bottom-right-radius: 5px;
+    background: transparent;
+    padding: 0px;
+}
+QPushButton#portCopyBtn:hover {
+    border-color: palette(highlight);
+    background: rgba(255,255,255,20);
+}
+QPushButton#portCopyBtn:pressed {
+    background: rgba(255,255,255,40);
+}
