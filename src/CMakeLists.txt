@@ -54,6 +54,8 @@ set(SOURCES
         pages/accountpage.cpp
         pages/settingspage.h
         pages/settingspage.cpp
+        dialogs/aboutdialog.h
+        dialogs/aboutdialog.cpp
         resources.qrc
         flags.qrc
 )

@@ -9,6 +9,7 @@
 #include <functional>
 #include "../vpnmanager.h"
 #include "../cli/natpmpmanager.h"
+#include "../dialogs/aboutdialog.h"
 
 // ---------------------------------------------------------------------------
 // ToggleSwitch – animated on/off switch
@@ -166,6 +167,5 @@ private:
     void updateAutoConnectRowVisibility() const;
 
     void onSettingsReady(const QMap<QString, QString>& settings);
-    void showAboutDialog();
     void setLoading(bool loading);
 };
