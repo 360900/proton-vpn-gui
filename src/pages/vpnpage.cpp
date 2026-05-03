@@ -6,6 +6,8 @@
 
 #include <QFile>
 #include <QHBoxLayout>
+// ReSharper disable once CppUnusedIncludeDirective
+#include <QJsonDocument> // Ignore unused include warning; we do use QJsonDocument
 #include <QJsonObject>
 #include <QMouseEvent>
 #include <QPainter>
@@ -21,7 +23,6 @@
 #include <QScrollArea>
 #include <QVersionNumber>
 #include <cmath>
-#include <ranges>
 
 // ============================================================
 // PowerButton implementation

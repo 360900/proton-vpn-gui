@@ -3,6 +3,8 @@
 
 #include <QFile>
 #include <QHBoxLayout>
+// ReSharper disable once CppUnusedIncludeDirective
+#include <QJsonDocument> // Ignore unused include warning; we do use QJsonDocument
 #include <QJsonObject>
 #include <QLabel>
 #include <QPixmap>
