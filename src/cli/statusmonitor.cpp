@@ -122,7 +122,7 @@ void StatusMonitor::launchProcess()
             this, &StatusMonitor::onReadyRead);
 
     connect(m_process,
-            QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
+            &QProcess::finished,
             this, &StatusMonitor::onProcessFinished);
 
     m_process->start(QStringLiteral("/bin/bash"),

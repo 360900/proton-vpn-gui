@@ -7,6 +7,7 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QStandardPaths>
+#include <ranges>
 
 static QString historyFilePath()
 {
@@ -53,19 +54,22 @@ void ConnectionHistory::record(const QString& countryCode,
         return;
 
     // If already present, update timestamp and move to front
-    for (int i = 0; i < m_entries.size(); ++i)
-    {
-        if (m_entries[i].countryCode == countryCode &&
-            m_entries[i].city == city)
+    const auto it = std::ranges::find_if(m_entries,
+        [&countryCode, &city](const ConnectionEntry& e)
         {
-            m_entries[i].connectedAt = QDateTime::currentDateTime();
-            m_entries[i].countryName = countryName; // keep name fresh
-            // Move to front
-            m_entries.move(i, 0);
-            save();
-            emit changed();
-            return;
-        }
+            return e.countryCode == countryCode && e.city == city;
+        });
+
+    if (it != m_entries.end())
+    {
+        it->connectedAt = QDateTime::currentDateTime();
+        it->countryName = countryName; // keep name fresh
+        // Move to front
+        const int idx = static_cast<int>(std::ranges::distance(m_entries.begin(), it));
+        m_entries.move(idx, 0);
+        save();
+        emit changed();
+        return;
     }
 
     // New entry — prepend

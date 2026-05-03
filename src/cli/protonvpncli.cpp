@@ -19,7 +19,7 @@ void VpnManager::runCommand(const QStringList& args,
                             std::function<void(int, const QString&, const QString&)> callback)
 {
     auto* process = new QProcess(this);
-    connect(process, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
+    connect(process, &QProcess::finished,
             this, [process, callback](int exitCode, QProcess::ExitStatus)
             {
                 const QString out = QString::fromUtf8(process->readAllStandardOutput()).trimmed();
@@ -37,7 +37,7 @@ void VpnManager::runCommand(const QStringList& args,
 void VpnManager::checkInstalled()
 {
     auto* process = new QProcess(this);
-    connect(process, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
+    connect(process, &QProcess::finished,
             this, [this, process](const int exitCode, QProcess::ExitStatus)
             {
                 Q_UNUSED(exitCode)
@@ -139,7 +139,7 @@ void VpnManager::login(const QString& username, const QString& password)
                 processOutput();
             });
 
-    connect(process, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
+    connect(process, &QProcess::finished,
             this, [this, process, state](const int exitCode, QProcess::ExitStatus)
             {
                 const QString combined = state->accumulated.trimmed();
@@ -432,9 +432,9 @@ void VpnManager::fetchCliVersion()
         const QString combined = out + QLatin1Char('\n') + err;
         const QRegularExpression re(QStringLiteral(R"(\b(\d+\.\d+\.\d+)\b)"));
         const QStringList lines = combined.split(QLatin1Char('\n'));
-        for (int i = lines.size() - 1; i >= 0; --i)
+        for (const QString& line : std::ranges::reverse_view(lines))
         {
-            const auto match = re.match(lines[i]);
+            const QRegularExpressionMatch match = re.match(line);
             if (match.hasMatch())
             {
                 emit cliVersionReady(match.captured(1));

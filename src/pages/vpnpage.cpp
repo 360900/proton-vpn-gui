@@ -21,6 +21,7 @@
 #include <QScrollArea>
 #include <QVersionNumber>
 #include <cmath>
+#include <ranges>
 
 // ============================================================
 // PowerButton implementation
@@ -459,10 +460,10 @@ void LocationPicker::populate(const QList<QPair<QString, QString>>& cities)
         const QStringList tags = features.split(QLatin1Char(','), Qt::SkipEmptyParts);
         for (const auto& meta : kServerFeatures)
         {
-            bool matched = false;
-            for (const QString& tag : tags)
-                if (tag.trimmed().contains(QLatin1String(meta.keyword), Qt::CaseInsensitive))
-                    { matched = true; break; }
+            const bool matched = std::ranges::any_of(tags, [&meta](const QString& tag)
+            {
+                return tag.trimmed().contains(QLatin1String(meta.keyword), Qt::CaseInsensitive);
+            });
             if (!matched) continue;
 
             auto* iconLabel = new QLabel(row);
@@ -1098,14 +1099,13 @@ void VpnPage::onCitiesReady(const QString& countryCode,
     // the app starts with the VPN already connected to a P2P server.
     if (!m_activeCity.isEmpty())
     {
-        for (const auto& [city, features] : cities)
-        {
-            if (city.compare(m_activeCity, Qt::CaseInsensitive) == 0)
+        const auto it = std::ranges::find_if(cities,
+            [this](const QPair<QString, QString>& pair)
             {
-                m_currentCityFeatures = features;
-                break;
-            }
-        }
+                return pair.first.compare(m_activeCity, Qt::CaseInsensitive) == 0;
+            });
+        if (it != cities.end())
+            m_currentCityFeatures = it->second;
     }
     if (m_currentState == VpnState::Connected)
         refreshConnectedInfoLabel();

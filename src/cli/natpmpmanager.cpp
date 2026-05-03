@@ -71,7 +71,7 @@ void NatPmpManager::run()
     m_active = true;
 
     auto* process = new QProcess(this);
-    connect(process, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
+    connect(process, &QProcess::finished,
             this, [this, process](const int exitCode, QProcess::ExitStatus)
     {
         m_active = false;

@@ -3,6 +3,7 @@
 #include "../uihelpers.h"
 
 #include <algorithm>
+#include <ranges>
 #include <QDialog>
 #include <QHBoxLayout>
 #include <QLabel>
@@ -22,10 +23,10 @@
 static bool hasFeature(const QString& features, const char* keyword)
 {
     const QStringList tags = features.split(QLatin1Char(','), Qt::SkipEmptyParts);
-    for (const QString& t : tags)
-        if (t.trimmed().contains(QLatin1String(keyword), Qt::CaseInsensitive))
-            return true;
-    return false;
+    return std::ranges::any_of(tags, [keyword](const QString& t)
+    {
+        return t.trimmed().contains(QLatin1String(keyword), Qt::CaseInsensitive);
+    });
 }
 
 // City-level filter predicate used by both wide and narrow city lists.

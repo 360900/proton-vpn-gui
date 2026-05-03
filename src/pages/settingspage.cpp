@@ -32,6 +32,7 @@
 #include <QRadioButton>
 #include <QButtonGroup>
 #include <QDebug>
+#include <optional>
 
 // ============================================================
 // ToggleSwitch
@@ -302,7 +303,7 @@ QWidget* SettingsPage::makeComboRow(QWidget* parent, const QString& label,
     combo->setMinimumWidth(160);
     rl->addWidget(combo, 0);
 
-    connect(combo, QOverload<int>::of(&QComboBox::currentIndexChanged),
+    connect(combo, &QComboBox::currentIndexChanged,
             this, [this, cliKey, cliValues](int idx)
             {
                 if (idx < 0 || idx >= cliValues.size()) return;
@@ -339,13 +340,13 @@ QString SettingsPage::serviceFilePath()
 bool SettingsPage::systemdAvailable()
 {
     // Check once whether systemctl is on PATH by trying to start it with --version.
-    static int cached = -1; // -1 = unchecked, 0 = absent, 1 = present
-    if (cached != -1) return cached == 1;
+    static std::optional<bool> cached;
+    if (cached.has_value()) return *cached;
 
     QProcess p;
     p.start(QStringLiteral("systemctl"), {QStringLiteral("--version")});
-    cached = (p.waitForStarted(2000) && p.waitForFinished(2000)) ? 1 : 0;
-    return cached == 1;
+    cached = p.waitForStarted(2000) && p.waitForFinished(2000);
+    return *cached;
 }
 
 bool SettingsPage::autoStartEnabled()

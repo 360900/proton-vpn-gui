@@ -126,7 +126,7 @@ void LoginPage::buildCredsWidget()
     });
     connect(m_passwordEdit, &QLineEdit::returnPressed, m_loginBtn, &QPushButton::click);
     connect(m_usernameEdit, &QLineEdit::returnPressed, m_passwordEdit,
-            QOverload<>::of(&QLineEdit::setFocus));
+            [this](){ m_passwordEdit->setFocus(); });
     layout->addWidget(m_loginBtn);
 }
 

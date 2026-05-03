@@ -11,6 +11,7 @@
 #include <QFile>
 #include <QJsonObject>
 #include <QJsonArray>
+#include <string_view>
 
 // Path to the ProtonVPN settings file, relative to the user's home directory.
 static const QString kSettingsPath =
@@ -229,7 +230,7 @@ void VpnManager::applyStatusFields(const QMap<QString, QString>& fields)
 
 #ifdef QT_DEBUG
     {
-        auto stateToStr = [](const VpnState s) -> const char*
+        auto stateToStr = [](const VpnState s) -> std::string_view
         {
             switch (s)
             {
@@ -247,7 +248,7 @@ void VpnManager::applyStatusFields(const QMap<QString, QString>& fields)
                                       server != dbgPrevServer;
         if (dbgStateChanged)
             qDebug("[Status Polling] State changed:  %s → %s",
-                   stateToStr(dbgPrevState), stateToStr(newState));
+                   stateToStr(dbgPrevState).data(), stateToStr(newState).data());
         else if (dbgServerChanged)
             qDebug("[Status Polling] Server changed: \"%s\" → \"%s\"",
                    qUtf8Printable(dbgPrevServer), qUtf8Printable(server));

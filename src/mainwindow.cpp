@@ -8,6 +8,7 @@
 #include <QToolButton>
 #include <QButtonGroup>
 #include <QFrame>
+#include <utility>
 
 #include "pages/notinstalledpage.h"
 #include "pages/loginpage.h"
@@ -449,7 +450,7 @@ void MainWindow::setupSidebar()
 
 void MainWindow::showPage(Page page) const
 {
-    m_stack->setCurrentIndex(static_cast<int>(page));
+    m_stack->setCurrentIndex(std::to_underlying(page));
 
     m_logoBtn->setChecked(page == Page::Vpn);
     m_countriesNavBtn->setChecked(page == Page::Countries);
