@@ -1,17 +1,18 @@
 // vpnmanager.cpp
-// VpnManager: construction, settings file access, and background polling
-// infrastructure.
+// VpnManager: construction, settings file access, and background status
+// monitor infrastructure.
 //
 // All functions that interact with the protonvpn CLI live in protonvpncli.cpp.
 
 #include "vpnmanager.h"
+#include "cli/statusmonitor.h"
 
+#include <QDebug>
 #include <QDir>
 #include <QFile>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QJsonArray>
-#include <QTimer>
 
 // Path to the ProtonVPN settings file, relative to the user's home directory.
 static const QString kSettingsPath =
@@ -134,27 +135,126 @@ bool VpnManager::portForwardingEnabled() const
 }
 
 // ---------------------------------------------------------------------------
-// Background polling
+// Background status monitor (long-lived subprocess, every 15 s while logged in)
 // ---------------------------------------------------------------------------
 
-void VpnManager::startPolling()
+void VpnManager::startStatusMonitor()
 {
-    if (m_pollTimer)
+    if (m_statusMonitor)
         return;
 
-    m_pollTimer = new QTimer(this);
-    m_pollTimer->setInterval(15'000); // 15 s
-    connect(m_pollTimer, &QTimer::timeout, this, &VpnManager::pollStatus);
-    m_pollTimer->start();
+    m_statusMonitor = new StatusMonitor(this);
+    connect(m_statusMonitor, &StatusMonitor::statusParsed,
+            this, [this](const QMap<QString, QString>& fields)
+            {
+                if (m_state == VpnState::Connecting || m_state == VpnState::Disconnecting)
+                    return; // ignore polls during in-progress transitions
+                applyStatusFields(fields);
+            });
+
+    m_statusMonitor->start();
 }
 
-void VpnManager::stopPolling()
+void VpnManager::stopStatusMonitor()
 {
-    if (m_pollTimer)
-    {
-        m_pollTimer->stop();
-        m_pollTimer->deleteLater();
-        m_pollTimer = nullptr;
-    }
-    m_pollActive = false;
+    if (!m_statusMonitor)
+        return;
+
+    m_statusMonitor->stop();
+    m_statusMonitor->deleteLater();
+    m_statusMonitor = nullptr;
 }
+
+// ---------------------------------------------------------------------------
+// Apply a parsed `protonvpn status` snapshot to internal state.
+// Only emits signals when state or connected server actually changed.
+// ---------------------------------------------------------------------------
+
+void VpnManager::applyStatusFields(const QMap<QString, QString>& fields)
+{
+    const QString statusVal = fields.value(QStringLiteral("status")).toLower();
+    const VpnState newState = (statusVal == QStringLiteral("connected"))
+                              ? VpnState::Connected
+                              : VpnState::Disconnected;
+
+    const QString server = (newState == VpnState::Connected)
+                           ? fields.value(QStringLiteral("server"))
+                           : QString();
+    const QString city   = StatusMonitor::parseCityFromServer(server);
+    const QString info   = server.isEmpty()
+                           ? QString()
+                           : QStringLiteral("Connected to %1.").arg(server);
+
+    // Country code — e.g. "US" from "US-NJ#203 in Secaucus, United States".
+    QString countryCode;
+    if (!server.isEmpty())
+    {
+        const int dashPos = server.indexOf(QLatin1Char('-'));
+        const int hashPos = server.indexOf(QLatin1Char('#'));
+        const int endPos  = (dashPos >= 0 && (hashPos < 0 || dashPos < hashPos))
+                            ? dashPos : hashPos;
+        if (endPos > 0)
+            countryCode = server.left(endPos).toUpper();
+    }
+
+#ifdef QT_DEBUG
+    const VpnState dbgPrevState  = m_state;
+    const QString  dbgPrevServer = m_connectedServer;
+#endif
+
+    const bool stateChanged  = newState != m_state;
+    const bool serverChanged = !stateChanged &&
+                               newState == VpnState::Connected &&
+                               !m_connectedServer.isEmpty() &&
+                               server != m_connectedServer;
+
+    if (stateChanged || serverChanged)
+    {
+        m_state           = newState;
+        m_connectedServer = (newState == VpnState::Connected) ? server : QString();
+
+        if (newState == VpnState::Connected)
+        {
+            if (!city.isEmpty())        emit connectionCityKnown(city);
+            if (!countryCode.isEmpty()) emit connectionCountryKnown(countryCode);
+            emit connectionStateChanged(m_state, info);
+        }
+        else
+        {
+            emit connectionStateChanged(m_state, QString());
+        }
+    }
+    else if (newState == VpnState::Connected && m_connectedServer.isEmpty())
+    {
+        m_connectedServer = server;
+    }
+
+#ifdef QT_DEBUG
+    {
+        auto stateToStr = [](const VpnState s) -> const char*
+        {
+            switch (s)
+            {
+                case VpnState::Connected:     return "Connected";
+                case VpnState::Disconnected:  return "Disconnected";
+                case VpnState::Connecting:    return "Connecting";
+                case VpnState::Disconnecting: return "Disconnecting";
+                default:                      return "Error";
+            }
+        };
+        const bool dbgStateChanged  = newState != dbgPrevState;
+        const bool dbgServerChanged = !dbgStateChanged &&
+                                      newState == VpnState::Connected &&
+                                      !dbgPrevServer.isEmpty() &&
+                                      server != dbgPrevServer;
+        if (dbgStateChanged)
+            qDebug("[Status Polling] State changed:  %s → %s",
+                   stateToStr(dbgPrevState), stateToStr(newState));
+        else if (dbgServerChanged)
+            qDebug("[Status Polling] Server changed: \"%s\" → \"%s\"",
+                   qUtf8Printable(dbgPrevServer), qUtf8Printable(server));
+    }
+#endif
+}
+
+

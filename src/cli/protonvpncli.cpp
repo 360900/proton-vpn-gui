@@ -4,6 +4,7 @@
 // in vpnmanager.cpp.
 
 #include "../vpnmanager.h"
+#include "statusmonitor.h"
 
 #include <QProcess>
 #include <QRegularExpression>
@@ -75,8 +76,7 @@ void VpnManager::checkLoginStatus()
 
         if (loggedIn)
         {
-            checkConnectionStatus();
-            startPolling();
+            startStatusMonitor();
             fetchAccountType();
         }
 
@@ -169,8 +169,7 @@ void VpnManager::login(const QString& username, const QString& password)
                 }
                 else
                 {
-                    checkConnectionStatus();
-                    startPolling();
+                    startStatusMonitor();
                     fetchAccountType();
                 }
                 emit loginFinished(ok, errorMsg);
@@ -188,7 +187,7 @@ void VpnManager::submit2FA(const QString& token) const
 
 void VpnManager::signOut()
 {
-    stopPolling();
+    stopStatusMonitor();
     runCommand({QStringLiteral("signout")}, [this](int exitCode, const QString&, const QString&)
     {
         m_state = VpnState::Disconnected;
@@ -465,218 +464,5 @@ void VpnManager::applyConfigValue(const QString& key, const QString& value)
         const QString combined = (out + QLatin1Char('\n') + err).trimmed();
         emit configApplied(combined);
     });
-}
-
-// ---------------------------------------------------------------------------
-// Status (startup check + background poll)
-// ---------------------------------------------------------------------------
-
-void VpnManager::checkConnectionStatus()
-{
-    auto* process = new QProcess(this);
-    connect(process, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
-            this, [this, process](int, QProcess::ExitStatus)
-            {
-                const QString combined = QString::fromUtf8(process->readAllStandardOutput())
-                                         + QLatin1Char('\n')
-                                         + QString::fromUtf8(process->readAllStandardError());
-                process->deleteLater();
-
-                // Strip noise lines.
-                QStringList lines = combined.split(QLatin1Char('\n'));
-                lines.erase(std::ranges::remove_if(lines, [](const QString& l)
-                {
-                    const QString ll = l.toLower();
-                    return ll.contains(QLatin1String("outdated"))              ||
-                           ll.contains(QLatin1String("updating"))              ||
-                           ll.contains(QLatin1String("this may take"))         ||
-                           ll.contains(QLatin1String("to get your forwarded port")) ||
-                           ll.contains(QLatin1String("natpmpc"))               ||
-                           (ll.startsWith(QLatin1String("guide:")) && ll.contains(QLatin1String("http")));
-                }).begin(), lines.end());
-
-                // Parse "Key: Value" lines into a map.
-                QMap<QString, QString> fields;
-                for (const QString& line : std::as_const(lines))
-                {
-                    const int colonPos = line.indexOf(QLatin1Char(':'));
-                    if (colonPos < 0) continue;
-                    const QString key   = line.left(colonPos).trimmed().toLower();
-                    const QString value = line.mid(colonPos + 1).trimmed();
-                    if (!key.isEmpty() && !value.isEmpty())
-                        fields.insert(key, value);
-                }
-
-                const QString statusVal = fields.value(QStringLiteral("status")).toLower();
-
-                if (statusVal == QStringLiteral("connected"))
-                {
-                    m_state = VpnState::Connected;
-
-                    // "Server: US-NJ#203 in Secaucus, United States"
-                    const QString server = fields.value(QStringLiteral("server"));
-
-                    // Parse city from "… in City, Country"
-                    QString city;
-                    const int inPos = server.indexOf(QStringLiteral(" in "));
-                    if (inPos >= 0)
-                    {
-                        const QString rest    = server.mid(inPos + 4);
-                        const int    commaPos = rest.indexOf(QLatin1Char(','));
-                        city = (commaPos >= 0 ? rest.left(commaPos) : rest).trimmed();
-                    }
-
-                    // Extract country code from server name prefix, e.g. "US-NJ#203" → "US"
-                    QString countryCode;
-                    {
-                        const int dashPos = server.indexOf(QLatin1Char('-'));
-                        const int hashPos = server.indexOf(QLatin1Char('#'));
-                        const int endPos  = (dashPos >= 0 && (hashPos < 0 || dashPos < hashPos))
-                                            ? dashPos : hashPos;
-                        if (endPos > 0)
-                            countryCode = server.left(endPos).toUpper();
-                    }
-
-                    // Emit city and country before connectionStateChanged so the
-                    // VPN page can store them before updateUi() runs.
-                    if (!city.isEmpty())
-                        emit connectionCityKnown(city);
-                    if (!countryCode.isEmpty())
-                        emit connectionCountryKnown(countryCode);
-
-                    const QString info = server.isEmpty()
-                        ? QString()
-                        : QStringLiteral("Connected to %1.").arg(server);
-                    emit connectionStateChanged(m_state, info);
-                }
-                else
-                {
-                    m_state = VpnState::Disconnected;
-                    emit connectionStateChanged(m_state, QString());
-                }
-            });
-    process->start(QStringLiteral("protonvpn"), QStringList{QStringLiteral("status")});
-}
-
-void VpnManager::pollStatus()
-{
-    if (m_pollActive)
-        return;
-
-    m_pollActive = true;
-
-    auto* process = new QProcess(this);
-    connect(process, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
-            this, [this, process](int, QProcess::ExitStatus)
-            {
-                m_pollActive = false;
-
-                const QString combined =
-                    QString::fromUtf8(process->readAllStandardOutput()) + QLatin1Char('\n') +
-                    QString::fromUtf8(process->readAllStandardError());
-                process->deleteLater();
-
-                if (m_state == VpnState::Connecting || m_state == VpnState::Disconnecting)
-                    return;
-
-                QStringList lines = combined.split(QLatin1Char('\n'));
-                lines.erase(std::ranges::remove_if(lines, [](const QString& l)
-                {
-                    const QString ll = l.toLower();
-                    return ll.contains(QLatin1String("outdated"))  ||
-                           ll.contains(QLatin1String("updating"))  ||
-                           ll.contains(QLatin1String("this may take"));
-                }).begin(), lines.end());
-
-                QMap<QString, QString> fields;
-                for (const QString& line : std::as_const(lines))
-                {
-                    const int colonPos = line.indexOf(QLatin1Char(':'));
-                    if (colonPos < 0) continue;
-                    const QString key   = line.left(colonPos).trimmed().toLower();
-                    const QString value = line.mid(colonPos + 1).trimmed();
-                    if (!key.isEmpty() && !value.isEmpty())
-                        fields.insert(key, value);
-                }
-
-                const QString statusVal = fields.value(QStringLiteral("status")).toLower();
-                const VpnState newState = (statusVal == QStringLiteral("connected"))
-                                          ? VpnState::Connected
-                                          : VpnState::Disconnected;
-
-                QString server, city, info;
-                if (newState == VpnState::Connected)
-                {
-                    server = fields.value(QStringLiteral("server"));
-                    const int inPos = server.indexOf(QStringLiteral(" in "));
-                    if (inPos >= 0)
-                    {
-                        const QString rest    = server.mid(inPos + 4);
-                        const int    commaPos = rest.indexOf(QLatin1Char(','));
-                        city = (commaPos >= 0 ? rest.left(commaPos) : rest).trimmed();
-                    }
-                    info = server.isEmpty()
-                        ? QString()
-                        : QStringLiteral("Connected to %1.").arg(server);
-                }
-
-#ifdef QT_DEBUG
-                const VpnState dbgPrevState  = m_state;
-                const QString  dbgPrevServer = m_connectedServer;
-#endif
-
-                if (newState != m_state ||
-                    (newState == VpnState::Connected &&
-                     !m_connectedServer.isEmpty() &&
-                     server != m_connectedServer))
-                {
-                    m_state = newState;
-
-                    if (newState == VpnState::Connected)
-                    {
-                        m_connectedServer = server;
-                        if (!city.isEmpty())
-                            emit connectionCityKnown(city);
-                        emit connectionStateChanged(m_state, info);
-                    }
-                    else
-                    {
-                        m_connectedServer.clear();
-                        emit connectionStateChanged(m_state, QString());
-                    }
-                }
-                else if (newState == VpnState::Connected && m_connectedServer.isEmpty())
-                {
-                    m_connectedServer = server;
-                }
-
-#ifdef QT_DEBUG
-                {
-                    auto stateToStr = [](const VpnState s) -> const char*
-                    {
-                        switch (s)
-                        {
-                            case VpnState::Connected:     return "Connected";
-                            case VpnState::Disconnected:  return "Disconnected";
-                            case VpnState::Connecting:    return "Connecting";
-                            case VpnState::Disconnecting: return "Disconnecting";
-                            default:                      return "Error";
-                        }
-                    };
-                    const bool stateChanged  = newState != dbgPrevState;
-                    const bool serverChanged = !stateChanged &&
-                                              newState == VpnState::Connected &&
-                                              !dbgPrevServer.isEmpty() &&
-                                              server != dbgPrevServer;
-                    if (stateChanged)
-                        qDebug("[Status Polling] State changed:  %s → %s",
-                               stateToStr(dbgPrevState), stateToStr(newState));
-                    else if (serverChanged)
-                        qDebug("[Status Polling] Server changed: \"%s\" → \"%s\"",
-                               qUtf8Printable(dbgPrevServer), qUtf8Printable(server));
-                }
-#endif
-            });
-    process->start(QStringLiteral("protonvpn"), QStringList{QStringLiteral("status")});
 }
 

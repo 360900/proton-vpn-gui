@@ -217,8 +217,6 @@ MainWindow::MainWindow(QWidget* parent)
             m_loginPage->reset();
             m_sidebar->setEnabled(true);
             showPage(Page::Vpn);
-            // checkConnectionStatus() + startPolling() are already called
-            // inside VpnManager::login() on success, before loginFinished fires.
             m_manager->fetchCountries();
         }
         else

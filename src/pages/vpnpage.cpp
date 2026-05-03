@@ -855,7 +855,7 @@ VpnPage::VpnPage(VpnManager* manager, QWidget* parent)
             QStringLiteral("%1 Checking…").arg(QString::fromUtf8(kSpinnerFrames[m_checkingSpinnerFrame])));
     });
 
-    // Start in Unknown — spinner runs until checkConnectionStatus responds
+    // Start in Unknown — spinner runs until the status monitor's first snapshot arrives
     updateUi(VpnState::Unknown, QString());
     m_checkingSpinnerTimer->start();
 

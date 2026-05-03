@@ -30,6 +30,8 @@ set(SOURCES
         cli/protonvpncli.cpp
         cli/natpmpmanager.h
         cli/natpmpmanager.cpp
+        cli/statusmonitor.h
+        cli/statusmonitor.cpp
         mainwindow.h
         mainwindow.cpp
         widgets/elidalabel.h

@@ -3,7 +3,9 @@
 #include <QProcess>
 #include <QString>
 #include <QMap>
-#include <QTimer>
+
+class StatusMonitor; // cli/statusmonitor.h — forward-declared to keep this
+                     // header lightweight; full type used only in vpnmanager.cpp.
 
 enum class VpnState
 {
@@ -50,7 +52,6 @@ public:
     // features string (e.g. "P2P, Tor") or an empty string if not found.
     void fetchCityFeatures(const QString& countryCode, const QString& city,
                            std::function<void(const QString& features)> callback);
-    void checkConnectionStatus();
     void fetchCliVersion();
     void fetchAccountType();
 
@@ -90,19 +91,18 @@ private:
     QString     m_connectedServer;       // last server string seen while Connected
     QString     m_lastConnectCountry;    // country arg last passed to connectVpn()
     QString     m_lastConnectCity;       // city    arg last passed to connectVpn()
-    QProcess*   m_signinProcess = nullptr;
-    QTimer*     m_pollTimer     = nullptr;
-    bool        m_pollActive    = false; // true while a poll process is in flight
+    QProcess*       m_signinProcess  = nullptr;
+    StatusMonitor*  m_statusMonitor  = nullptr;
 
     void runCommand(const QStringList& args,
                     std::function<void(int exitCode, const QString& output, const QString& errOutput)> callback);
 
-    // Shared helpers for parsing `protonvpn status` output.
-    static QMap<QString, QString> parseStatusFields(const QString& combined);
-    static QString                parseCityFromServer(const QString& server);
+    // Background status monitor (long-lived subprocess, every 15 s while logged in).
+    void startStatusMonitor();
+    void stopStatusMonitor();
 
-    // Background polling (every 15 s while logged in).
-    void startPolling();
-    void stopPolling();
-    void pollStatus();
+    // Apply a parsed `protonvpn status` snapshot to internal state and emit
+    // the appropriate signals.  Only emits when state or connected server
+    // actually changed, to avoid unnecessary UI redraws.
+    void applyStatusFields(const QMap<QString, QString>& fields);
 };
