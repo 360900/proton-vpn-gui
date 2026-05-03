@@ -8,7 +8,6 @@
 #include <QPainter>
 #include <QPushButton>
 #include <QSvgRenderer>
-#include <QVBoxLayout>
 
 // ============================================================
 // NumberSpinner – a styled replacement for QSpinBox that
@@ -73,7 +72,7 @@ public:
         refreshDisplay();
     }
 
-    void setRange(int min, int max)
+    void setRange(const int min, const int max)
     {
         m_min = min;
         m_max = max;
@@ -129,7 +128,7 @@ private:
         return btn;
     }
 
-    void step(int delta)
+    void step(const int delta)
     {
         const int next = m_value + delta;
         if (next < m_min || next > m_max)
@@ -140,9 +139,9 @@ private:
         emit valueChanged(m_value);
     }
 
-    void refreshDisplay() { m_display->setText(QString::number(m_value)); }
+    void refreshDisplay() const { m_display->setText(QString::number(m_value)); }
 
-    void refreshButtons()
+    void refreshButtons() const
     {
         m_upBtn->setEnabled(m_value < m_max);
         m_downBtn->setEnabled(m_value > m_min);

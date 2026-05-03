@@ -7,10 +7,8 @@
 #include "vpnmanager.h"
 #include "cli/statusmonitor.h"
 
-#include <QDebug>
 #include <QDir>
 #include <QFile>
-#include <QJsonDocument>
 #include <QJsonObject>
 #include <QJsonArray>
 

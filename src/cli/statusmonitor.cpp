@@ -61,7 +61,7 @@ void StatusMonitor::start()
 #ifdef QT_DEBUG
         qDebug("[StatusMonitor] start() called but monitor is already running "
                "(PID %lld) — ignored.",
-               static_cast<long long>(m_process->processId()));
+               m_process->processId());
 #endif
         return;
     }
@@ -155,7 +155,7 @@ void StatusMonitor::onReadyRead()
 
 #ifdef QT_DEBUG
     qDebug("[StatusMonitor] Raw data received (%lld bytes).",
-           static_cast<long long>(chunk.size()));
+           chunk.size());
 #endif
 
     m_buffer += chunk;

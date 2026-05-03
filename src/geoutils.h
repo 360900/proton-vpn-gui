@@ -1,6 +1,5 @@
 #pragma once
 
-#include <QColor>
 #include <QIcon>
 #include <QPixmap>
 #include <QString>

@@ -72,7 +72,7 @@ void NatPmpManager::run()
 
     auto* process = new QProcess(this);
     connect(process, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
-            this, [this, process](int exitCode, QProcess::ExitStatus)
+            this, [this, process](const int exitCode, QProcess::ExitStatus)
     {
         m_active = false;
         const QString out = QString::fromUtf8(process->readAllStandardOutput())

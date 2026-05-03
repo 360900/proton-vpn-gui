@@ -3,7 +3,6 @@
 
 #include <QFile>
 #include <QHBoxLayout>
-#include <QJsonDocument>
 #include <QJsonObject>
 #include <QLabel>
 #include <QPixmap>

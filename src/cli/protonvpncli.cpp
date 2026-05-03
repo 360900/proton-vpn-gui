@@ -38,12 +38,12 @@ void VpnManager::checkInstalled()
 {
     auto* process = new QProcess(this);
     connect(process, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
-            this, [this, process](int exitCode, QProcess::ExitStatus)
+            this, [this, process](const int exitCode, QProcess::ExitStatus)
             {
                 Q_UNUSED(exitCode)
-                QString out = QString::fromUtf8(process->readAllStandardOutput());
-                QString err = QString::fromUtf8(process->readAllStandardError());
-                bool installed = !out.isEmpty() || !err.isEmpty();
+                const QString out = QString::fromUtf8(process->readAllStandardOutput());
+                const QString err = QString::fromUtf8(process->readAllStandardError());
+                const bool installed = !out.isEmpty() || !err.isEmpty();
                 process->deleteLater();
                 emit installedResult(installed);
             });

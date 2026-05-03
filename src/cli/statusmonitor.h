@@ -11,7 +11,6 @@
 #pragma once
 
 #include <QMap>
-#include <QObject>
 #include <QProcess>
 #include <QString>
 

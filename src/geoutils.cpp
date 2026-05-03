@@ -1,7 +1,6 @@
 #include "geoutils.h"
 
 #include <QFile>
-#include <QLocale>
 #include <QMap>
 #include <QPainter>
 #include <QPixmap>

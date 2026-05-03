@@ -1314,7 +1314,7 @@ void SettingsPage::refresh()
     m_manager->fetchSettings();
 }
 
-void SettingsPage::updatePlusSectionState()
+void SettingsPage::updatePlusSectionState() const
 {
     const bool isFree = (m_manager->accountType() == AccountType::Free);
 
@@ -1545,7 +1545,7 @@ trademarks of Proton AG.</p>
 )"));
     layout->addWidget(browser);
 
-    auto* btns = new QDialogButtonBox(QDialogButtonBox::Close, dlg);
+    QDialogButtonBox* btns = new QDialogButtonBox(QDialogButtonBox::Close, dlg);
     connect(btns, &QDialogButtonBox::rejected, dlg, &QDialog::accept);
     layout->addWidget(btns);
 

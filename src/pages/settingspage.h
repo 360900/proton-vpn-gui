@@ -155,7 +155,7 @@ private:
                              std::function<void()> onAccept);
     static void addDivider(QVBoxLayout* layout, QWidget* parent);
     static QWidget* makePlusDivider(QWidget* parent);
-    void updatePlusSectionState();
+    void updatePlusSectionState() const;
     void maybeWarnReconnect(const QString& cliOutput);
 
     // Auto-start helpers

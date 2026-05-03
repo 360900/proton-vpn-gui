@@ -1,18 +1,13 @@
 #include "mainwindow.h"
 
 #include <QApplication>
-#include <QDialog>
-#include <QHBoxLayout>
-#include <QLabel>
 #include <QPixmap>
 #include <QPainter>
-#include <QPushButton>
 #include <QSvgRenderer>
 #include <QSvgWidget>
 #include <QToolButton>
 #include <QButtonGroup>
 #include <QFrame>
-#include <QVBoxLayout>
 
 #include "pages/notinstalledpage.h"
 #include "pages/loginpage.h"
@@ -365,7 +360,7 @@ MainWindow::MainWindow(QWidget* parent)
 
         const int result = dlg->exec();
         if (result == QDialog::Rejected)
-            return; // user cancelled — do nothing
+            return; // user canceled — do nothing
 
         if (result == 2)
             m_manager->disconnectVpnSync(); // blocks until protonvpn disconnect finishes

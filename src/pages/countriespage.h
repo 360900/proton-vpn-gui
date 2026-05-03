@@ -1,13 +1,10 @@
 #pragma once
 
 #include <functional>
-#include <QFrame>
-#include <QLabel>
 #include <QLineEdit>
 #include <QListWidget>
 #include <QMap>
 #include <QPushButton>
-#include <QResizeEvent>
 #include <QScrollArea>
 #include <QSet>
 #include <QTimer>
@@ -118,7 +115,7 @@ private:
 
     // Updates both connect buttons to show a lock when the account is Free,
     // or restores normal styling for paid accounts.
-    void updateConnectBtnLockState();
+    void updateConnectBtnLockState() const;
 
     // Shows the "Disable Port Forwarding?" confirmation dialog.
     // bodyText is the message shown; onConfirm is called if the user confirms.

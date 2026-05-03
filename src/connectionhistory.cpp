@@ -77,6 +77,7 @@ void ConnectionHistory::record(const QString& countryCode,
     m_entries.prepend(e);
 
     // Trim to max
+    // ReSharper disable once CppDFALoopConditionNotUpdated
     while (m_entries.size() > maxCount)
         m_entries.removeLast();
 
@@ -118,6 +119,7 @@ void ConnectionHistory::load()
 void ConnectionHistory::save() const
 {
     const QString path = historyFilePath();
+    // ReSharper disable once CppExpressionWithoutSideEffects
     QDir().mkpath(QFileInfo(path).absolutePath());
 
     QJsonArray arr;

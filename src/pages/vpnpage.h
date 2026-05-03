@@ -1,22 +1,13 @@
 #pragma once
 
 #include <optional>
-#include <QFrame>
-#include <QLabel>
-#include <QListWidget>
-#include <QPushButton>
-#include <QScrollArea>
 #include <QTimer>
 #include <QPropertyAnimation>
 #include <QDialog>
 #include <QPlainTextEdit>
-#include <QClipboard>
-#include <QGuiApplication>
 #include <QVersionNumber>
-#include <QHBoxLayout>
 #include "../vpnmanager.h"
 #include "../cli/natpmpmanager.h"
-#include "../widgets/elidalabel.h"
 #include "../widgets/pickerbase.h"
 #include "../widgets/infobanner.h"
 
@@ -197,12 +188,11 @@ private:
     void showErrorDetails() const;
     void relayoutPickers(int width) const;
     void checkPrereleaseBanner();
-    void handleFreePlanError();
-    void applyFreeUserMode();
+    void applyFreeUserMode() const;
     void startNatPmpLoop();
     void stopNatPmpLoop();
     void showNatpmpcBanner();
-    void refreshConnectedInfoLabel();
+    void refreshConnectedInfoLabel() const;
     // After populate(), try to select m_pendingStatusCity; falls back to
     void applyPendingStatusCity();
 };

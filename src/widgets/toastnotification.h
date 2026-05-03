@@ -25,13 +25,14 @@ class ToastNotification : public QFrame
     Q_OBJECT
 public:
     // Convenience factory – create & show in one call.
-    static void popup(QWidget* anchor, const QString& message, int durationMs = 3000)
+    static void popup(QWidget* anchor, const QString& message, const int durationMs = 3000)
     {
         // self-managing lifetime via deleteLater in dismiss()
         new ToastNotification(message, anchor, durationMs);
     }
 
-    explicit ToastNotification(const QString& message, QWidget* anchor, int durationMs = 3000)
+    explicit ToastNotification(const QString& message, const QWidget* anchor,
+                               const int durationMs = 3000)
         : QFrame(anchor ? anchor->window() : nullptr)
     {
         setObjectName(QStringLiteral("toastNotification"));
