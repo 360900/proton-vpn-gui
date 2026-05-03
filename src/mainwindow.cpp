@@ -1,18 +1,14 @@
 #include "mainwindow.h"
 
 #include <QApplication>
-#include <QDialog>
-#include <QHBoxLayout>
-#include <QLabel>
 #include <QPixmap>
 #include <QPainter>
-#include <QPushButton>
 #include <QSvgRenderer>
 #include <QSvgWidget>
 #include <QToolButton>
 #include <QButtonGroup>
 #include <QFrame>
-#include <QVBoxLayout>
+#include <utility>
 
 #include "pages/notinstalledpage.h"
 #include "pages/loginpage.h"
@@ -217,8 +213,6 @@ MainWindow::MainWindow(QWidget* parent)
             m_loginPage->reset();
             m_sidebar->setEnabled(true);
             showPage(Page::Vpn);
-            // checkConnectionStatus() + startPolling() are already called
-            // inside VpnManager::login() on success, before loginFinished fires.
             m_manager->fetchCountries();
         }
         else
@@ -367,7 +361,7 @@ MainWindow::MainWindow(QWidget* parent)
 
         const int result = dlg->exec();
         if (result == QDialog::Rejected)
-            return; // user cancelled — do nothing
+            return; // user canceled — do nothing
 
         if (result == 2)
             m_manager->disconnectVpnSync(); // blocks until protonvpn disconnect finishes
@@ -456,7 +450,7 @@ void MainWindow::setupSidebar()
 
 void MainWindow::showPage(Page page) const
 {
-    m_stack->setCurrentIndex(static_cast<int>(page));
+    m_stack->setCurrentIndex(std::to_underlying(page));
 
     m_logoBtn->setChecked(page == Page::Vpn);
     m_countriesNavBtn->setChecked(page == Page::Countries);

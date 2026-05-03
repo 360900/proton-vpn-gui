@@ -3,7 +3,9 @@ project(proton_vpn_qt)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD 23)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF) # Strict conformance, no GNU/MSVC extensions
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
 set(CMAKE_AUTOUIC ON)
@@ -30,6 +32,8 @@ set(SOURCES
         cli/protonvpncli.cpp
         cli/natpmpmanager.h
         cli/natpmpmanager.cpp
+        cli/statusmonitor.h
+        cli/statusmonitor.cpp
         mainwindow.h
         mainwindow.cpp
         widgets/elidalabel.h
@@ -50,6 +54,8 @@ set(SOURCES
         pages/accountpage.cpp
         pages/settingspage.h
         pages/settingspage.cpp
+        dialogs/aboutdialog.h
+        dialogs/aboutdialog.cpp
         resources.qrc
         flags.qrc
 )

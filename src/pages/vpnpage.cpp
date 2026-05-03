@@ -6,16 +6,14 @@
 
 #include <QFile>
 #include <QHBoxLayout>
-#include <QVBoxLayout>
-#include <QJsonDocument>
+// ReSharper disable once CppUnusedIncludeDirective
+#include <QJsonDocument> // Ignore unused include warning; we do use QJsonDocument
 #include <QJsonObject>
 #include <QMouseEvent>
 #include <QPainter>
 #include <QPainterPath>
-#include <QResizeEvent>
 #include <QSvgRenderer>
 #include <QPropertyAnimation>
-#include <QEnterEvent>
 #include <QDialog>
 #include <QPlainTextEdit>
 #include <QFont>
@@ -463,10 +461,10 @@ void LocationPicker::populate(const QList<QPair<QString, QString>>& cities)
         const QStringList tags = features.split(QLatin1Char(','), Qt::SkipEmptyParts);
         for (const auto& meta : kServerFeatures)
         {
-            bool matched = false;
-            for (const QString& tag : tags)
-                if (tag.trimmed().contains(QLatin1String(meta.keyword), Qt::CaseInsensitive))
-                    { matched = true; break; }
+            const bool matched = std::ranges::any_of(tags, [&meta](const QString& tag)
+            {
+                return tag.trimmed().contains(QLatin1String(meta.keyword), Qt::CaseInsensitive);
+            });
             if (!matched) continue;
 
             auto* iconLabel = new QLabel(row);
@@ -855,7 +853,7 @@ VpnPage::VpnPage(VpnManager* manager, QWidget* parent)
             QStringLiteral("%1 Checking…").arg(QString::fromUtf8(kSpinnerFrames[m_checkingSpinnerFrame])));
     });
 
-    // Start in Unknown — spinner runs until checkConnectionStatus responds
+    // Start in Unknown — spinner runs until the status monitor's first snapshot arrives
     updateUi(VpnState::Unknown, QString());
     m_checkingSpinnerTimer->start();
 
@@ -1058,8 +1056,7 @@ void VpnPage::relayoutPickers(const int w) const
         return;
     }
 
-    const bool wide = w >= kWideThreshold;
-    if (wide)
+    if (w >= kWideThreshold)
     {
         // Side-by-side: set equal fixed widths
         m_locationPicker->setFixedWidth(240);
@@ -1103,14 +1100,13 @@ void VpnPage::onCitiesReady(const QString& countryCode,
     // the app starts with the VPN already connected to a P2P server.
     if (!m_activeCity.isEmpty())
     {
-        for (const auto& [city, features] : cities)
-        {
-            if (city.compare(m_activeCity, Qt::CaseInsensitive) == 0)
+        const auto it = std::ranges::find_if(cities,
+            [this](const QPair<QString, QString>& pair)
             {
-                m_currentCityFeatures = features;
-                break;
-            }
-        }
+                return pair.first.compare(m_activeCity, Qt::CaseInsensitive) == 0;
+            });
+        if (it != cities.end())
+            m_currentCityFeatures = it->second;
     }
     if (m_currentState == VpnState::Connected)
         refreshConnectedInfoLabel();
@@ -1410,7 +1406,7 @@ void VpnPage::showErrorDetails() const
     dlg->exec();
 }
 
-void VpnPage::applyFreeUserMode()
+void VpnPage::applyFreeUserMode() const
 {
     // Location picker: block/unblock user interaction.
     m_locationPicker->setFreeMode(m_isFreeUser);
@@ -1428,7 +1424,7 @@ void VpnPage::applyFreeUserMode()
 // Port forwarding — NatPmpManager integration
 // ---------------------------------------------------------------------------
 
-void VpnPage::refreshConnectedInfoLabel()
+void VpnPage::refreshConnectedInfoLabel() const
 {
     QString text = m_lastConnectedInfo;
 

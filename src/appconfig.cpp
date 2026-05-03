@@ -2,7 +2,8 @@
 
 #include <QDir>
 #include <QFile>
-#include <QJsonDocument>
+// ReSharper disable once CppUnusedIncludeDirective
+#include <QJsonDocument> // Ignore unused include warning; we do use QJsonDocument
 #include <QJsonObject>
 
 // ── Easy-to-change config location ──────────────────────────────────────────
@@ -62,7 +63,7 @@ void AppConfig::setAutoConnect(bool value)
 {
     if (m_autoConnect == value) return;
     m_autoConnect = value;
-    save();
+    (void)save();
 }
 
 bool AppConfig::notifications() const { return m_notifications; }
@@ -71,7 +72,7 @@ void AppConfig::setNotifications(const bool value)
 {
     if (m_notifications == value) return;
     m_notifications = value;
-    save();
+    (void)save();
 }
 
 int AppConfig::recentConnectionsCount() const { return m_recentConnectionsCount; }
@@ -80,7 +81,7 @@ void AppConfig::setRecentConnectionsCount(const int value)
 {
     if (m_recentConnectionsCount == value) return;
     m_recentConnectionsCount = qMax(0, value);
-    save();
+    (void)save();
 }
 
 bool AppConfig::startHidden() const { return m_startHidden; }
@@ -89,6 +90,6 @@ void AppConfig::setStartHidden(const bool value)
 {
     if (m_startHidden == value) return;
     m_startHidden = value;
-    save();
+    (void)save();
 }
 

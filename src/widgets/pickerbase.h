@@ -3,8 +3,6 @@
 #include <QCursor>
 #include <QEvent>
 #include <QFrame>
-#include <QHBoxLayout>
-#include <QLabel>
 #include <QListWidget>
 #include <QMouseEvent>
 #include <QVBoxLayout>
@@ -50,7 +48,7 @@ protected:
         m_popup->installEventFilter(this);
     }
 
-    void togglePopup()
+    void togglePopup() const
     {
         if (m_list->count() == 0) return;
         if (m_popup->isVisible()) { closePopup(); return; }

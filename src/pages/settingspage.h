@@ -9,6 +9,7 @@
 #include <functional>
 #include "../vpnmanager.h"
 #include "../cli/natpmpmanager.h"
+#include "../dialogs/aboutdialog.h"
 
 // ---------------------------------------------------------------------------
 // ToggleSwitch – animated on/off switch
@@ -155,7 +156,7 @@ private:
                              std::function<void()> onAccept);
     static void addDivider(QVBoxLayout* layout, QWidget* parent);
     static QWidget* makePlusDivider(QWidget* parent);
-    void updatePlusSectionState();
+    void updatePlusSectionState() const;
     void maybeWarnReconnect(const QString& cliOutput);
 
     // Auto-start helpers
@@ -166,6 +167,5 @@ private:
     void updateAutoConnectRowVisibility() const;
 
     void onSettingsReady(const QMap<QString, QString>& settings);
-    void showAboutDialog();
     void setLoading(bool loading);
 };

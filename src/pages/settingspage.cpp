@@ -32,6 +32,7 @@
 #include <QRadioButton>
 #include <QButtonGroup>
 #include <QDebug>
+#include <optional>
 
 // ============================================================
 // ToggleSwitch
@@ -302,7 +303,7 @@ QWidget* SettingsPage::makeComboRow(QWidget* parent, const QString& label,
     combo->setMinimumWidth(160);
     rl->addWidget(combo, 0);
 
-    connect(combo, QOverload<int>::of(&QComboBox::currentIndexChanged),
+    connect(combo, &QComboBox::currentIndexChanged,
             this, [this, cliKey, cliValues](int idx)
             {
                 if (idx < 0 || idx >= cliValues.size()) return;
@@ -339,13 +340,13 @@ QString SettingsPage::serviceFilePath()
 bool SettingsPage::systemdAvailable()
 {
     // Check once whether systemctl is on PATH by trying to start it with --version.
-    static int cached = -1; // -1 = unchecked, 0 = absent, 1 = present
-    if (cached != -1) return cached == 1;
+    static std::optional<bool> cached;
+    if (cached.has_value()) return *cached;
 
     QProcess p;
     p.start(QStringLiteral("systemctl"), {QStringLiteral("--version")});
-    cached = (p.waitForStarted(2000) && p.waitForFinished(2000)) ? 1 : 0;
-    return cached == 1;
+    cached = p.waitForStarted(2000) && p.waitForFinished(2000);
+    return *cached;
 }
 
 bool SettingsPage::autoStartEnabled()
@@ -681,7 +682,10 @@ SettingsPage::SettingsPage(VpnManager* manager, NatPmpManager* natPmpManager, QW
         auto* aboutBtn = new QPushButton(QStringLiteral("About"), appTab);
         aboutBtn->setObjectName(QStringLiteral("secondaryButton"));
         aboutBtn->setCursor(Qt::PointingHandCursor);
-        connect(aboutBtn, &QPushButton::clicked, this, &SettingsPage::showAboutDialog);
+        connect(aboutBtn, &QPushButton::clicked, this, [this]() {
+            AboutDialog dlg(m_installedCliVersion, this);
+            dlg.exec();
+        });
         appPageLayout->addWidget(aboutBtn);
     }
 
@@ -1314,7 +1318,7 @@ void SettingsPage::refresh()
     m_manager->fetchSettings();
 }
 
-void SettingsPage::updatePlusSectionState()
+void SettingsPage::updatePlusSectionState() const
 {
     const bool isFree = (m_manager->accountType() == AccountType::Free);
 
@@ -1427,132 +1431,4 @@ void SettingsPage::onSettingsReady(const QMap<QString, QString>& info)
     // individual widgets, so we must restore the correct state afterwards.
     updatePlusSectionState();
 }
-
-void SettingsPage::showAboutDialog()
-{
-    // Load versions from the embedded version.json resource
-    QString appVersion     = QStringLiteral("unknown");
-    QString testedVersionStr = QStringLiteral("unknown");
-    QFile vf(QStringLiteral(":/version.json"));
-    if (vf.open(QIODevice::ReadOnly))
-    {
-        const QJsonObject obj = QJsonDocument::fromJson(vf.readAll()).object();
-        vf.close();
-        if (obj.contains(QStringLiteral("app_version")))
-            appVersion = obj[QStringLiteral("app_version")].toString();
-        if (obj.contains(QStringLiteral("cli_version_tested")))
-            testedVersionStr = obj[QStringLiteral("cli_version_tested")].toString();
-    }
-
-    auto* dlg = new QDialog(this);
-    dlg->setWindowTitle(QStringLiteral("About ProtonVPN Qt App"));
-    dlg->setMinimumSize(520, 440);
-
-    auto* layout = new QVBoxLayout(dlg);
-    layout->setSpacing(10);
-
-    // ── Title / subtitle ─────────────────────────────────────
-    auto* titleLabel = new QLabel(QStringLiteral("<h2 style=\"margin-bottom:2px;\">ProtonVPN Qt App</h2>"), dlg);
-    titleLabel->setTextFormat(Qt::RichText);
-    layout->addWidget(titleLabel);
-
-    auto* subtitleLabel = new QLabel(
-        QStringLiteral("<span style=\"color:#888;\">A community-built Qt front-end for the Proton VPN CLI.</span>"), dlg);
-    subtitleLabel->setTextFormat(Qt::RichText);
-    layout->addWidget(subtitleLabel);
-
-    // ── Version table (QLabels so tooltips work) ─────────────
-    auto* versionWidget = new QWidget(dlg);
-    auto* versionGrid = new QGridLayout(versionWidget);
-    versionGrid->setContentsMargins(0, 4, 0, 8);
-    versionGrid->setHorizontalSpacing(8);
-    versionGrid->setVerticalSpacing(4);
-    versionGrid->setColumnStretch(1, 1);
-
-    auto makeKey = [&](const QString& text) -> QLabel*
-    {
-        auto* l = new QLabel(QStringLiteral("<b>%1</b>").arg(text), versionWidget);
-        l->setTextFormat(Qt::RichText);
-        return l;
-    };
-
-    // App version
-    versionGrid->addWidget(makeKey(QStringLiteral("App version:")),        0, 0);
-    versionGrid->addWidget(new QLabel(appVersion, versionWidget),          0, 1);
-
-    // Tested CLI version
-    versionGrid->addWidget(makeKey(QStringLiteral("Tested against CLI:")), 1, 0);
-    versionGrid->addWidget(new QLabel(testedVersionStr, versionWidget),    1, 1);
-
-    // Installed CLI version — only shown (with color + arrow + tooltip) when it differs
-    if (!m_installedCliVersion.isEmpty())
-    {
-        const QVersionNumber installed = QVersionNumber::fromString(m_installedCliVersion);
-        const QVersionNumber tested    = QVersionNumber::fromString(testedVersionStr);
-
-        if (!installed.isNull() && !tested.isNull() && installed != tested)
-        {
-            const bool newer = installed > tested;
-            const QString arrow   = newer ? QStringLiteral(" ▲") : QStringLiteral(" ▼");
-            const QString color   = newer ? QStringLiteral("#f59e0b") : QStringLiteral("#ef4444");
-            const QString tooltip = newer
-                ? QStringLiteral("Your installed CLI (v%1) is newer than the version this app was "
-                                  "tested against (v%2). Things may work fine, but you could "
-                                  "encounter unexpected behavior.")
-                      .arg(m_installedCliVersion, testedVersionStr)
-                : QStringLiteral("Your installed CLI (v%1) is older than the version this app was "
-                                  "tested against (v%2). Some features may not work correctly. "
-                                  "Consider upgrading the CLI.")
-                      .arg(m_installedCliVersion, testedVersionStr);
-
-            auto* valLabel = new QLabel(m_installedCliVersion + arrow, versionWidget);
-            valLabel->setStyleSheet(QStringLiteral("color: %1; font-weight: bold;").arg(color));
-            valLabel->setToolTip(tooltip);
-
-            versionGrid->addWidget(makeKey(QStringLiteral("Installed CLI:")), 2, 0);
-            versionGrid->addWidget(valLabel, 2, 1);
-        }
-    }
-
-    layout->addWidget(versionWidget);
-
-    // ── Disclaimer + Credits (QTextBrowser) ─────────────────
-    auto* browser = new QTextBrowser(dlg);
-    browser->setOpenExternalLinks(true);
-    browser->setFrameShape(QFrame::NoFrame);
-    browser->setHtml(QStringLiteral(R"(
-<p><b>⚠ Disclaimer:</b> This project is <b>not affiliated with, endorsed by, or
-supported by Proton AG</b> in any way. ProtonVPN and the Proton logo are
-trademarks of Proton AG.</p>
-<hr/>
-<h3>Author</h3>
-<ul>
-  <li>Nicholas Page (<a href="https://github.com/wheat32">wheat32</a>)</li>
-</ul>
-<h3>Credits &amp; Acknowledgements</h3>
-<ul>
-  <li>Built with <a href="https://www.qt.io/">Qt 6</a></li>
-  <li>Uses the <a href="https://protonvpn.com/support/linux-vpn-tool/">ProtonVPN Linux CLI</a></li>
-  <li>Icons from <a href="https://icons.getbootstrap.com/">Bootstrap Icons</a>
-      (MIT License)</li>
-  <li>Country flag SVGs from <a href="https://github.com/lipis/flag-icons">flag-icons</a>
-      by Panayiotis Lipiridis (MIT License)</li>
-</ul>
-<hr/>
-<p style="color:#888;font-size:small;">
-  This software is provided as-is, without warranty of any kind. Use at your own risk.
-</p>
-)"));
-    layout->addWidget(browser);
-
-    auto* btns = new QDialogButtonBox(QDialogButtonBox::Close, dlg);
-    connect(btns, &QDialogButtonBox::rejected, dlg, &QDialog::accept);
-    layout->addWidget(btns);
-
-    dlg->exec();
-    dlg->deleteLater();
-}
-
-
-
 

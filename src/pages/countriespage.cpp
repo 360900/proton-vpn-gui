@@ -3,8 +3,8 @@
 #include "../uihelpers.h"
 
 #include <algorithm>
+#include <ranges>
 #include <QDialog>
-#include <QDialogButtonBox>
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QPainter>
@@ -13,8 +13,6 @@
 #include <QSplitter>
 #include <QSvgRenderer>
 #include <QToolButton>
-#include <QVBoxLayout>
-
 
 // ============================================================
 // Feature metadata shared by wide + narrow city rows
@@ -25,10 +23,10 @@
 static bool hasFeature(const QString& features, const char* keyword)
 {
     const QStringList tags = features.split(QLatin1Char(','), Qt::SkipEmptyParts);
-    for (const QString& t : tags)
-        if (t.trimmed().contains(QLatin1String(keyword), Qt::CaseInsensitive))
-            return true;
-    return false;
+    return std::ranges::any_of(tags, [keyword](const QString& t)
+    {
+        return t.trimmed().contains(QLatin1String(keyword), Qt::CaseInsensitive);
+    });
 }
 
 // City-level filter predicate used by both wide and narrow city lists.
@@ -69,7 +67,7 @@ static QIcon makeCountryListIcon(const QString& countryCode, const bool pinned)
     QPainter p(&pm);
     p.setRenderHint(QPainter::Antialiasing);
 
-    int x = 12; // keep flag aligned across rows; star occupies the left slot
+    constexpr int x = 12; // keep flag aligned across rows; star occupies the left slot
     if (pinned)
         drawPinnedStar(p, QRect(0, 0, 9, 16));
 
@@ -558,7 +556,7 @@ void CountriesPage::refresh()
     // Narrow: clear accordion
     while (m_narrowLayout->count() > 1)
     {
-        auto* item = m_narrowLayout->takeAt(0);
+        const QLayoutItem* item = m_narrowLayout->takeAt(0);
         if (item->widget()) item->widget()->deleteLater();
         delete item;
     }
@@ -735,9 +733,9 @@ bool CountriesPage::countryPassesFilter(const QString& code) const
         return true;
 
     const auto& cities = m_cityCache[code];
-    for (const auto& cityPair : cities)
+    for (const QString& val : cities | std::views::values)
     {
-        const QString& features = cityPair.second;
+        const QString& features = val;
         if (cityPassesFilters(features, m_filterP2P, m_filterSecureCore, m_filterTor))
             return true;
     }
@@ -814,7 +812,7 @@ void CountriesPage::updateBubbleStyles() const
 // ============================================================
 // updateConnectBtnLockState
 // ============================================================
-void CountriesPage::updateConnectBtnLockState()
+void CountriesPage::updateConnectBtnLockState() const
 {
     // Locked style: muted dark button with a subtle purple tint — looks
     // "disabled" but stays interactive so the hover tooltip is reachable.
@@ -1030,7 +1028,7 @@ void CountriesPage::onCitiesReady(const QString& code,
         const QString displayName = m_allCountries.key(code, code);
 
         int filteredCount = 0;
-        for (const auto& [city, features] : cities)
+        for (const QString& features : cities | std::views::values)
         {
             if (!cityPassesFilters(features, m_filterP2P, m_filterSecureCore, m_filterTor))
                 continue;
@@ -1069,18 +1067,18 @@ void CountriesPage::onCitiesReady(const QString& code,
     // ── Narrow mode: fill the accordion for this country ──────────────────
     if (m_narrowMode && m_accordion.contains(code))
     {
-        auto& acc = m_accordion[code];
+        const AccordionItem& acc = m_accordion[code];
         // Clear old placeholder
         while (acc.citiesLayout->count() > 0)
         {
-            auto* li = acc.citiesLayout->takeAt(0);
+            const QLayoutItem* li = acc.citiesLayout->takeAt(0);
             if (li->widget()) li->widget()->deleteLater();
             delete li;
         }
 
         // Count how many cities pass the filter first.
         int added = 0;
-        for (const auto& [city, features] : cities)
+        for (const QString& features : cities | std::views::values)
         {
             if (!cityPassesFilters(features, m_filterP2P, m_filterSecureCore, m_filterTor))
                 continue;
