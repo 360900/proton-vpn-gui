@@ -2,6 +2,8 @@
 
 #include <QDir>
 #include <QFile>
+// ReSharper disable once CppUnusedIncludeDirective
+#include <QJsonDocument> // Ignore unused include warning; we do use QJsonDocument
 #include <QJsonObject>
 
 // ── Easy-to-change config location ──────────────────────────────────────────
