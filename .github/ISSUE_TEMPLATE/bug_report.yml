@@ -1,0 +1,97 @@
+name: Bug Report
+description: Report a bug or unexpected behavior in proton-vpn-qt-app.
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        > [!NOTE]
+        > **CLI version warnings do not need to be reported.** If the app displays a banner warning that your `protonvpn` CLI version is newer than the version supported by the latest release, this is already known and does not need an issue to track it.
+  - type: checkboxes
+    id: preflight
+    attributes:
+      label: Pre-flight Checklist
+      description: Please confirm all of the following before submitting. **All boxes must be checked.**
+      options:
+        - label: >
+            The official **Proton VPN GTK app is NOT installed**. It conflicts with this app — both will fight
+            over connection state and session management. Uninstall it before using this app.
+          required: true
+        - label: >
+            **This app is up to date** — I am running the latest [GitHub Release](../../releases) or have
+            built from the latest `main` branch commit.
+          required: true
+        - label: >
+            The **`protonvpn` CLI is up to date**. I have run the appropriate update command for my package
+            manager to ensure I have the latest version.
+          required: true
+        - label: >
+            I have **searched for duplicate issues** and have not found an existing report for this bug.
+          required: true
+        - label: >
+            I am running **vanilla Arch Linux or a supported Arch-based distro**. Distros that do not
+            supersede the vanilla Arch repositories are supported (e.g. EndeavourOS ✔). Distros with custom
+            repos that replace or override Arch packages — such as **CachyOS** and **Manjaro** — are **not
+            supported**, as differing package versions can cause unpredictable behavior.
+          required: true
+        - label: >
+            I understand that **this is a community project with no affiliation with or access to Proton AG's
+            internal APIs**. It can only do what the public `protonvpn` CLI exposes.
+          required: true
+  - type: textarea
+    id: system-specs
+    attributes:
+      label: System Specifications
+      description: Provide your OS, kernel version, Qt version, `protonvpn` CLI version, and desktop environment.
+      placeholder: |
+        OS:              Arch Linux (or e.g. EndeavourOS)
+        Kernel:          6.x.x-arch1-1
+        DE / WM:         KDE Plasma 6 / kwin_wayland
+        Qt version:      6.x.x
+        protonvpn CLI:   x.x.x
+        proton-vpn-qt-app version / commit:  vX.X.X
+    validations:
+      required: true
+  - type: textarea
+    id: steps-to-reproduce
+    attributes:
+      label: Steps to Reproduce
+      description: Provide a clear, numbered list of steps that reliably reproduce the issue.
+      placeholder: |
+        1. Open the app
+        2. Navigate to ...
+        3. Click ...
+        4. Observe ...
+    validations:
+      required: true
+  - type: textarea
+    id: expected-behavior
+    attributes:
+      label: Expected Behavior
+      description: What did you expect to happen?
+    validations:
+      required: true
+  - type: textarea
+    id: actual-behavior
+    attributes:
+      label: Actual Behavior
+      description: What actually happened? Include any error messages shown in the UI or in the terminal.
+    validations:
+      required: true
+  - type: textarea
+    id: screenshots-logs
+    attributes:
+      label: Screenshots & Logs
+      description: >
+        Attach screenshots or paste relevant terminal output / logs. Launch the app from a terminal
+        (`./proton_vpn_qt`) to capture any console output. Drag-and-drop images directly into this field.
+      placeholder: Paste logs or terminal output here, or drag and drop screenshots.
+    validations:
+      required: false
+  - type: textarea
+    id: additional-context
+    attributes:
+      label: Additional Context
+      description: Any other context that might be relevant — recent system updates, VPN plan type, affected feature, etc.
+    validations:
+      required: false
