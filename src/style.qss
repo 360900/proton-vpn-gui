@@ -61,7 +61,8 @@ QLabel#fieldLabel {
     font-size: 12px;
 }
 
-QLabel#errorLabel {
+QLabel#errorLabel,
+QAbstractScrollArea#errorLabel {
     color: #ff6b6b;
     background-color: rgba(214, 63, 63, 0.1);
     border: 1px solid #d63f3f;

@@ -46,13 +46,40 @@ LoginPage::LoginPage(QWidget* parent)
     m_stack->addWidget(m_tfaWidget); // index 1
     cardLayout->addWidget(m_stack);
 
-    // Shared error label below the stack
-    m_errorLabel = new QLabel(card);
-    m_errorLabel->setObjectName(QStringLiteral("errorLabel"));
+    // Shared error section below the stack
+    m_errorContainer = new QWidget(card);
+    m_errorContainer->setVisible(false);
+    auto* errorContainerLayout = new QVBoxLayout(m_errorContainer);
+    errorContainerLayout->setSpacing(6);
+    errorContainerLayout->setContentsMargins(32, 0, 32, 16);
+
+    // Scrollable error label
+    m_errorLabel = new QLabel();
     m_errorLabel->setWordWrap(true);
-    m_errorLabel->setVisible(false);
-    m_errorLabel->setContentsMargins(32, 0, 32, 16);
-    cardLayout->addWidget(m_errorLabel);
+    m_errorLabel->setAlignment(Qt::AlignTop | Qt::AlignLeft);
+    m_errorLabel->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
+
+    m_errorScrollArea = new QScrollArea(m_errorContainer);
+    m_errorScrollArea->setWidget(m_errorLabel);
+    m_errorScrollArea->setWidgetResizable(true);
+    m_errorScrollArea->setFixedHeight(100);
+    m_errorScrollArea->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    m_errorScrollArea->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
+    m_errorScrollArea->setObjectName(QStringLiteral("errorLabel"));
+    m_errorScrollArea->viewport()->setStyleSheet(QStringLiteral("background: transparent;"));
+    errorContainerLayout->addWidget(m_errorScrollArea);
+
+    // "View Details" button
+    m_errorDetailsBtn = new QPushButton(QStringLiteral("View Details"), m_errorContainer);
+    m_errorDetailsBtn->setFixedWidth(140);
+    connect(m_errorDetailsBtn, &QPushButton::clicked, this, [this]()
+    {
+        auto* dlg = new ErrorDetailsDialog(m_rawError, this);
+        dlg->exec();
+    });
+    errorContainerLayout->addWidget(m_errorDetailsBtn, 0, Qt::AlignCenter);
+
+    cardLayout->addWidget(m_errorContainer);
 
     m_outerLayout->addWidget(card, 0, Qt::AlignCenter);
 
@@ -179,6 +206,14 @@ void LoginPage::buildTFAWidget()
     });
     connect(m_tfaEdit, &QLineEdit::returnPressed, m_tfaSubmitBtn, &QPushButton::click);
     layout->addWidget(m_tfaSubmitBtn);
+
+    m_tfaCancelBtn = new QPushButton(QStringLiteral("Go Back"), m_tfaWidget);
+    m_tfaCancelBtn->setCursor(Qt::PointingHandCursor);
+    connect(m_tfaCancelBtn, &QPushButton::clicked, this, [this]()
+    {
+        emit loginCancelRequested();
+    });
+    layout->addWidget(m_tfaCancelBtn);
 }
 
 void LoginPage::show2FAPrompt() const
@@ -209,12 +244,16 @@ void LoginPage::setError(const QString& error) const
 {
     if (error.isEmpty())
     {
-        m_errorLabel->setVisible(false);
+        m_errorContainer->setVisible(false);
+        m_errorLabel->clear();
+        m_rawError = QString();
     }
     else
     {
+        m_rawError = error;
         m_errorLabel->setText(error);
-        m_errorLabel->setVisible(true);
+
+        m_errorContainer->setVisible(true);
     }
 }
 
@@ -233,6 +272,7 @@ void LoginPage::setLoading(const bool loading) const
         m_tfaSubmitBtn->setEnabled(!loading);
         m_tfaSubmitBtn->setText(loading ? QStringLiteral("Verifying…") : QStringLiteral("Verify"));
         m_tfaEdit->setEnabled(!loading);
+        m_tfaCancelBtn->setEnabled(!loading);
     }
 }
 

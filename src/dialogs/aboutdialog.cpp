@@ -68,6 +68,9 @@ AboutDialog::AboutDialog(const QString& installedCliVersion, QWidget* parent)
     versionGrid->addWidget(makeKey(QStringLiteral("Tested against CLI:")), 1, 0);
     versionGrid->addWidget(new QLabel(testedVersionStr, versionWidget),    1, 1);
 
+    versionGrid->addWidget(makeKey(QStringLiteral("Qt version:")),         2, 0);
+    versionGrid->addWidget(new QLabel(QStringLiteral(QT_VERSION_STR),      versionWidget), 2, 1);
+
     // Installed CLI version – highlighted only when it differs from tested
     if (!installedCliVersion.isEmpty())
     {
@@ -94,8 +97,8 @@ AboutDialog::AboutDialog(const QString& installedCliVersion, QWidget* parent)
                 QStringLiteral("color: %1; font-weight: bold;").arg(color));
             valLabel->setToolTip(tooltip);
 
-            versionGrid->addWidget(makeKey(QStringLiteral("Installed CLI:")), 2, 0);
-            versionGrid->addWidget(valLabel,                                  2, 1);
+            versionGrid->addWidget(makeKey(QStringLiteral("Installed CLI:")), 3, 0);
+            versionGrid->addWidget(valLabel,                                  3, 1);
         }
     }
 

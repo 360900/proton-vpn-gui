@@ -145,27 +145,36 @@ void VpnManager::login(const QString& username, const QString& password)
                 const QString combined = state->accumulated.trimmed();
                 delete state;
 
-                if (process == m_signinProcess)
-                    m_signinProcess = nullptr;
+                // If cancelLogin() was called first, m_signinProcess is already
+                // nullptr — don't emit loginFinished for a deliberate cancellation.
+                if (process != m_signinProcess)
+                {
+                    process->deleteLater();
+                    return;
+                }
+                m_signinProcess = nullptr;
                 process->deleteLater();
 
-                const bool ok = exitCode == 0;
+                const bool outputHasError = combined.contains(QStringLiteral("error"), Qt::CaseInsensitive);
+                const bool ok = exitCode == 0 && !outputHasError;
                 QString errorMsg;
                 if (!ok)
                 {
                     const QStringList lines = combined.split(QLatin1Char('\n'), Qt::SkipEmptyParts);
-                    for (const auto& line : std::ranges::reverse_view(lines))
+                    QStringList errorLines;
+                    for (const auto& line : lines)
                     {
                         const QString l = line.trimmed();
                         if (!l.isEmpty()
                             && !l.startsWith(QStringLiteral("Password:"))
-                            && !l.startsWith(QStringLiteral("2FA")))
+                            && !l.startsWith(QStringLiteral("2FA"))
+                            && !l.startsWith(QStringLiteral("Warning:"))
+                            && !l.contains(QStringLiteral(".py:")))
                         {
-                            errorMsg = l;
-                            break;
+                            errorLines.append(l);
                         }
                     }
-                    if (errorMsg.isEmpty()) errorMsg = combined;
+                    errorMsg = errorLines.isEmpty() ? combined : errorLines.join(QLatin1Char('\n'));
                 }
                 else
                 {
@@ -177,6 +186,16 @@ void VpnManager::login(const QString& username, const QString& password)
 
     process->start(QStringLiteral("protonvpn"),
                    QStringList{QStringLiteral("signin"), username});
+}
+
+void VpnManager::cancelLogin()
+{
+    if (m_signinProcess)
+    {
+        m_signinProcess->kill();
+        m_signinProcess->deleteLater();
+        m_signinProcess = nullptr;
+    }
 }
 
 void VpnManager::submit2FA(const QString& token) const

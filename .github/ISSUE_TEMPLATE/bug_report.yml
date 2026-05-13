@@ -29,10 +29,10 @@ body:
             I have **searched for duplicate issues** and have not found an existing report for this bug.
           required: true
         - label: >
-            I am running **vanilla Arch Linux or a supported Arch-based distro**. Distros that do not
-            supersede the vanilla Arch repositories are supported (e.g. EndeavourOS ✔). Distros with custom
-            repos that replace or override Arch packages — such as **CachyOS** and **Manjaro** — are **not
-            supported**, as differing package versions can cause unpredictable behavior.
+            **If I installed this app via the AUR**, I am on vanilla Arch Linux or an Arch-based distro
+            whose repositories do not override or supersede the vanilla Arch packages
+            (e.g. EndeavourOS ✔ — **Manjaro** and **CachyOS** ✖). Differing package versions from
+            overriding repos can cause unpredictable behavior.
           required: true
         - label: >
             I understand that **this is a community project with no affiliation with or access to Proton AG's

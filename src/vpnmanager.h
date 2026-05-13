@@ -34,6 +34,7 @@ public:
     void checkInstalled();
     void checkLoginStatus();
     void login(const QString& username, const QString& password);
+    void cancelLogin();
     void submit2FA(const QString& token) const;
     void signOut();
     void connectVpn(const QString& country = QString(), const QString& city = QString());
