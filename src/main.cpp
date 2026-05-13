@@ -9,6 +9,10 @@
 #include <QJsonObject>
 #include "mainwindow.h"
 #include "appconfig.h"
+#include "debug.h"
+#include <QSysInfo>
+#include <QLocale>
+#include <QStandardPaths>
 
 int main(int argc, char* argv[])
 {
@@ -17,7 +21,8 @@ int main(int argc, char* argv[])
     QApplication::setApplicationDisplayName(QStringLiteral("ProtonVPN"));
 
     // Read version from the embedded version.json so there is a single source of truth.
-    QString appVersion = QStringLiteral("1.0.0");
+    QString appVersion = QStringLiteral("unknown");
+    QString cliVersionTested = QStringLiteral("unknown");
     QFile vf(QStringLiteral(":/version.json"));
     if (vf.open(QIODevice::ReadOnly))
     {
@@ -25,8 +30,23 @@ int main(int argc, char* argv[])
         vf.close();
         if (obj.contains(QStringLiteral("app_version")))
             appVersion = obj[QStringLiteral("app_version")].toString();
+        if (obj.contains(QStringLiteral("cli_version_tested")))
+            cliVersionTested = obj[QStringLiteral("cli_version_tested")].toString();
     }
     QApplication::setApplicationVersion(appVersion);
+
+    // ── Startup diagnostics ──────────────────────────────────────────────────
+    DBG_APP(QStringLiteral("=== ProtonVPN Qt App starting ==="));
+    DBG_APP(QStringLiteral("App version    : ") + appVersion);
+    DBG_APP(QStringLiteral("CLI tested for : ") + cliVersionTested);
+    DBG_APP(QStringLiteral("Qt version     : ") + QString::fromLatin1(qVersion()));
+    DBG_APP(QStringLiteral("OS             : ") + QSysInfo::prettyProductName());
+    DBG_APP(QStringLiteral("Kernel         : ") + QSysInfo::kernelVersion());
+    DBG_APP(QStringLiteral("CPU arch       : ") + QSysInfo::currentCpuArchitecture());
+    DBG_APP(QStringLiteral("Locale         : ") + QLocale::system().name());
+    DBG_APP(QStringLiteral("Config dir     : ") +
+            QStandardPaths::writableLocation(QStandardPaths::AppConfigLocation));
+    DBG_APP(QStringLiteral("================================="));
 
     // Single-instance guard — prevent multiple copies running at the same time.
     const QString lockPath = QDir::tempPath() + QStringLiteral("/proton-vpn-qt-app.lock");
@@ -34,6 +54,11 @@ int main(int argc, char* argv[])
     lockFile.setStaleLockTime(0); // never treat a lock as stale
     if (!lockFile.tryLock(100))
     {
+        qint64 pid = 0; QString hostname, appname;
+        lockFile.getLockInfo(&pid, &hostname, &appname);
+        DBG_APP(QStringLiteral("Another instance of ProtonVPN is already running (PID: ") +
+                (pid > 0 ? QString::number(pid) : QStringLiteral("unknown")) +
+                QStringLiteral("). Exiting."));
         QMessageBox::warning(
             nullptr,
             QStringLiteral("Already Running"),
