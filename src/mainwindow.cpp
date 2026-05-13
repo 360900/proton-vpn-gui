@@ -105,6 +105,11 @@ MainWindow::MainWindow(QWidget* parent)
         m_loginPage->setError(QString());
         m_manager->submit2FA(token);
     });
+    connect(m_loginPage, &LoginPage::loginCancelRequested, this, [this]()
+    {
+        m_manager->cancelLogin();
+        m_loginPage->reset();
+    });
 
     // VPN page (index 3)
     m_vpnPage = new VpnPage(m_manager);

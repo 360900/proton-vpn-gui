@@ -56,6 +56,8 @@ set(SOURCES
         pages/settingspage.cpp
         dialogs/aboutdialog.h
         dialogs/aboutdialog.cpp
+        dialogs/errordetailsdialog.h
+        dialogs/errordetailsdialog.cpp
         resources.qrc
         flags.qrc
 )

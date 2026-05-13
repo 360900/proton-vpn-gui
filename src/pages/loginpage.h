@@ -3,9 +3,11 @@
 #include <QLineEdit>
 #include <QPushButton>
 #include <QLabel>
+#include <QScrollArea>
 #include <QStackedWidget>
 #include <QVBoxLayout>
 #include "../widgets/infobanner.h"
+#include "../dialogs/errordetailsdialog.h"
 
 class LoginPage : public QWidget
 {
@@ -26,6 +28,7 @@ public slots:
 signals:
     void loginRequested(const QString& username, const QString& password);
     void twoFASubmitted(const QString& token);
+    void loginCancelRequested();
 
 private:
     // --- credentials view ---
@@ -39,10 +42,15 @@ private:
     QWidget* m_tfaWidget;
     QLineEdit* m_tfaEdit;
     QPushButton* m_tfaSubmitBtn;
+    QPushButton* m_tfaCancelBtn;
 
     // shared
     QStackedWidget* m_stack;
+    QWidget* m_errorContainer = nullptr;
     QLabel* m_errorLabel;
+    QScrollArea* m_errorScrollArea = nullptr;
+    QPushButton* m_errorDetailsBtn = nullptr;
+    mutable QString m_rawError;
     QVBoxLayout* m_outerLayout = nullptr;
     InfoBanner* m_versionBanner = nullptr;
     InfoBanner* m_prereleaseBanner = nullptr;

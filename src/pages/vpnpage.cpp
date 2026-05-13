@@ -14,9 +14,6 @@
 #include <QPainterPath>
 #include <QSvgRenderer>
 #include <QPropertyAnimation>
-#include <QDialog>
-#include <QPlainTextEdit>
-#include <QFont>
 #include <QGuiApplication>
 #include <QClipboard>
 #include <QCursor>
@@ -1201,6 +1198,9 @@ void VpnPage::updateUi(const VpnState state, const QString& info)
 
     m_errorDetailsBtn->setVisible(false);
     m_signOutHintLabel->setVisible(false);
+    m_infoLabel->setObjectName(QStringLiteral("infoLabel"));
+    m_infoLabel->style()->unpolish(m_infoLabel);
+    m_infoLabel->style()->polish(m_infoLabel);
     m_infoLabel->setTextFormat(Qt::AutoText);
     m_infoLabel->setOpenExternalLinks(false);
 
@@ -1345,6 +1345,9 @@ void VpnPage::updateUi(const VpnState state, const QString& info)
         }
         m_infoLabel->setTextFormat(Qt::RichText);
         m_infoLabel->setOpenExternalLinks(true);
+        m_infoLabel->setObjectName(QStringLiteral("errorLabel"));
+        m_infoLabel->style()->unpolish(m_infoLabel);
+        m_infoLabel->style()->polish(m_infoLabel);
         m_errorDetailsBtn->setVisible(!info.trimmed().isEmpty());
         break;
     }
@@ -1376,33 +1379,7 @@ void VpnPage::stopElapsedTimer() const
 
 void VpnPage::showErrorDetails() const
 {
-    auto* dlg = new QDialog(const_cast<VpnPage*>(this));
-    dlg->setWindowTitle(QStringLiteral("Error Details"));
-    dlg->setMinimumSize(640, 400);
-    dlg->setAttribute(Qt::WA_DeleteOnClose);
-
-    auto* layout = new QVBoxLayout(dlg);
-    layout->setSpacing(10);
-
-    auto* textEdit = new QPlainTextEdit(dlg);
-    textEdit->setReadOnly(true);
-    textEdit->setPlainText(m_rawError);
-    textEdit->setFont(QFont(QStringLiteral("Monospace"), 9));
-    layout->addWidget(textEdit);
-
-    auto* btnRow = new QHBoxLayout();
-    auto* copyBtn = new QPushButton(QStringLiteral("Copy to Clipboard"), dlg);
-    connect(copyBtn, &QPushButton::clicked, dlg, [this]()
-    {
-        QGuiApplication::clipboard()->setText(m_rawError);
-    });
-    auto* closeBtn = new QPushButton(QStringLiteral("Close"), dlg);
-    connect(closeBtn, &QPushButton::clicked, dlg, &QDialog::accept);
-    btnRow->addWidget(copyBtn);
-    btnRow->addStretch();
-    btnRow->addWidget(closeBtn);
-    layout->addLayout(btnRow);
-
+    auto* dlg = new ErrorDetailsDialog(m_rawError, const_cast<VpnPage*>(this));
     dlg->exec();
 }
 

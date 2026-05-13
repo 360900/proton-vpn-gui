@@ -3,13 +3,12 @@
 #include <optional>
 #include <QTimer>
 #include <QPropertyAnimation>
-#include <QDialog>
-#include <QPlainTextEdit>
 #include <QVersionNumber>
 #include "../vpnmanager.h"
 #include "../cli/natpmpmanager.h"
 #include "../widgets/pickerbase.h"
 #include "../widgets/infobanner.h"
+#include "../dialogs/errordetailsdialog.h"
 
 // ---------------------------------------------------------------------------
 // PowerButton
