@@ -42,6 +42,8 @@ set(SOURCES
         widgets/pickerbase.h
         widgets/svgbanner.h
         widgets/toastnotification.h
+        widgets/toggleswitch.h
+        widgets/toggleswitch.cpp
         pages/notinstalledpage.h
         pages/notinstalledpage.cpp
         pages/loginpage.h

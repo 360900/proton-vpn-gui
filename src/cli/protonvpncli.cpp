@@ -4,6 +4,7 @@
 // in vpnmanager.cpp.
 
 #include "../vpnmanager.h"
+#include "../debug.h"
 #include "statusmonitor.h"
 
 #include <QProcess>
@@ -19,11 +20,19 @@ void VpnManager::runCommand(const QStringList& args,
                             std::function<void(int, const QString&, const QString&)> callback)
 {
     auto* process = new QProcess(this);
+    const QString cmdLine = QStringLiteral("protonvpn ") + args.join(QLatin1Char(' '));
+    DBG_CLI(QStringLiteral(">>> ") + cmdLine);
     connect(process, &QProcess::finished,
-            this, [process, callback](int exitCode, QProcess::ExitStatus)
+            this, [process, callback, cmdLine](int exitCode, QProcess::ExitStatus)
             {
                 const QString out = QString::fromUtf8(process->readAllStandardOutput()).trimmed();
                 const QString err = QString::fromUtf8(process->readAllStandardError()).trimmed();
+                DBG_CLI(QStringLiteral("<<< ") + cmdLine +
+                        QStringLiteral(" [exit=") + QString::number(exitCode) + QStringLiteral("]"));
+                if (!out.isEmpty())
+                    DBG_CLI(QStringLiteral("    stdout: ") + out);
+                if (!err.isEmpty())
+                    DBG_CLI(QStringLiteral("    stderr: ") + err);
                 callback(exitCode, out, err);
                 process->deleteLater();
             });
@@ -36,6 +45,7 @@ void VpnManager::runCommand(const QStringList& args,
 
 void VpnManager::checkInstalled()
 {
+    DBG_CLI(QStringLiteral("Checking if protonvpn CLI is installed..."));
     auto* process = new QProcess(this);
     connect(process, &QProcess::finished,
             this, [this, process](const int exitCode, QProcess::ExitStatus)
@@ -45,6 +55,7 @@ void VpnManager::checkInstalled()
                 const QString err = QString::fromUtf8(process->readAllStandardError());
                 const bool installed = !out.isEmpty() || !err.isEmpty();
                 process->deleteLater();
+                DBG_CLI(installed ? QStringLiteral("protonvpn CLI found.") : QStringLiteral("protonvpn CLI NOT found."));
                 emit installedResult(installed);
             });
     process->start(QStringLiteral("protonvpn"), QStringList{QStringLiteral("--help")});
@@ -86,6 +97,7 @@ void VpnManager::checkLoginStatus()
 
 void VpnManager::login(const QString& username, const QString& password)
 {
+    DBG_CLI(QStringLiteral("Login attempt for user: ") + username);
     // CLI flow: protonvpn signin <username>
     //   stderr: "Password: "   → write password + '\n' to stdin
     //   stderr: "2FA Token: "  → optional; emit twoFactorRequired()
@@ -121,6 +133,7 @@ void VpnManager::login(const QString& username, const QString& password)
             state->accumulated.contains(QStringLiteral("2FA Token:")))
         {
             state->twoFAEmitted = true;
+            DBG_CLI(QStringLiteral("Two-factor authentication required."));
             emit twoFactorRequired();
         }
     };
@@ -157,6 +170,7 @@ void VpnManager::login(const QString& username, const QString& password)
 
                 const bool outputHasError = combined.contains(QStringLiteral("error"), Qt::CaseInsensitive);
                 const bool ok = exitCode == 0 && !outputHasError;
+                DBG_CLI(ok ? QStringLiteral("Login succeeded.") : QStringLiteral("Login failed (exit=") + QString::number(exitCode) + QStringLiteral(")."));
                 QString errorMsg;
                 if (!ok)
                 {
@@ -206,9 +220,11 @@ void VpnManager::submit2FA(const QString& token) const
 
 void VpnManager::signOut()
 {
+    DBG_CLI(QStringLiteral("Signing out..."));
     stopStatusMonitor();
     runCommand({QStringLiteral("signout")}, [this](int exitCode, const QString&, const QString&)
     {
+        DBG_CLI(exitCode == 0 ? QStringLiteral("Sign-out succeeded.") : QStringLiteral("Sign-out failed (exit=") + QString::number(exitCode) + QStringLiteral(")."));
         m_state = VpnState::Disconnected;
         emit signOutFinished(exitCode == 0);
     });
@@ -220,6 +236,8 @@ void VpnManager::signOut()
 
 void VpnManager::connectVpn(const QString& country, const QString& city)
 {
+    DBG_CLI(QStringLiteral("Connecting to VPN — country: '") + (country.isEmpty() ? QStringLiteral("(fastest)") : country) +
+            QStringLiteral("'  city: '") + (city.isEmpty() ? QStringLiteral("(any)") : city) + QStringLiteral("'"));
     m_lastConnectCountry = country;
     m_lastConnectCity    = city;
     m_connectedServer.clear();
@@ -237,6 +255,7 @@ void VpnManager::connectVpn(const QString& country, const QString& city)
     {
         if (exitCode == 0)
         {
+            DBG_CLI(QStringLiteral("VPN connected successfully."));
             m_state = VpnState::Connected;
             // Strip noise / port-forwarding guide lines from CLI output.
             QStringList lines = out.split(QLatin1Char('\n'));
@@ -256,6 +275,7 @@ void VpnManager::connectVpn(const QString& country, const QString& city)
         }
         else
         {
+            DBG_CLI(QStringLiteral("VPN connection failed (exit=") + QString::number(exitCode) + QStringLiteral("): ") + (err.isEmpty() ? out : err));
             m_state = VpnState::Error;
             emit connectionStateChanged(m_state, err.isEmpty() ? out : err);
             emit errorOccurred(err.isEmpty() ? out : err);
@@ -265,6 +285,7 @@ void VpnManager::connectVpn(const QString& country, const QString& city)
 
 void VpnManager::disconnectVpn()
 {
+    DBG_CLI(QStringLiteral("Disconnecting VPN..."));
     m_state = VpnState::Disconnecting;
     emit connectionStateChanged(m_state, QString());
 
@@ -272,11 +293,13 @@ void VpnManager::disconnectVpn()
     {
         if (exitCode == 0)
         {
+            DBG_CLI(QStringLiteral("VPN disconnected successfully."));
             m_state = VpnState::Disconnected;
             emit connectionStateChanged(m_state, out);
         }
         else
         {
+            DBG_CLI(QStringLiteral("VPN disconnect failed (exit=") + QString::number(exitCode) + QStringLiteral("): ") + (err.isEmpty() ? out : err));
             m_state = VpnState::Error;
             emit connectionStateChanged(m_state, err.isEmpty() ? out : err);
             emit errorOccurred(err.isEmpty() ? out : err);
@@ -475,6 +498,7 @@ void VpnManager::applyConfig(const QString& key, bool enabled)
 
 void VpnManager::applyConfigValue(const QString& key, const QString& value)
 {
+    DBG_CLI(QStringLiteral("Applying CLI config: ") + key + QStringLiteral(" = ") + value);
     QStringList args{QStringLiteral("config"), QStringLiteral("set"), key};
     args << value.split(QLatin1Char(' '), Qt::SkipEmptyParts);
 
