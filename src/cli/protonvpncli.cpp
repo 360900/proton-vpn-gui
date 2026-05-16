@@ -6,11 +6,23 @@
 #include "../vpnmanager.h"
 #include "../debug.h"
 #include "statusmonitor.h"
+#include "flatpakutils.h"
 
 #include <QProcess>
 #include <QRegularExpression>
 #include <functional>
 #include <ranges>
+
+// ---------------------------------------------------------------------------
+// Flatpak helper — when running inside a Flatpak sandbox, all CLI calls must
+// be forwarded to the host via flatpak-spawn.
+// ---------------------------------------------------------------------------
+
+// Returns {program, fullArgs} ready for QProcess::start.
+static std::pair<QString, QStringList> buildCliCommand(const QStringList& args)
+{
+    return buildHostCommand(QStringLiteral("protonvpn"), args);
+}
 
 // ---------------------------------------------------------------------------
 // Internal helper — run any protonvpn sub-command asynchronously.
@@ -36,7 +48,8 @@ void VpnManager::runCommand(const QStringList& args,
                 callback(exitCode, out, err);
                 process->deleteLater();
             });
-    process->start(QStringLiteral("protonvpn"), args);
+    auto [program, fullArgs] = buildCliCommand(args);
+    process->start(program, fullArgs);
 }
 
 // ---------------------------------------------------------------------------
@@ -58,7 +71,8 @@ void VpnManager::checkInstalled()
                 DBG_CLI(installed ? QStringLiteral("protonvpn CLI found.") : QStringLiteral("protonvpn CLI NOT found."));
                 emit installedResult(installed);
             });
-    process->start(QStringLiteral("protonvpn"), QStringList{QStringLiteral("--help")});
+    auto [program, fullArgs] = buildCliCommand({QStringLiteral("--help")});
+    process->start(program, fullArgs);
     if (!process->waitForStarted(2000))
     {
         process->deleteLater();
@@ -198,8 +212,8 @@ void VpnManager::login(const QString& username, const QString& password)
                 emit loginFinished(ok, errorMsg);
             });
 
-    process->start(QStringLiteral("protonvpn"),
-                   QStringList{QStringLiteral("signin"), username});
+    auto [program, fullArgs] = buildCliCommand({QStringLiteral("signin"), username});
+    process->start(program, fullArgs);
 }
 
 void VpnManager::cancelLogin()
@@ -312,7 +326,8 @@ void VpnManager::disconnectVpnSync()
     // Used at application exit — run synchronously so the event loop does not
     // need to stay alive.
     QProcess process;
-    process.start(QStringLiteral("protonvpn"), QStringList{QStringLiteral("disconnect")});
+    auto [program, fullArgs] = buildCliCommand({QStringLiteral("disconnect")});
+    process.start(program, fullArgs);
     process.waitForFinished(10000); // up to 10 s
 }
 

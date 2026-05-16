@@ -35,3 +35,11 @@ build/
 
 # Jetbrains
 .idea/
+
+# Flatpak Building
+.flatpak-repo/
+.flatpak-build/
+.flatpak-builder/
+
+# Binaries
+dist/

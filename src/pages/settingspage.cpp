@@ -3,6 +3,7 @@
 #include "../connectionhistory.h"
 #include "../uihelpers.h"
 #include "../widgets/toggleswitch.h"
+#include "../cli/flatpakutils.h"
 
 #include <QSpinBox>
 #include <QVBoxLayout>
@@ -267,12 +268,14 @@ QString SettingsPage::serviceFilePath()
 
 bool SettingsPage::systemdAvailable()
 {
-    // Check once whether systemctl is on PATH by trying to start it with --version.
+    // Check once whether systemctl is reachable (on the host when in Flatpak).
     static std::optional<bool> cached;
     if (cached.has_value()) return *cached;
 
     QProcess p;
-    p.start(QStringLiteral("systemctl"), {QStringLiteral("--version")});
+    auto [prog, args] = buildHostCommand(QStringLiteral("systemctl"),
+                                         {QStringLiteral("--version")});
+    p.start(prog, args);
     cached = p.waitForStarted(2000) && p.waitForFinished(2000);
     return *cached;
 }
@@ -284,8 +287,11 @@ bool SettingsPage::autoStartEnabled()
 
     // Ask systemd whether the service is enabled. Exit code 0 = enabled.
     QProcess p;
-    p.start(QStringLiteral("systemctl"),
-            {QStringLiteral("--user"), QStringLiteral("is-enabled"), kServiceName});
+    auto [prog, args] = buildHostCommand(QStringLiteral("systemctl"),
+                                         {QStringLiteral("--user"),
+                                          QStringLiteral("is-enabled"),
+                                          kServiceName});
+    p.start(prog, args);
     if (!p.waitForFinished(3000)) return false;
     const QString out = QString::fromUtf8(p.readAllStandardOutput()).trimmed().toLower();
     return out == QStringLiteral("enabled") || out == QStringLiteral("static");
@@ -302,8 +308,12 @@ bool SettingsPage::setAutoStart(const bool enable, QString& errorOut)
 
     if (enable)
     {
-        // Resolve the path to the currently running executable.
-        const QString exe = QCoreApplication::applicationFilePath();
+        // When running as a Flatpak the launcher must be `flatpak run <app-id>`
+        // rather than the sandbox-internal binary path, so the service works
+        // even when the app is not running from within the sandbox at login.
+        const QString exe = isRunningAsFlatpak()
+            ? QStringLiteral("flatpak run io.github.wheat32.ProtonVPNQt")
+            : QCoreApplication::applicationFilePath();
 
         // Create the systemd user service directory if it doesn't exist.
         QDir dir;
@@ -334,8 +344,11 @@ bool SettingsPage::setAutoStart(const bool enable, QString& errorOut)
 
         // Enable the service (creates the symlink so it starts automatically).
         QProcess p;
-        p.start(QStringLiteral("systemctl"),
-                {QStringLiteral("--user"), QStringLiteral("enable"), kServiceName});
+        auto [prog, args] = buildHostCommand(QStringLiteral("systemctl"),
+                                             {QStringLiteral("--user"),
+                                              QStringLiteral("enable"),
+                                              kServiceName});
+        p.start(prog, args);
         p.waitForFinished(5000);
         if (p.exitCode() != 0)
         {
@@ -349,8 +362,11 @@ bool SettingsPage::setAutoStart(const bool enable, QString& errorOut)
     {
         // Disable and remove.
         QProcess p;
-        p.start(QStringLiteral("systemctl"),
-                {QStringLiteral("--user"), QStringLiteral("disable"), kServiceName});
+        auto [prog, args] = buildHostCommand(QStringLiteral("systemctl"),
+                                             {QStringLiteral("--user"),
+                                              QStringLiteral("disable"),
+                                              kServiceName});
+        p.start(prog, args);
         p.waitForFinished(5000);
 
         QFile::remove(serviceFilePath());
@@ -1191,11 +1207,12 @@ SettingsPage::SettingsPage(VpnManager* manager, NatPmpManager* natPmpManager, QW
             // Keep the whole card locked through the Disconnected interim.
             if (state == VpnState::Connected || state == VpnState::Error)
             {
-                // Sequence complete — restore everything.
+                // Sequence complete — re-read settings from disk so the toggles
+                // show the confirmed on-disk state rather than the optimistic one.
+                // refresh() will re-enable everything via setLoading(false) once
+                // the settings are ready.
                 m_sequencePending = false;
-                if (m_vpnCard)    m_vpnCard->setEnabled(true);
-                if (m_refreshBtn) m_refreshBtn->setEnabled(true);
-                updatePlusSectionState();
+                refresh();
             }
             else
             {
@@ -1359,4 +1376,6 @@ void SettingsPage::onSettingsReady(const QMap<QString, QString>& info)
     // individual widgets, so we must restore the correct state afterwards.
     updatePlusSectionState();
 }
+
+
 

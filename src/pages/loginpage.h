@@ -7,6 +7,7 @@
 #include <QStackedWidget>
 #include <QVBoxLayout>
 #include "../widgets/infobanner.h"
+#include "../widgets/flatpakbetabanner.h"
 #include "../dialogs/errordetailsdialog.h"
 
 class LoginPage : public QWidget
@@ -21,6 +22,7 @@ public:
     void show2FAPrompt() const; // called when VpnManager emits twoFactorRequired()
     void reset() const; // return to username/password view
     void checkPrereleaseBanner();
+    void checkFlatpakBetaBanner();
 
 public slots:
     void onCliVersionReady(const QString& version);
@@ -54,6 +56,7 @@ private:
     QVBoxLayout* m_outerLayout = nullptr;
     InfoBanner* m_versionBanner = nullptr;
     InfoBanner* m_prereleaseBanner = nullptr;
+    FlatpakBetaBanner* m_flatpakBetaBanner = nullptr;
 
     bool m_passwordVisible = false;
     void togglePasswordVisibility() const;

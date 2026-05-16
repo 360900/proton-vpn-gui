@@ -10,6 +10,7 @@
 #include "mainwindow.h"
 #include "appconfig.h"
 #include "debug.h"
+#include "cli/flatpakutils.h"
 #include <QSysInfo>
 #include <QLocale>
 #include <QStandardPaths>
@@ -40,6 +41,7 @@ int main(int argc, char* argv[])
     DBG_APP(QStringLiteral("App version    : ") + appVersion);
     DBG_APP(QStringLiteral("CLI tested for : ") + cliVersionTested);
     DBG_APP(QStringLiteral("Qt version     : ") + QString::fromLatin1(qVersion()));
+    DBG_APP(QStringLiteral("Package type   : ") + (isRunningAsFlatpak() ? QStringLiteral("Flatpak") : QStringLiteral("System")));
     DBG_APP(QStringLiteral("OS             : ") + QSysInfo::prettyProductName());
     DBG_APP(QStringLiteral("Kernel         : ") + QSysInfo::kernelVersion());
     DBG_APP(QStringLiteral("CPU arch       : ") + QSysInfo::currentCpuArchitecture());

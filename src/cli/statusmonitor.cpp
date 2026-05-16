@@ -3,6 +3,7 @@
 // 15-second loop.  See statusmonitor.h for the full description.
 
 #include "statusmonitor.h"
+#include "flatpakutils.h"
 
 #include <QDebug>
 #include <QTimer>
@@ -22,16 +23,25 @@ static constexpr char kProcessName[] = "protonvpn-qt-status-mon";
 // Shell command run by the subprocess:
 //   1. exec -a renames the bash process to kProcessName (sets argv[0]).
 //   2. The inner bash runs an infinite loop:
-//        a. `protonvpn status` (stdout + stderr merged)
+//        a. `protonvpn status` (stdout + stderr merged) — or via flatpak-spawn
+//           when running inside a Flatpak sandbox.
 //        b. ASCII 0x1E (Record Separator) — unambiguous snapshot delimiter
 //        c. sleep 15
-static const QString kLoopCommand =
-    QStringLiteral("exec -a protonvpn-qt-status-mon /bin/bash -c "
-                   "'while true; "
-                   "do protonvpn status 2>&1; "
-                   "printf \"\\x1e\"; "
-                   "sleep 15; "
-                   "done'");
+static QString buildLoopCommand()
+{
+    // Inside a Flatpak sandbox, `protonvpn` is not available directly — it
+    // must be forwarded to the host via flatpak-spawn.
+    const QString vpnCmd = isRunningAsFlatpak()
+        ? QStringLiteral("flatpak-spawn --host protonvpn status")
+        : QStringLiteral("protonvpn status");
+
+    return QStringLiteral("exec -a protonvpn-qt-status-mon /bin/bash -c "
+                          "'while true; "
+                          "do %1 2>&1; "
+                          "printf \"\\x1e\"; "
+                          "sleep 15; "
+                          "done'").arg(vpnCmd);
+}
 
 // How long to wait before restarting the monitor after an unexpected exit.
 static constexpr int kRestartDelayMs = 5'000;
@@ -125,8 +135,9 @@ void StatusMonitor::launchProcess()
             &QProcess::finished,
             this, &StatusMonitor::onProcessFinished);
 
+    const QString loopCommand = buildLoopCommand();
     m_process->start(QStringLiteral("/bin/bash"),
-                     {QStringLiteral("-c"), kLoopCommand});
+                     {QStringLiteral("-c"), loopCommand});
 
 #ifdef QT_DEBUG
     // waitForStarted so we can log the PID immediately.
@@ -138,7 +149,7 @@ void StatusMonitor::launchProcess()
                kProcessName,
                m_process->processId(),
                m_restartCount,
-               qUtf8Printable(kLoopCommand));
+               qUtf8Printable(loopCommand));
     }
     else
     {

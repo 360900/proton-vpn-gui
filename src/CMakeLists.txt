@@ -34,10 +34,12 @@ set(SOURCES
         cli/natpmpmanager.cpp
         cli/statusmonitor.h
         cli/statusmonitor.cpp
+        cli/flatpakutils.h
         mainwindow.h
         mainwindow.cpp
         widgets/elidalabel.h
         widgets/infobanner.h
+        widgets/flatpakbetabanner.h
         widgets/numberspinner.h
         widgets/pickerbase.h
         widgets/svgbanner.h
@@ -72,6 +74,19 @@ target_link_libraries(proton_vpn_qt
         Qt6::Widgets
         Qt6::Svg
         Qt6::SvgWidgets
+)
+
+install(TARGETS proton_vpn_qt
+        RUNTIME DESTINATION bin
+)
+
+install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/../proton-vpn-qt-app.desktop
+        DESTINATION share/applications
+)
+
+install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/../proton-vpn-sign.svg
+        DESTINATION share/icons/hicolor/scalable/apps
+        RENAME proton-vpn-qt-app.svg
 )
 
 

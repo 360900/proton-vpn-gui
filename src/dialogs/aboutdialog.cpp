@@ -11,6 +11,7 @@
 #include <QJsonDocument> // Ignore unused include warning; we do use QJsonDocument
 #include <QJsonObject>
 #include <QVersionNumber>
+#include <QProcessEnvironment>
 
 AboutDialog::AboutDialog(const QString& installedCliVersion, QWidget* parent)
     : QDialog(parent)
@@ -71,6 +72,10 @@ AboutDialog::AboutDialog(const QString& installedCliVersion, QWidget* parent)
     versionGrid->addWidget(makeKey(QStringLiteral("Qt version:")),         2, 0);
     versionGrid->addWidget(new QLabel(QStringLiteral(QT_VERSION_STR),      versionWidget), 2, 1);
 
+    const bool isFlatpak = qEnvironmentVariableIsSet("FLATPAK_ID");
+    versionGrid->addWidget(makeKey(QStringLiteral("Package:")),            3, 0);
+    versionGrid->addWidget(new QLabel(isFlatpak ? QStringLiteral("Flatpak") : QStringLiteral("System"), versionWidget), 3, 1);
+
     // Installed CLI version – highlighted only when it differs from tested
     if (!installedCliVersion.isEmpty())
     {
@@ -97,8 +102,8 @@ AboutDialog::AboutDialog(const QString& installedCliVersion, QWidget* parent)
                 QStringLiteral("color: %1; font-weight: bold;").arg(color));
             valLabel->setToolTip(tooltip);
 
-            versionGrid->addWidget(makeKey(QStringLiteral("Installed CLI:")), 3, 0);
-            versionGrid->addWidget(valLabel,                                  3, 1);
+            versionGrid->addWidget(makeKey(QStringLiteral("Installed CLI:")), 4, 0);
+            versionGrid->addWidget(valLabel,                                  4, 1);
         }
     }
 

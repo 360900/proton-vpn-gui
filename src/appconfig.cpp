@@ -6,10 +6,21 @@
 // ReSharper disable once CppUnusedIncludeDirective
 #include <QJsonDocument> // Ignore unused include warning; we do use QJsonDocument
 #include <QJsonObject>
+#include <QStandardPaths>
 
 // ── Easy-to-change config location ──────────────────────────────────────────
-static const QString kConfigDir = QDir::homePath() + QStringLiteral("/.config/ProtonVPN-Qt");
-static const QString kConfigFile = kConfigDir + QStringLiteral("/app.json");
+// QStandardPaths::GenericConfigLocation resolves to:
+//   - Native install : ~/.config/ProtonVPN-Qt/
+//   - Flatpak sandbox: ~/.var/app/io.github.wheat32.ProtonVPNQt/config/ProtonVPN-Qt/
+// Using this instead of a hardcoded QDir::homePath() path means the Flatpak
+// sandbox XDG remapping is honoured automatically with no extra --filesystem
+// permission required.
+static QString configDir()
+{
+    return QStandardPaths::writableLocation(QStandardPaths::GenericConfigLocation)
+           + QStringLiteral("/ProtonVPN-Qt");
+}
+static QString configFile() { return configDir() + QStringLiteral("/app.json"); }
 // ────────────────────────────────────────────────────────────────────────────
 
 AppConfig& AppConfig::instance()
@@ -25,7 +36,7 @@ AppConfig::AppConfig()
 
 void AppConfig::load()
 {
-    QFile f(kConfigFile);
+    QFile f(configFile());
     if (!f.open(QIODevice::ReadOnly))
         return; // file doesn't exist yet — all values stay at defaults
 
@@ -37,7 +48,7 @@ void AppConfig::load()
     m_recentConnectionsCount = obj.value(QStringLiteral("recent_connections_count")).toInt(5);
     m_startHidden = obj.value(QStringLiteral("start_hidden")).toBool(false);
 
-    DBG_SETTINGS(QStringLiteral("Config loaded from: ") + kConfigFile);
+    DBG_SETTINGS(QStringLiteral("Config loaded from: ") + configFile());
     DBG_SETTINGS(QStringLiteral("  auto_connect             = ") + (m_autoConnect ? QStringLiteral("true") : QStringLiteral("false")));
     DBG_SETTINGS(QStringLiteral("  notifications            = ") + (m_notifications ? QStringLiteral("true") : QStringLiteral("false")));
     DBG_SETTINGS(QStringLiteral("  recent_connections_count = ") + QString::number(m_recentConnectionsCount));
@@ -47,7 +58,7 @@ void AppConfig::load()
 bool AppConfig::save() const
 {
     const QDir dir;
-    if (!dir.mkpath(kConfigDir))
+    if (!dir.mkpath(configDir()))
         return false;
 
     QJsonObject obj;
@@ -56,7 +67,7 @@ bool AppConfig::save() const
     obj[QStringLiteral("recent_connections_count")] = m_recentConnectionsCount;
     obj[QStringLiteral("start_hidden")] = m_startHidden;
 
-    QFile f(kConfigFile);
+    QFile f(configFile());
     if (!f.open(QIODevice::WriteOnly | QIODevice::Text))
         return false;
 
@@ -103,4 +114,3 @@ void AppConfig::setStartHidden(const bool value)
     m_startHidden = value;
     (void)save();
 }
-

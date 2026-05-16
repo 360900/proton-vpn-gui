@@ -98,7 +98,7 @@ signals:
 
 private:
     // Load an SVG from a Qt resource, patch currentColor to the app text
-    // colour in memory (never touching the file on disk), and return a QIcon.
+    // color in memory (never touching the file on disk), and return a QIcon.
     static QIcon svgIcon(const QString& resource)
     {
         QFile file(resource);
