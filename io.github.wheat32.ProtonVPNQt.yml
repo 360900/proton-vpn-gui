@@ -1,0 +1,48 @@
+app-id: io.github.wheat32.ProtonVPNQt
+runtime: org.kde.Platform
+runtime-version: '6.10'
+sdk: org.kde.Sdk
+command: proton_vpn_qt
+finish-args:
+  # Display
+  - --share=ipc
+  - --socket=fallback-x11
+  - --socket=wayland
+  # Network access (for VPN status polling, API calls)
+  - --share=network
+  # Talk to the host D-Bus session bus (for system tray, notifications)
+  - --socket=session-bus
+  # Allow talking to the host system bus (NetworkManager, systemd, etc.)
+  - --socket=system-bus
+  # Allow flatpak-spawn to call the host protonvpn CLI
+  - --talk-name=org.freedesktop.Flatpak
+  # Read-only access to the ProtonVPN settings file written by the host CLI.
+  # Without this, fetchSettings() cannot read ~/.config/Proton/VPN/settings.json
+  # and all VPN settings toggles will appear as OFF.
+  - --filesystem=~/.config/Proton:ro
+  # Allow writing the systemd user service file for the "Launch on Startup" feature.
+  - --filesystem=~/.config/systemd/user
+
+modules:
+  - name: proton_vpn_qt
+    buildsystem: cmake-ninja
+    builddir: true
+    config-opts:
+      - -DCMAKE_BUILD_TYPE=Release
+    subdir: src
+    post-install:
+      # Rename the icon to match the Flatpak app-id so the launcher can find it
+      - mv /app/share/icons/hicolor/scalable/apps/proton-vpn-qt-app.svg
+          /app/share/icons/hicolor/scalable/apps/io.github.wheat32.ProtonVPNQt.svg
+      # Patch the Icon= and Exec= fields in the installed .desktop file
+      - sed -i 's/^Icon=.*/Icon=io.github.wheat32.ProtonVPNQt/'
+          /app/share/applications/proton-vpn-qt-app.desktop
+      - sed -i 's/^Exec=.*/Exec=proton_vpn_qt/'
+          /app/share/applications/proton-vpn-qt-app.desktop
+      # Rename the .desktop file itself to the app-id (required by Flatpak)
+      - mv /app/share/applications/proton-vpn-qt-app.desktop
+          /app/share/applications/io.github.wheat32.ProtonVPNQt.desktop
+    sources:
+      - type: dir
+        path: .
+

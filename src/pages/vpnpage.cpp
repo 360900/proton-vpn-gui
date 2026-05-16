@@ -3,6 +3,7 @@
 #include "../connectionhistory.h"
 #include "../uihelpers.h"
 #include "../widgets/svgbanner.h"
+#include "../widgets/flatpakbetabanner.h"
 
 #include <QFile>
 #include <QHBoxLayout>
@@ -918,6 +919,7 @@ VpnPage::VpnPage(VpnManager* manager, QWidget* parent)
     });
     // Show a banner if this is a pre-release build
     checkPrereleaseBanner();
+    checkFlatpakBetaBanner();
 
     // React to plan type (Free vs Plus) — affects picker visibility and connect behaviour.
     connect(m_manager, &VpnManager::accountTypeReady, this, [this](AccountType type)
@@ -1135,6 +1137,24 @@ void VpnPage::checkPrereleaseBanner()
         m_prereleaseBanner = nullptr;
     });
     scrollLayout->insertWidget(0, m_prereleaseBanner);
+}
+
+void VpnPage::checkFlatpakBetaBanner()
+{
+    m_flatpakBetaBanner = FlatpakBetaBanner::createIfFlatpak(this);
+    if (!m_flatpakBetaBanner) return;
+
+    const auto* scrollArea = findChild<QScrollArea*>(QStringLiteral("vpnScrollArea"));
+    if (!scrollArea || !scrollArea->widget()) return;
+    auto* scrollLayout = qobject_cast<QVBoxLayout*>(scrollArea->widget()->layout());
+    if (!scrollLayout) return;
+
+    connect(m_flatpakBetaBanner, &FlatpakBetaBanner::dismissed, this, [this]() {
+        m_flatpakBetaBanner = nullptr;
+    });
+    // Insert below the prerelease banner if present, otherwise at the top
+    const int pos = (m_prereleaseBanner != nullptr) ? 1 : 0;
+    scrollLayout->insertWidget(pos, m_flatpakBetaBanner);
 }
 
 void VpnPage::onCliVersionReady(const QString& version)

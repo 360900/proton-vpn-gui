@@ -23,17 +23,17 @@ public:
     explicit InfoBanner(const QString& htmlMessage, QWidget* parent = nullptr)
         : QFrame(parent)
     {
-        static const std::string kColour       = "#7a5c00";
-        static const std::string kBgColour     = "#fff3cd";
-        static const std::string kBorderColour = "#e6ac00";
+        static const std::string kColor       = "#7a5c00";
+        static const std::string kBgColor     = "#fff3cd";
+        static const std::string kBorderColor = "#e6ac00";
 
         setStyleSheet(
             QStringLiteral(
                 "QFrame { background-color: %1; border: 1px solid %2; border-radius: 6px; } "
                 "QLabel { color: %3; background: transparent; }")
-            .arg(QLatin1String(kBgColour),
-                 QLatin1String(kBorderColour),
-                 QLatin1String(kColour)));
+            .arg(QLatin1String(kBgColor),
+                 QLatin1String(kBorderColor),
+                 QLatin1String(kColor)));
 
         auto* layout = new QHBoxLayout(this);
         layout->setContentsMargins(12, 8, 8, 8);
@@ -46,6 +46,7 @@ public:
         auto* msgLabel = new QLabel(htmlMessage, this);
         msgLabel->setWordWrap(true);
         msgLabel->setTextFormat(Qt::RichText);
+        msgLabel->setOpenExternalLinks(true);
         msgLabel->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
         layout->addWidget(msgLabel, 1);
 
@@ -56,7 +57,7 @@ public:
         dismissBtn->setStyleSheet(
             QStringLiteral("QPushButton { color: %1; font-weight: bold; border: none; "
                            "background: transparent; } QPushButton:hover { opacity: 0.7; }")
-                .arg(QLatin1String(kColour)));
+                .arg(QLatin1String(kColor)));
         connect(dismissBtn, &QPushButton::clicked, this, &InfoBanner::dismiss);
         layout->addWidget(dismissBtn, 0, Qt::AlignTop);
     }

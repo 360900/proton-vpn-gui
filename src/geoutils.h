@@ -27,8 +27,8 @@ namespace GeoUtils
     // Useful for non-square assets such as 4:3 flags.
     QPixmap svgPixmap(const QString& resourcePath, int width, int height);
 
-    // Same as above but colour-tints the rendered pixmap.
-    // Uses CompositionMode_SourceIn to replace colour while preserving alpha.
+    // Same as above but color-tints the rendered pixmap.
+    // Uses CompositionMode_SourceIn to replace color while preserving alpha.
     QPixmap svgPixmap(const QString& resourcePath, int size, const QColor& tint);
     QPixmap svgPixmap(const QString& resourcePath, int width, int height, const QColor& tint);
 

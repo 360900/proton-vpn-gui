@@ -1,5 +1,6 @@
 #include "loginpage.h"
 #include "../widgets/svgbanner.h"
+#include "../widgets/flatpakbetabanner.h"
 
 #include <QFile>
 #include <QHBoxLayout>
@@ -85,6 +86,7 @@ LoginPage::LoginPage(QWidget* parent)
 
     // Show a banner if this is a pre-release build
     checkPrereleaseBanner();
+    checkFlatpakBetaBanner();
 }
 
 void LoginPage::buildCredsWidget()
@@ -311,6 +313,16 @@ void LoginPage::checkPrereleaseBanner()
         m_prereleaseBanner = nullptr;
     });
     m_outerLayout->addWidget(m_prereleaseBanner);
+}
+
+void LoginPage::checkFlatpakBetaBanner()
+{
+    m_flatpakBetaBanner = FlatpakBetaBanner::createIfFlatpak(this);
+    if (!m_flatpakBetaBanner) return;
+    connect(m_flatpakBetaBanner, &FlatpakBetaBanner::dismissed, this, [this]() {
+        m_flatpakBetaBanner = nullptr;
+    });
+    m_outerLayout->addWidget(m_flatpakBetaBanner);
 }
 
 void LoginPage::onCliVersionReady(const QString& version)

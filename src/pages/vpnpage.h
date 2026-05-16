@@ -8,6 +8,7 @@
 #include "../cli/natpmpmanager.h"
 #include "../widgets/pickerbase.h"
 #include "../widgets/infobanner.h"
+#include "../widgets/flatpakbetabanner.h"
 #include "../dialogs/errordetailsdialog.h"
 
 // ---------------------------------------------------------------------------
@@ -155,6 +156,7 @@ private:
     QHBoxLayout*    m_pickerRow    = nullptr;   // holds both pickers side-by-side
     InfoBanner*     m_versionBanner = nullptr;
     InfoBanner*     m_prereleaseBanner = nullptr;
+    FlatpakBetaBanner* m_flatpakBetaBanner = nullptr;
     QTimer*         m_elapsedTimer;
     QTimer*         m_checkingSpinnerTimer;
     int   m_elapsedSeconds = 0;
@@ -187,6 +189,7 @@ private:
     void showErrorDetails() const;
     void relayoutPickers(int width) const;
     void checkPrereleaseBanner();
+    void checkFlatpakBetaBanner();
     void applyFreeUserMode() const;
     void startNatPmpLoop();
     void stopNatPmpLoop();

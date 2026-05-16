@@ -4,6 +4,7 @@ on:
   pull_request:
     branches:
       - main
+  workflow_dispatch:
 
 jobs:
   build:
@@ -31,3 +32,65 @@ jobs:
       - name: Confirm binary exists
         run: test -f build/proton_vpn_qt
 
+  build-flatpak:
+    name: Build Flatpak (Ubuntu)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Flatpak tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y flatpak flatpak-builder
+
+      - name: Add flathub remote
+        run: |
+          flatpak remote-add --user --if-not-exists flathub \
+            https://dl.flathub.org/repo/flathub.flatpakrepo
+
+      - name: Resolve latest KDE runtime version
+        id: kde
+        run: |
+          latest=$(flatpak remote-ls --user --runtime --columns=ref flathub \
+            | grep "^runtime/org.kde.Platform/x86_64/" \
+            | sed 's|runtime/org.kde.Platform/x86_64/||' \
+            | grep -E '^[0-9]+\.[0-9]+$' \
+            | sort -V \
+            | tail -1)
+          if [[ -z "$latest" ]]; then
+            echo "::error::Could not resolve the latest org.kde.Platform version from Flathub."
+            exit 1
+          fi
+          echo "Resolved KDE runtime version: $latest"
+          echo "version=$latest" >> "$GITHUB_OUTPUT"
+
+      - name: Patch manifest runtime-version
+        run: |
+          sed -i "s/^runtime-version:.*/runtime-version: '${{ steps.kde.outputs.version }}'/" \
+            io.github.wheat32.ProtonVPNQt.yml
+
+      - name: Install KDE runtime and SDK
+        run: |
+          flatpak install --user --noninteractive flathub \
+            org.kde.Platform/x86_64/${{ steps.kde.outputs.version }} \
+            org.kde.Sdk/x86_64/${{ steps.kde.outputs.version }}
+
+      - name: Build Flatpak
+        run: |
+          flatpak-builder \
+            --force-clean \
+            --repo=.flatpak-repo \
+            .flatpak-build \
+            io.github.wheat32.ProtonVPNQt.yml
+
+      - name: Export bundle
+        run: |
+          flatpak build-bundle \
+            .flatpak-repo \
+            io.github.wheat32.ProtonVPNQt.flatpak \
+            io.github.wheat32.ProtonVPNQt
+
+      - name: Confirm bundle exists
+        run: test -f io.github.wheat32.ProtonVPNQt.flatpak
