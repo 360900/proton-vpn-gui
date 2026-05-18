@@ -51,7 +51,7 @@ private:
 
     void showPage(Page page) const;
     void setupSidebar();
-    void setNavActive(QToolButton* btn);
+    void setNavActive(const QToolButton* btn);
     void startupCheck() const;
     void updateTrayIcon(VpnState state);
     void sendNotification(const QString& title, const QString& message) const;

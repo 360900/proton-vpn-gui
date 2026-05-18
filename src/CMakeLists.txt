@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.31)
+cmake_minimum_required(VERSION 4.2)
 project(proton_vpn_qt)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
@@ -16,6 +16,7 @@ find_package(Qt6 COMPONENTS
         Widgets
         Svg
         SvgWidgets
+        LinguistTools
         REQUIRED)
 
 set(SOURCES
@@ -67,6 +68,13 @@ set(SOURCES
 )
 
 add_executable(proton_vpn_qt ${SOURCES})
+
+qt_add_translations(proton_vpn_qt
+        TS_FILES
+            i18n/proton_vpn_qt_en.ts
+        RESOURCE_PREFIX "/i18n"
+        NO_GENERATE_PLURALS_TS_FILE
+)
 
 target_link_libraries(proton_vpn_qt
         Qt6::Core

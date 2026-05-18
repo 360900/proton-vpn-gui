@@ -120,11 +120,11 @@ public:
 
     void onStateChanged(VpnState state, const QString& info);
     void notifyExternalConnect(const QString& city);
-    void refreshRecentPicker();
+    void refreshRecentPicker() const;
     // Called when VpnManager has parsed a city from `protonvpn status`.
     void onStatusCityKnown(const QString& city);
     // Returns true while the natpmpc keep-alive loop is running (port forwarding active).
-    bool isPortForwardingActive() const { return m_natPmpManager && m_natPmpManager->isRunning(); }
+    bool isPortForwardingActive() const { return m_natPmpManager != nullptr && m_natPmpManager->isRunning(); }
     NatPmpManager* natPmpManager() const { return m_natPmpManager; }
 
 signals:

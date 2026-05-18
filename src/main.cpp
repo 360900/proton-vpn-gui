@@ -14,12 +14,19 @@
 #include <QSysInfo>
 #include <QLocale>
 #include <QStandardPaths>
+#include <QTranslator>
 
 int main(int argc, char* argv[])
 {
     QApplication app(argc, argv);
     QApplication::setApplicationName(QStringLiteral("ProtonVPN"));
     QApplication::setApplicationDisplayName(QStringLiteral("ProtonVPN"));
+
+    // Install translator for UI strings
+    static QTranslator translator;
+    const QLocale locale = QLocale::system();
+    if (translator.load(locale, QStringLiteral("proton_vpn_qt"), QStringLiteral("_"), QStringLiteral(":/i18n")))
+        QApplication::installTranslator(&translator);
 
     // Read version from the embedded version.json so there is a single source of truth.
     QString appVersion = QStringLiteral("unknown");
@@ -56,15 +63,16 @@ int main(int argc, char* argv[])
     lockFile.setStaleLockTime(0); // never treat a lock as stale
     if (!lockFile.tryLock(100))
     {
-        qint64 pid = 0; QString hostname, appname;
+        qint64 pid = 0;
+        QString hostname, appname;
         lockFile.getLockInfo(&pid, &hostname, &appname);
         DBG_APP(QStringLiteral("Another instance of ProtonVPN is already running (PID: ") +
                 (pid > 0 ? QString::number(pid) : QStringLiteral("unknown")) +
                 QStringLiteral("). Exiting."));
         QMessageBox::warning(
             nullptr,
-            QStringLiteral("Already Running"),
-            QStringLiteral("ProtonVPN is already running.\n\nCheck your system tray or taskbar."));
+            QCoreApplication::translate("main", "Already Running"),
+            QCoreApplication::translate("main", "ProtonVPN is already running.\n\nCheck your system tray or taskbar."));
         return 1;
     }
 

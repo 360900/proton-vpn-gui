@@ -22,7 +22,7 @@ bool NatPmpManager::isInstalled()
 
 void NatPmpManager::start()
 {
-    if (m_timer)
+    if (m_timer != nullptr)
         return; // already running
 
     if (QStandardPaths::findExecutable(QStringLiteral("natpmpc")).isEmpty())
@@ -41,19 +41,21 @@ void NatPmpManager::start()
 
 void NatPmpManager::refresh()
 {
-    if (!m_timer)
+    if (m_timer == nullptr)
     {
         start(); // not yet running — start() calls run() immediately
         return;
     }
     // Loop already running: fire an immediate request if none is in flight.
-    if (!m_active)
+    if (m_active == false)
+    {
         run();
+    }
 }
 
 void NatPmpManager::stop()
 {
-    if (m_timer)
+    if (m_timer != nullptr)
     {
         m_timer->stop();
         m_timer->deleteLater();
@@ -70,7 +72,7 @@ void NatPmpManager::run()
 
     m_active = true;
 
-    auto* process = new QProcess(this);
+    QProcess* process = new QProcess(this);
     connect(process, &QProcess::finished,
             this, [this, process](const int exitCode, QProcess::ExitStatus)
     {
@@ -81,7 +83,7 @@ void NatPmpManager::run()
 
         if (exitCode != 0)
         {
-            if (!isInstalled())
+            if (isInstalled() == false)
             {
                 // natpmpc was uninstalled during runtime — clear the displayed
                 // port first, then stop the loop and signal the missing binary.

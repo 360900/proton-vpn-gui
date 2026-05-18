@@ -111,7 +111,7 @@ void PowerButton::paintEvent(QPaintEvent*)
     // ── hover glow ──────────────────────────────────────────
     if (m_hovered)
     {
-        QColor glow(0xff, 0xff, 0xff, 18);
+        constexpr QColor glow(0xff, 0xff, 0xff, 18);
         p.setBrush(glow);
         p.setPen(Qt::NoPen);
         p.drawEllipse(widgetRect.adjusted(margin + RING_WIDTH / 2,
@@ -181,7 +181,7 @@ LocationPicker::LocationPicker(const QString& countryCode, const QString& countr
     m_header->setObjectName(QStringLiteral("locationPickerHeader"));
     m_header->setCursor(Qt::PointingHandCursor);
 
-    auto* headerLayout = new QHBoxLayout(m_header);
+    QHBoxLayout* headerLayout = new QHBoxLayout(m_header);
     headerLayout->setContentsMargins(10, 8, 10, 8);
     headerLayout->setSpacing(10);
 
@@ -189,24 +189,26 @@ LocationPicker::LocationPicker(const QString& countryCode, const QString& countr
     m_flagLabel = new QLabel(m_header);
     m_flagLabel->setFixedSize(28, 21);
     m_flagLabel->setAlignment(Qt::AlignCenter);
-    if (!countryCode.isEmpty())
+    if (countryCode.isEmpty() == false)
     {
         const QPixmap pm = GeoUtils::svgPixmap(
             QStringLiteral(":/flags/") + countryCode.toLower(), 28);
-        if (!pm.isNull())
+        if (pm.isNull() == false)
+        {
             m_flagLabel->setPixmap(pm);
+        }
     }
     headerLayout->addWidget(m_flagLabel);
 
     // Two-line text block
-    auto* textCol = new QVBoxLayout();
+    QVBoxLayout* textCol = new QVBoxLayout();
     textCol->setSpacing(1);
     textCol->setContentsMargins(0, 0, 0, 0);
 
-    m_topLine = new ElideLabel(QStringLiteral("Selected Location"), m_header);
+    m_topLine = new ElideLabel(tr("Selected Location"), m_header);
     m_topLine->setObjectName(QStringLiteral("locationPickerTop"));
 
-    m_bottomLine = new ElideLabel(QStringLiteral("⚡  Fastest server"), m_header);
+    m_bottomLine = new ElideLabel(tr("\u26a1  Fastest server"), m_header);
     m_bottomLine->setObjectName(QStringLiteral("locationPickerBottom"));
 
     textCol->addWidget(m_topLine);
@@ -219,7 +221,7 @@ LocationPicker::LocationPicker(const QString& countryCode, const QString& countr
     headerLayout->addWidget(m_chevron);
 
     // ── Outer layout ─────────────────────────────────────────────────────
-    auto* outerLayout = new QVBoxLayout(this);
+    QVBoxLayout* outerLayout = new QVBoxLayout(this);
     outerLayout->setContentsMargins(0, 0, 0, 0);
     outerLayout->setSpacing(0);
     outerLayout->addWidget(m_header);
@@ -238,8 +240,8 @@ bool LocationPicker::eventFilter(QObject* obj, QEvent* ev)
     // In free mode block the popup from opening on header click.
     if (m_freeMode && ev->type() == QEvent::MouseButtonRelease)
     {
-        auto* w = qobject_cast<QWidget*>(obj);
-        if (w && w->objectName() == QLatin1String("locationPickerHeader"))
+        const QWidget* w = qobject_cast<QWidget*>(obj);
+        if (w != nullptr && w->objectName() == QLatin1String("locationPickerHeader"))
             return true; // consume — do not open popup
     }
     if (handleCommonEvents(obj, ev))
@@ -250,21 +252,31 @@ bool LocationPicker::eventFilter(QObject* obj, QEvent* ev)
 void LocationPicker::setFreeMode(const bool free)
 {
     m_freeMode = free;
-    if (m_header)
+    if (m_header != nullptr)
     {
         m_header->setCursor(free ? Qt::ForbiddenCursor : Qt::PointingHandCursor);
         m_header->setToolTip(free
-            ? QStringLiteral("Location selection requires Proton VPN Plus.\n"
-                              "Proton will pick a free server for you automatically.")
+            ? tr("Location selection requires Proton VPN Plus.\n"
+                 "Proton will pick a free server for you automatically.")
             : QString());
     }
     // Dim the top-line label to hint the control is inactive.
-    if (m_topLine)
-        m_topLine->setStyleSheet(free ? QStringLiteral("color: #666677;") : QString());
-    if (m_bottomLine)
-        m_bottomLine->setStyleSheet(free ? QStringLiteral("color: #666677;") : QString());
-    if (m_chevron)
-        m_chevron->setVisible(!free);
+    const QString freeTextStyle = free == true
+        ? QStringLiteral("color: #666677;")
+        : QString();
+
+    if (m_topLine != nullptr)
+    {
+        m_topLine->setStyleSheet(freeTextStyle);
+    }
+    if (m_bottomLine != nullptr)
+    {
+        m_bottomLine->setStyleSheet(freeTextStyle);
+    }
+    if (m_chevron != nullptr)
+    {
+        m_chevron->setVisible(free == false);
+    }
 }
 
 void LocationPicker::onRowClicked(QListWidgetItem* item)
@@ -295,23 +307,23 @@ void LocationPicker::updateHeader() const
     }
     else if (m_unknownConnection)
     {
-        m_bottomLine->setText(QStringLiteral("Active connection"));
+        m_bottomLine->setText(tr("Active connection"));
     }
     else if (!m_countryName.isEmpty())
     {
-        m_bottomLine->setText(QStringLiteral("⚡  Fastest in %1").arg(m_countryName));
+        m_bottomLine->setText(tr("\u26a1  Fastest in %1").arg(m_countryName));
     }
     else
     {
-        m_bottomLine->setText(QStringLiteral("⚡  Fastest server"));
+        m_bottomLine->setText(tr("\u26a1  Fastest server"));
     }
 }
 
-void LocationPicker::setLoading(bool loading)
+void LocationPicker::setLoading(const bool loading)
 {
     if (loading)
     {
-        if (!m_loadingTimer)
+        if (m_loadingTimer == nullptr)
         {
             m_loadingTimer = new QTimer(this);
             m_loadingTimer->setInterval(120);
@@ -319,12 +331,12 @@ void LocationPicker::setLoading(bool loading)
             {
                 m_loadingFrame = (m_loadingFrame + 1) % kSpinnerFrameCount;
                 m_bottomLine->setText(
-                    QStringLiteral("%1 Loading locations…")
+                    tr("%1 Loading locations\u2026")
                         .arg(QString::fromUtf8(kSpinnerFrames[m_loadingFrame])));
             });
         }
         m_bottomLine->setText(
-            QStringLiteral("%1 Loading locations…")
+            tr("%1 Loading locations\u2026")
                 .arg(QString::fromUtf8(kSpinnerFrames[0])));
         m_loadingTimer->start();
         m_chevron->setVisible(false);
@@ -332,7 +344,11 @@ void LocationPicker::setLoading(bool loading)
     }
     else
     {
-        if (m_loadingTimer) m_loadingTimer->stop();
+        if (m_loadingTimer != nullptr)
+        {
+            m_loadingTimer->stop();
+        }
+
         m_chevron->setVisible(true);
         updateHeader();
     }
@@ -387,25 +403,27 @@ void LocationPicker::populate(const QList<QPair<QString, QString>>& cities)
     m_list->clear();
 
     // ── Fastest server entry ──────────────────────────────────────────────
-    auto* fastestItem = new QListWidgetItem();
+    QListWidgetItem* fastestItem = new QListWidgetItem();
     fastestItem->setData(Qt::UserRole, QString());
 
-    auto* fastestRow = new QWidget();
+    QWidget* fastestRow = new QWidget();
     fastestRow->setCursor(Qt::PointingHandCursor);
-    auto* fbox = new QHBoxLayout(fastestRow);
+    QHBoxLayout* fbox = new QHBoxLayout(fastestRow);
     fbox->setContentsMargins(10, 6, 10, 6);
     fbox->setSpacing(8);
 
-    auto* fIcon = new QLabel(fastestRow);
-    if (!m_countryCode.isEmpty())
+    QLabel* fIcon = new QLabel(fastestRow);
+    if (m_countryCode.isEmpty() == false)
     {
-        const QPixmap pm = GeoUtils::svgPixmap(
-            QStringLiteral(":/flags/") + m_countryCode.toLower(), 20);
-        if (!pm.isNull()) { fIcon->setPixmap(pm); fIcon->setFixedSize(24, 18); }
+        const QPixmap pm = GeoUtils::svgPixmap(QStringLiteral(":/flags/") + m_countryCode.toLower(), 20);
+        if (pm.isNull() == false)
+        {
+            fIcon->setPixmap(pm); fIcon->setFixedSize(24, 18);
+        }
     }
     fbox->addWidget(fIcon, 0, Qt::AlignVCenter);
 
-    auto* fLabel = new ElideLabel(QStringLiteral("⚡  Fastest server"), fastestRow);
+    ElideLabel* fLabel = new ElideLabel(tr("\u26a1  Fastest server"), fastestRow);
     fLabel->setObjectName(QStringLiteral("locationPickerItemLabel"));
     QFont bold = fLabel->font(); bold.setBold(true); bold.setItalic(true);
     fLabel->setFont(bold);
@@ -418,16 +436,16 @@ void LocationPicker::populate(const QList<QPair<QString, QString>>& cities)
     installOnRowWidget(fastestRow);
 
     // ── "Change country" action item ──────────────────────────────────────
-    auto* changeItem = new QListWidgetItem();
+    QListWidgetItem* changeItem = new QListWidgetItem();
     changeItem->setData(Qt::UserRole, QStringLiteral("__change_country__"));
 
-    auto* changeRow = new QWidget();
+    QWidget* changeRow = new QWidget();
     changeRow->setCursor(Qt::PointingHandCursor);
-    auto* cbox = new QHBoxLayout(changeRow);
+    QHBoxLayout* cbox = new QHBoxLayout(changeRow);
     cbox->setContentsMargins(10, 6, 10, 6);
     cbox->setSpacing(8);
 
-    auto* cLabel = new ElideLabel(QStringLiteral("🌐  Change country…"), changeRow);
+    ElideLabel* cLabel = new ElideLabel(tr("\U0001f310  Change country\u2026"), changeRow);
     cLabel->setObjectName(QStringLiteral("locationPickerItemLabel"));
     QFont italicFont = cLabel->font();
     italicFont.setItalic(true);
@@ -443,16 +461,16 @@ void LocationPicker::populate(const QList<QPair<QString, QString>>& cities)
     // ── City entries ──────────────────────────────────────────────────────
     for (const auto& [city, features] : cities)
     {
-        auto* item = new QListWidgetItem();
+        QListWidgetItem* item = new QListWidgetItem();
         item->setData(Qt::UserRole, city);
 
-        auto* row = new QWidget();
+        QWidget* row = new QWidget();
         row->setCursor(Qt::PointingHandCursor);
-        auto* hbox = new QHBoxLayout(row);
+        QHBoxLayout* hbox = new QHBoxLayout(row);
         hbox->setContentsMargins(10, 6, 10, 6);
         hbox->setSpacing(8);
 
-        auto* cityLabel = new ElideLabel(city, row);
+        ElideLabel* cityLabel = new ElideLabel(city, row);
         cityLabel->setObjectName(QStringLiteral("locationPickerItemLabel"));
         hbox->addWidget(cityLabel, 1, Qt::AlignVCenter);
 
@@ -465,11 +483,11 @@ void LocationPicker::populate(const QList<QPair<QString, QString>>& cities)
             });
             if (!matched) continue;
 
-            auto* iconLabel = new QLabel(row);
+            QLabel* iconLabel = new QLabel(row);
             iconLabel->setPixmap(GeoUtils::svgPixmap(QLatin1String(meta.resource), 16));
             iconLabel->setFixedSize(22, 22);
             iconLabel->setAlignment(Qt::AlignCenter);
-            iconLabel->setToolTip(QLatin1String(meta.tooltip));
+            iconLabel->setToolTip(translatedFeatureTooltip(meta));
             hbox->addWidget(iconLabel, 0, Qt::AlignVCenter);
         }
 
@@ -493,28 +511,28 @@ RecentPicker::RecentPicker(QWidget* parent)
     setObjectName(QStringLiteral("locationPicker")); // reuse same stylesheet
     setFixedWidth(260);
 
-    auto* header = new QFrame(this);
+    QFrame* header = new QFrame(this);
     header->setObjectName(QStringLiteral("locationPickerHeader"));
     header->setCursor(Qt::PointingHandCursor);
 
-    auto* hl = new QHBoxLayout(header);
+    QHBoxLayout* hl = new QHBoxLayout(header);
     hl->setContentsMargins(10, 8, 10, 8);
     hl->setSpacing(10);
 
     // Clock icon — mirrors the flag icon in LocationPicker for visual parity
-    auto* clockIcon = new QLabel(QStringLiteral("🕐"), header);
+    QLabel* clockIcon = new QLabel(QStringLiteral("🕐"), header);
     clockIcon->setFixedSize(28, 21);
     clockIcon->setAlignment(Qt::AlignCenter);
     hl->addWidget(clockIcon);
 
-    auto* textCol = new QVBoxLayout();
+    QVBoxLayout* textCol = new QVBoxLayout();
     textCol->setSpacing(1);
     textCol->setContentsMargins(0, 0, 0, 0);
 
-    m_topLine = new ElideLabel(QStringLiteral("Recent Connections"), header);
+    m_topLine = new ElideLabel(tr("Recent Connections"), header);
     m_topLine->setObjectName(QStringLiteral("locationPickerTop"));
 
-    m_bottomLine = new ElideLabel(QStringLiteral("None yet"), header);
+    m_bottomLine = new ElideLabel(tr("None yet"), header);
     m_bottomLine->setObjectName(QStringLiteral("locationPickerBottom"));
 
     textCol->addWidget(m_topLine);
@@ -525,7 +543,7 @@ RecentPicker::RecentPicker(QWidget* parent)
     m_chevron->setObjectName(QStringLiteral("locationPickerChevron"));
     hl->addWidget(m_chevron);
 
-    auto* outerLayout = new QVBoxLayout(this);
+    QVBoxLayout* outerLayout = new QVBoxLayout(this);
     outerLayout->setContentsMargins(0, 0, 0, 0);
     outerLayout->setSpacing(0);
     outerLayout->addWidget(header);
@@ -541,37 +559,37 @@ RecentPicker::RecentPicker(QWidget* parent)
 void RecentPicker::refresh()
 {
     m_list->clear();
-    const auto entries = ConnectionHistory::instance().entries();
+    const QList<ConnectionEntry> entries = ConnectionHistory::instance().entries();
 
     if (entries.isEmpty())
     {
-        m_bottomLine->setText(QStringLiteral("None yet"));
+        m_bottomLine->setText(tr("None yet"));
         m_chevron->setVisible(false);
         return;
     }
 
     m_chevron->setVisible(true);
     // Show most recent in header
-    const auto& first = entries.first();
+    const ConnectionEntry& first = entries.first();
     const QString firstLabel = first.city.isEmpty()
-        ? QStringLiteral("⚡  Fastest in %1").arg(first.countryName)
+        ? tr("\u26a1  Fastest in %1").arg(first.countryName)
         : QStringLiteral("%1, %2").arg(first.countryName, first.city);
     m_bottomLine->setText(firstLabel);
 
     for (const auto& e : entries)
     {
-        auto* item = new QListWidgetItem();
+        QListWidgetItem* item = new QListWidgetItem();
         item->setData(Qt::UserRole,     e.countryCode);
         item->setData(Qt::UserRole + 1, e.city);
 
-        auto* row = new QWidget();
+        QWidget* row = new QWidget();
         row->setCursor(Qt::PointingHandCursor);
-        auto* hbox = new QHBoxLayout(row);
+        QHBoxLayout* hbox = new QHBoxLayout(row);
         hbox->setContentsMargins(10, 6, 10, 6);
         hbox->setSpacing(8);
 
         // Flag
-        auto* flagLbl = new QLabel(row);
+        QLabel* flagLbl = new QLabel(row);
         const QPixmap pm = GeoUtils::svgPixmap(
             QStringLiteral(":/flags/") + e.countryCode.toLower(), 20);
         if (!pm.isNull()) { flagLbl->setPixmap(pm); flagLbl->setFixedSize(24, 18); }
@@ -579,14 +597,14 @@ void RecentPicker::refresh()
 
         // Text
         const QString label = e.city.isEmpty()
-            ? QStringLiteral("⚡  Fastest in %1").arg(e.countryName)
+            ? tr("\u26a1  Fastest in %1").arg(e.countryName)
             : QStringLiteral("%1, %2").arg(e.countryName, e.city);
-        auto* lbl = new ElideLabel(label, row);
+        ElideLabel* lbl = new ElideLabel(label, row);
         lbl->setObjectName(QStringLiteral("locationPickerItemLabel"));
         hbox->addWidget(lbl, 1, Qt::AlignVCenter);
 
         // Date
-        auto* dateLbl = new QLabel(e.connectedAt.toString(QStringLiteral("MMM d")), row);
+        QLabel* dateLbl = new QLabel(QLocale().toString(e.connectedAt, tr("MMM d")), row);
         dateLbl->setObjectName(QStringLiteral("locationPickerTop"));
         hbox->addWidget(dateLbl, 0, Qt::AlignVCenter);
 
@@ -609,8 +627,10 @@ void RecentPicker::onRowClicked(QListWidgetItem* item)
     const QString code = item->data(Qt::UserRole).toString();
     const QString city = item->data(Qt::UserRole + 1).toString();
     closePopup();
-    if (!code.isEmpty())
+    if (code.isEmpty() != false)
+    {
         emit connectionSelected(code, city);
+    }
 }
 
 // ============================================================
@@ -621,19 +641,19 @@ VpnPage::VpnPage(VpnManager* manager, QWidget* parent)
     : QWidget(parent), m_manager(manager),
       m_localCountryCode(GeoUtils::detectUserCountry())
 {
-    auto* outerLayout = new QVBoxLayout(this);
+    QVBoxLayout* outerLayout = new QVBoxLayout(this);
     outerLayout->setSpacing(0);
     outerLayout->setContentsMargins(0, 0, 0, 0);
 
     // ── Fixed top section: logo + power button + status label ────────────
-    auto* topWidget = new QWidget(this);
+    QWidget* topWidget = new QWidget(this);
     topWidget->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
-    auto* topLayout = new QVBoxLayout(topWidget);
+    QVBoxLayout* topLayout = new QVBoxLayout(topWidget);
     topLayout->setSpacing(24);
     topLayout->setContentsMargins(40, 40, 40, 8);
 
     // Proton VPN logo banner
-    auto* logoWidget = new SvgBanner(QStringLiteral(":/assets/proton-vpn-logo.svg"), 4.0, topWidget);
+    SvgBanner* logoWidget = new SvgBanner(QStringLiteral(":/assets/proton-vpn-logo.svg"), 4.0, topWidget);
     topLayout->addWidget(logoWidget, 0, Qt::AlignCenter);
 
     // Power button
@@ -659,7 +679,7 @@ VpnPage::VpnPage(VpnManager* manager, QWidget* parent)
     topLayout->addWidget(m_powerBtn, 0, Qt::AlignCenter);
 
     // Status text
-    m_statusLabel = new QLabel(QStringLiteral("Checking…"), topWidget);
+    m_statusLabel = new QLabel(tr("Checking\u2026"), topWidget);
     m_statusLabel->setObjectName(QStringLiteral("vpnStatusLabel"));
     m_statusLabel->setAlignment(Qt::AlignCenter);
     topLayout->addWidget(m_statusLabel, 0, Qt::AlignCenter);
@@ -688,7 +708,7 @@ VpnPage::VpnPage(VpnManager* manager, QWidget* parent)
                 }
             });
 
-    auto* pickerContainer = new QWidget(topWidget);
+    QWidget* pickerContainer = new QWidget(topWidget);
     m_pickerRow = new QHBoxLayout(pickerContainer);
     m_pickerRow->setContentsMargins(0, 0, 0, 0);
     m_pickerRow->setSpacing(12);
@@ -701,11 +721,11 @@ VpnPage::VpnPage(VpnManager* manager, QWidget* parent)
     outerLayout->addWidget(topWidget);
 
     // ── Scrollable section: timer, info, hint, button ────────────────────
-    auto* scrollContent = new QWidget();
+    QWidget* scrollContent = new QWidget();
     scrollContent->setObjectName(QStringLiteral("vpnScrollContent"));
     scrollContent->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
 
-    auto* scrollLayout = new QVBoxLayout(scrollContent);
+    QVBoxLayout* scrollLayout = new QVBoxLayout(scrollContent);
     scrollLayout->setSpacing(16);
     scrollLayout->setContentsMargins(40, 8, 40, 16);
 
@@ -741,7 +761,7 @@ VpnPage::VpnPage(VpnManager* manager, QWidget* parent)
     scrollLayout->addWidget(m_signOutHintLabel);
 
     // "View Details" button – shown only on error
-    m_errorDetailsBtn = new QPushButton(QStringLiteral("View Details"), scrollContent);
+    m_errorDetailsBtn = new QPushButton(tr("View Details"), scrollContent);
     m_errorDetailsBtn->setVisible(false);
     m_errorDetailsBtn->setFixedWidth(140);
     connect(m_errorDetailsBtn, &QPushButton::clicked, this, &VpnPage::showErrorDetails);
@@ -754,7 +774,7 @@ VpnPage::VpnPage(VpnManager* manager, QWidget* parent)
     portRowLayout->setContentsMargins(0, 4, 0, 4);
     portRowLayout->setSpacing(8);
 
-    auto* portTitleLabel = new QLabel(QStringLiteral("Forwarded Port:"), m_portRow);
+    auto* portTitleLabel = new QLabel(tr("Forwarded Port:"), m_portRow);
     portTitleLabel->setObjectName(QStringLiteral("infoLabel"));
     portRowLayout->addWidget(portTitleLabel, 0, Qt::AlignVCenter);
 
@@ -799,7 +819,7 @@ VpnPage::VpnPage(VpnManager* manager, QWidget* parent)
     portCopyBtn->setFixedSize(34, m_portLabel->sizeHint().height() > 0
                                       ? m_portLabel->sizeHint().height() : 30);
     portCopyBtn->setCursor(Qt::PointingHandCursor);
-    portCopyBtn->setToolTip(QStringLiteral("Copy to Clipboard"));
+    portCopyBtn->setToolTip(tr("Copy to Clipboard"));
     connect(portCopyBtn, &QPushButton::clicked, this, [this]()
     {
         if (m_natPmpManager && m_natPmpManager->forwardedPort() > 0)
@@ -848,7 +868,7 @@ VpnPage::VpnPage(VpnManager* manager, QWidget* parent)
     {
         m_checkingSpinnerFrame = (m_checkingSpinnerFrame + 1) % kSpinnerFrameCount;
         m_statusLabel->setText(
-            QStringLiteral("%1 Checking…").arg(QString::fromUtf8(kSpinnerFrames[m_checkingSpinnerFrame])));
+            tr("%1 Checking\u2026").arg(QString::fromUtf8(kSpinnerFrames[m_checkingSpinnerFrame])));
     });
 
     // Start in Unknown — spinner runs until the status monitor's first snapshot arrives
@@ -941,41 +961,41 @@ VpnPage::VpnPage(VpnManager* manager, QWidget* parent)
         if (m_currentState != VpnState::Connected && m_currentState != VpnState::Connecting)
             return;
 
-        if (!m_hadUnknownConnection && city == m_activeCity)
+        if (m_hadUnknownConnection == false && city == m_activeCity)
             return;
 
         m_hadUnknownConnection = false;
 
         const QString locationName = city.isEmpty()
-            ? QStringLiteral("Fastest server")
+            ? tr("Fastest server")
             : city;
 
-        auto* dlg = new QDialog(this);
-        dlg->setWindowTitle(QStringLiteral("Change Location?"));
+        QDialog* dlg = new QDialog(this);
+        dlg->setWindowTitle(tr("Change Location?"));
         dlg->setAttribute(Qt::WA_DeleteOnClose);
         dlg->setModal(true);
         dlg->setMinimumWidth(360);
 
-        auto* layout = new QVBoxLayout(dlg);
+        QVBoxLayout* layout = new QVBoxLayout(dlg);
         layout->setSpacing(16);
         layout->setContentsMargins(24, 24, 24, 20);
 
-        auto* msgLabel = new QLabel(
-            QStringLiteral("You selected <b>%1</b>.<br>"
-                           "Would you like to connect to this location now, "
-                           "or use it on the next reconnect?").arg(locationName.toHtmlEscaped()),
+        QLabel* msgLabel = new QLabel(
+            tr("You selected <b>%1</b>.<br>"
+               "Would you like to connect to this location now, "
+               "or use it on the next reconnect?").arg(locationName.toHtmlEscaped()),
             dlg);
         msgLabel->setWordWrap(true);
         msgLabel->setTextFormat(Qt::RichText);
         layout->addWidget(msgLabel);
 
-        auto* btnRow = new QHBoxLayout();
+        QHBoxLayout* btnRow = new QHBoxLayout();
         btnRow->setSpacing(8);
 
-        auto* laterBtn = new QPushButton(QStringLiteral("On next reconnect"), dlg);
+        QPushButton* laterBtn = new QPushButton(tr("On next reconnect"), dlg);
         laterBtn->setObjectName(QStringLiteral("secondaryButton"));
 
-        auto* nowBtn = new QPushButton(QStringLiteral("Connect now"), dlg);
+        QPushButton* nowBtn = new QPushButton(tr("Connect now"), dlg);
         nowBtn->setObjectName(QStringLiteral("primaryButton"));
         nowBtn->setDefault(true);
 
@@ -1002,7 +1022,10 @@ void VpnPage::notifyExternalConnect(const QString& city)
 {
     m_activeCity = city;
     m_locationPicker->setSelectedCity(city);
-    if (m_recentPicker) m_recentPicker->refresh();
+    if (m_recentPicker != nullptr)
+    {
+        m_recentPicker->refresh();
+    }
 }
 
 void VpnPage::onStatusCityKnown(const QString& city)
@@ -1020,7 +1043,7 @@ void VpnPage::applyPendingStatusCity()
         return;
 
     const bool found = m_locationPicker->trySelectCity(m_pendingStatusCity);
-    if (!found)
+    if (found == false)
     {
         // City not in the list – treat as unknown active connection.
         m_activeCity.clear();
@@ -1029,16 +1052,18 @@ void VpnPage::applyPendingStatusCity()
     m_pendingStatusCity.clear();
 }
 
-void VpnPage::refreshRecentPicker()
+void VpnPage::refreshRecentPicker() const
 {
-    if (m_recentPicker)
+    if (m_recentPicker != nullptr)
+    {
         m_recentPicker->refresh();
+    }
     relayoutPickers(width());
 }
 
-void VpnPage::relayoutPickers(const int w) const
+void VpnPage::relayoutPickers(const int width) const
 {
-    if (!m_recentPicker) return;
+    if (m_recentPicker == nullptr) return;
 
     // Free users never see the recent connections picker.
     if (m_isFreeUser)
@@ -1049,13 +1074,13 @@ void VpnPage::relayoutPickers(const int w) const
     }
 
     const bool hasHistory = !ConnectionHistory::instance().entries().isEmpty();
-    if (!hasHistory)
+    if (hasHistory == false)
     {
         m_recentPicker->setVisible(false);
         return;
     }
 
-    if (w >= kWideThreshold)
+    if (width >= kWideThreshold)
     {
         // Side-by-side: set equal fixed widths
         m_locationPicker->setFixedWidth(240);
@@ -1085,7 +1110,7 @@ void VpnPage::onCitiesReady(const QString& countryCode,
     if (countryCode.compare(m_localCountryCode, Qt::CaseInsensitive) != 0)
         return;
 
-    if (!m_stateKnown)
+    if (m_stateKnown == false)
     {
         m_pendingCities = cities; // wraps in optional — even an empty list is "received"
         return;
@@ -1122,18 +1147,19 @@ void VpnPage::checkPrereleaseBanner()
     if (!obj.value(QStringLiteral("prerelease")).toBool(false)) return;
 
     const QString appVersion = obj.value(QStringLiteral("app_version")).toString();
-    const QString msg = QStringLiteral(
+    const QString msg = tr(
         "You are running a <b>pre-release</b> version of this app (<b>v%1</b>). "
         "It may contain bugs or incomplete features. Use with caution.")
         .arg(appVersion.toHtmlEscaped());
 
     const auto* scrollArea = findChild<QScrollArea*>(QStringLiteral("vpnScrollArea"));
-    if (!scrollArea || !scrollArea->widget()) return;
+    if (scrollArea == nullptr || scrollArea->widget() == nullptr) return;
     auto* scrollLayout = qobject_cast<QVBoxLayout*>(scrollArea->widget()->layout());
-    if (!scrollLayout) return;
+    if (scrollLayout == nullptr) return;
 
     m_prereleaseBanner = new InfoBanner(msg, this);
-    connect(m_prereleaseBanner, &InfoBanner::dismissed, this, [this]() {
+    connect(m_prereleaseBanner, &InfoBanner::dismissed, this, [this]()
+    {
         m_prereleaseBanner = nullptr;
     });
     scrollLayout->insertWidget(0, m_prereleaseBanner);
@@ -1142,14 +1168,15 @@ void VpnPage::checkPrereleaseBanner()
 void VpnPage::checkFlatpakBetaBanner()
 {
     m_flatpakBetaBanner = FlatpakBetaBanner::createIfFlatpak(this);
-    if (!m_flatpakBetaBanner) return;
+    if (m_flatpakBetaBanner == nullptr) return;
 
     const auto* scrollArea = findChild<QScrollArea*>(QStringLiteral("vpnScrollArea"));
-    if (!scrollArea || !scrollArea->widget()) return;
-    auto* scrollLayout = qobject_cast<QVBoxLayout*>(scrollArea->widget()->layout());
-    if (!scrollLayout) return;
+    if (scrollArea == nullptr || scrollArea->widget() == nullptr) return;
+    QVBoxLayout* scrollLayout = qobject_cast<QVBoxLayout*>(scrollArea->widget()->layout());
+    if (scrollLayout == nullptr) return;
 
-    connect(m_flatpakBetaBanner, &FlatpakBetaBanner::dismissed, this, [this]() {
+    connect(m_flatpakBetaBanner, &FlatpakBetaBanner::dismissed, this, [this]()
+    {
         m_flatpakBetaBanner = nullptr;
     });
     // Insert below the prerelease banner if present, otherwise at the top
@@ -1175,24 +1202,23 @@ void VpnPage::onCliVersionReady(const QString& version)
     if (installed == tested) return;
 
     const QString msg = (installed > tested)
-        ? QStringLiteral(
-              "Your Proton VPN CLI (<b>v%1</b>) is newer than the version this app was "
-              "tested against (<b>v%2</b>). Things may work fine, but you could encounter "
-              "unexpected behavior.")
+        ? tr("Your Proton VPN CLI (<b>v%1</b>) is newer than the version this app was "
+             "tested against (<b>v%2</b>). Things may work fine, but you could encounter "
+             "unexpected behavior.")
               .arg(version, testedVersionStr)
-        : QStringLiteral(
-              "Your Proton VPN CLI (<b>v%1</b>) is older than the version this app was "
-              "tested against (<b>v%2</b>). Some features may not work correctly. "
-              "Consider upgrading the CLI.")
+        : tr("Your Proton VPN CLI (<b>v%1</b>) is older than the version this app was "
+             "tested against (<b>v%2</b>). Some features may not work correctly. "
+             "Consider upgrading the CLI.")
               .arg(version, testedVersionStr);
 
     const auto* scrollArea = findChild<QScrollArea*>(QStringLiteral("vpnScrollArea"));
-    if (!scrollArea || !scrollArea->widget()) return;
-    auto* scrollLayout = qobject_cast<QVBoxLayout*>(scrollArea->widget()->layout());
-    if (!scrollLayout) return;
+    if (scrollArea == nullptr || scrollArea->widget() == nullptr) return;
+    QVBoxLayout* scrollLayout = qobject_cast<QVBoxLayout*>(scrollArea->widget()->layout());
+    if (scrollLayout == nullptr) return;
 
     m_versionBanner = new InfoBanner(msg, this);
-    connect(m_versionBanner, &InfoBanner::dismissed, this, [this]() {
+    connect(m_versionBanner, &InfoBanner::dismissed, this, [this]()
+    {
         m_versionBanner = nullptr;
     });
     const int pos = (m_prereleaseBanner != nullptr) ? 1 : 0;
@@ -1229,7 +1255,7 @@ void VpnPage::updateUi(const VpnState state, const QString& info)
     case VpnState::Connected:
         m_powerBtn->setState(PowerButton::RingState::Connected);
         m_powerBtn->setEnabled(true);
-        m_statusLabel->setText(QStringLiteral("Connected"));
+        m_statusLabel->setText(tr("Connected"));
         m_statusLabel->setStyleSheet(QStringLiteral("color: #1a9c5b; font-size: 16pt; font-weight: bold; letter-spacing: 1px;"));
         m_lastConnectedInfo = info;
         refreshConnectedInfoLabel();
@@ -1257,7 +1283,7 @@ void VpnPage::updateUi(const VpnState state, const QString& info)
         if (prevState == VpnState::Connecting)
         {
             startElapsedTimer();
-            if (!m_isFreeUser && m_recentPicker)
+            if (m_isFreeUser == false && m_recentPicker != nullptr)
             {
                 m_recentPicker->refresh();
                 relayoutPickers(width());
@@ -1297,7 +1323,7 @@ void VpnPage::updateUi(const VpnState state, const QString& info)
         stopNatPmpLoop();
         m_powerBtn->setState(PowerButton::RingState::Disconnected);
         m_powerBtn->setEnabled(true);
-        m_statusLabel->setText(QStringLiteral("Disconnected"));
+        m_statusLabel->setText(tr("Disconnected"));
         m_statusLabel->setStyleSheet(QStringLiteral("color: #888888; font-size: 16pt; font-weight: bold; letter-spacing: 1px;"));
         m_infoLabel->setText(info.isEmpty() ? QString() : info);
         m_activeCity.clear();
@@ -1315,7 +1341,7 @@ void VpnPage::updateUi(const VpnState state, const QString& info)
         stopNatPmpLoop();
         m_powerBtn->setState(PowerButton::RingState::Spinning);
         m_powerBtn->setEnabled(false);
-        m_statusLabel->setText(QStringLiteral("Connecting…"));
+        m_statusLabel->setText(tr("Connecting\u2026"));
         m_statusLabel->setStyleSheet(QStringLiteral("color: #f5a623; font-size: 16pt; font-weight: bold; letter-spacing: 1px;"));
         m_infoLabel->setText(QString());
         stopElapsedTimer();
@@ -1325,7 +1351,7 @@ void VpnPage::updateUi(const VpnState state, const QString& info)
         stopNatPmpLoop();
         m_powerBtn->setState(PowerButton::RingState::Spinning);
         m_powerBtn->setEnabled(false);
-        m_statusLabel->setText(QStringLiteral("Disconnecting…"));
+        m_statusLabel->setText(tr("Disconnecting\u2026"));
         m_statusLabel->setStyleSheet(QStringLiteral("color: #f5a623; font-size: 16pt; font-weight: bold; letter-spacing: 1px;"));
         stopElapsedTimer();
         break;
@@ -1335,7 +1361,7 @@ void VpnPage::updateUi(const VpnState state, const QString& info)
         stopNatPmpLoop();
         m_powerBtn->setState(PowerButton::RingState::Disconnected);
         m_powerBtn->setEnabled(true);
-        m_statusLabel->setText(QStringLiteral("Error"));
+        m_statusLabel->setText(tr("Error"));
         m_statusLabel->setStyleSheet(QStringLiteral("color: #d63f3f; font-size: 16pt; font-weight: bold; letter-spacing: 1px;"));
         stopElapsedTimer();
 
@@ -1346,11 +1372,11 @@ void VpnPage::updateUi(const VpnState state, const QString& info)
                              || info.contains(QLatin1String("File \"/usr/lib/python"));
         if (isCliError)
         {
-            m_infoLabel->setText(QStringLiteral(
+            m_infoLabel->setText(tr(
                 "An error occurred in the Proton VPN CLI.\n"
                 "Please file a bug report at "
                 "<a href='https://github.com/ProtonVPN/proton-vpn-cli/issues'>github.com/ProtonVPN/proton-vpn-cli/</a>."));
-            m_signOutHintLabel->setText(QStringLiteral(
+            m_signOutHintLabel->setText(tr(
                 "<span style='color:#f5a623;'>&#9888;</span>"
                 " CLI errors can sometimes be resolved by "
                 "<a href='action://signout' style='color:#ab8fff;'>signing out and signing back in</a>."));
@@ -1358,7 +1384,7 @@ void VpnPage::updateUi(const VpnState state, const QString& info)
         }
         else
         {
-            m_infoLabel->setText(QStringLiteral(
+            m_infoLabel->setText(tr(
                 "An error occurred in the ProtonVPN Qt desktop app.\n"
                 "Please file a bug report at "
                 "<a href='https://github.com/wheat32/proton-vpn-qt-app/issues'>github.com/wheat32/proton-vpn-qt-app</a>."));
@@ -1375,7 +1401,7 @@ void VpnPage::updateUi(const VpnState state, const QString& info)
     default: // Unknown
         m_powerBtn->setState(PowerButton::RingState::Unknown);
         m_powerBtn->setEnabled(false);
-        m_statusLabel->setText(QStringLiteral("⠋ Checking…"));
+        m_statusLabel->setText(QStringLiteral("\u280b Checking\u2026"));
         m_statusLabel->setStyleSheet(QStringLiteral("color: #9999bb; font-size: 16pt; font-weight: bold; letter-spacing: 1px;"));
         m_infoLabel->setText(QString());
         stopElapsedTimer();
@@ -1409,9 +1435,11 @@ void VpnPage::applyFreeUserMode() const
     m_locationPicker->setFreeMode(m_isFreeUser);
 
     // Recent connections: never shown for free users.
-    if (m_recentPicker)
+    if (m_recentPicker != nullptr)
+    {
         m_recentPicker->setVisible(
             !m_isFreeUser && !ConnectionHistory::instance().entries().isEmpty());
+    }
 
     // Re-run layout so picker widths are recalculated correctly.
     relayoutPickers(width());
@@ -1433,7 +1461,7 @@ void VpnPage::refreshConnectedInfoLabel() const
     const bool pfEnabled = m_manager->portForwardingEnabled();
     const bool isP2P     = m_currentCityFeatures.contains(
                                QLatin1String("p2p"), Qt::CaseInsensitive);
-    const QString pfNote = QStringLiteral("Port forwarding is active on this server.");
+    const QString pfNote = tr("Port forwarding is active on this server.");
     if (pfEnabled && isP2P && !text.contains(pfNote))
     {
         if (!text.isEmpty())
@@ -1454,7 +1482,7 @@ void VpnPage::startNatPmpLoop()
 
     // natpmpc is available — dismiss any stale "not installed" banner that
     // may have been shown before the user installed the package at runtime.
-    if (m_natpmpcBanner)
+    if (m_natpmpcBanner != nullptr)
     {
         m_natpmpcBanner->deleteLater();
         m_natpmpcBanner = nullptr;
@@ -1467,29 +1495,28 @@ void VpnPage::startNatPmpLoop()
 
 void VpnPage::showNatpmpcBanner()
 {
-    if (!m_manager->portForwardingEnabled())
+    if (m_manager->portForwardingEnabled() == false)
         return; // port forwarding is off — don't nag the user
-    if (m_natpmpcBanner)
+    if (m_natpmpcBanner != nullptr)
         return; // already showing
 
     const auto* scrollArea = findChild<QScrollArea*>(QStringLiteral("vpnScrollArea"));
-    if (!scrollArea || !scrollArea->widget()) return;
+    if (scrollArea == nullptr || scrollArea->widget() == nullptr) return;
     auto* scrollLayout = qobject_cast<QVBoxLayout*>(scrollArea->widget()->layout());
-    if (!scrollLayout) return;
+    if (scrollLayout == nullptr) return;
 
     m_natpmpcBanner = new InfoBanner(
-        QStringLiteral(
-            "<b>natpmpc is not installed.</b> "
-            "The forwarded port cannot be displayed or kept alive automatically. "
-            "Install it to use port forwarding."),
+        tr("<b>natpmpc is not installed.</b> "
+           "The forwarded port cannot be displayed or kept alive automatically. "
+           "Install it to use port forwarding."),
         this);
     connect(m_natpmpcBanner, &InfoBanner::dismissed, this, [this]()
     {
         m_natpmpcBanner = nullptr;
     });
     int pos = 0;
-    if (m_prereleaseBanner) ++pos;
-    if (m_versionBanner)    ++pos;
+    if (m_prereleaseBanner != nullptr) ++pos;
+    if (m_versionBanner != nullptr)    ++pos;
     scrollLayout->insertWidget(pos, m_natpmpcBanner);
 }
 
@@ -1501,7 +1528,9 @@ void VpnPage::stopNatPmpLoop()
     m_lastConnectedInfo.clear();
     m_connectedCountryCode.clear();
 
-    if (m_portRow)
+    if (m_portRow != nullptr)
+    {
         m_portRow->setVisible(false);
+    }
 }
 

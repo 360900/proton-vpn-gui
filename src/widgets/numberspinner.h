@@ -25,7 +25,7 @@ public:
         setFixedWidth(64);
         setFixedHeight(38);
 
-        auto* outer = new QHBoxLayout(this);
+        QHBoxLayout* outer = new QHBoxLayout(this);
         outer->setContentsMargins(0, 0, 0, 0);
         outer->setSpacing(0);
 
@@ -35,9 +35,9 @@ public:
         m_display->setValidator(new QIntValidator(m_min, m_max, m_display));
         outer->addWidget(m_display, 1);
 
-        auto* btnFrame = new QFrame(this);
+        QFrame* btnFrame = new QFrame(this);
         btnFrame->setObjectName(QStringLiteral("numberSpinnerButtons"));
-        auto* btnLayout = new QVBoxLayout(btnFrame);
+        QVBoxLayout* btnLayout = new QVBoxLayout(btnFrame);
         btnLayout->setContentsMargins(1, 0, 0, 0); // 1 px reveals the separator border
         btnLayout->setSpacing(0);
 
@@ -56,15 +56,19 @@ public:
         connect(m_display, &QLineEdit::editingFinished, this, [this]() {
             bool ok = false;
             const int val = m_display->text().toInt(&ok);
-            if (ok) {
+            if (ok)
+            {
                 const int clamped = qBound(m_min, val, m_max);
-                if (clamped != m_value) {
+                if (clamped != m_value)
+                {
                     m_value = clamped;
                     refreshDisplay();
                     refreshButtons();
                     emit valueChanged(m_value);
                 }
-            } else {
+            }
+            else
+            {
                 refreshDisplay(); // revert to last valid value
             }
         });
@@ -77,14 +81,18 @@ public:
         m_min = min;
         m_max = max;
         m_value = qBound(m_min, m_value, m_max);
-        if (auto* v = qobject_cast<QIntValidator*>(
+
+        if (QIntValidator* v = qobject_cast<QIntValidator*>(
                 const_cast<QValidator*>(m_display->validator())))
+        {
             v->setRange(m_min, m_max);
+        }
+
         refreshDisplay();
         refreshButtons();
     }
 
-    void setValue(int value)
+    void setValue(const int value)
     {
         m_value = qBound(m_min, value, m_max);
         refreshDisplay();
@@ -102,7 +110,7 @@ private:
     static QIcon svgIcon(const QString& resource)
     {
         QFile file(resource);
-        if (!file.open(QIODevice::ReadOnly))
+        if (file.open(QIODevice::ReadOnly) == false)
             return {};
 
         QByteArray data = file.readAll();
@@ -118,7 +126,7 @@ private:
 
     QPushButton* makeArrowBtn(const QString& resource)
     {
-        auto* btn = new QPushButton(this);
+        QPushButton* btn = new QPushButton(this);
         btn->setIcon(svgIcon(resource));
         btn->setIconSize({10, 10});
         btn->setFixedWidth(24);

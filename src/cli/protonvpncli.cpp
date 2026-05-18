@@ -29,9 +29,9 @@ static std::pair<QString, QStringList> buildCliCommand(const QStringList& args)
 // ---------------------------------------------------------------------------
 
 void VpnManager::runCommand(const QStringList& args,
-                            std::function<void(int, const QString&, const QString&)> callback)
+                            const std::function<void(int, const QString&, const QString&)>& callback)
 {
-    auto* process = new QProcess(this);
+    QProcess* process = new QProcess(this);
     const QString cmdLine = QStringLiteral("protonvpn ") + args.join(QLatin1Char(' '));
     DBG_CLI(QStringLiteral(">>> ") + cmdLine);
     connect(process, &QProcess::finished,
@@ -41,9 +41,9 @@ void VpnManager::runCommand(const QStringList& args,
                 const QString err = QString::fromUtf8(process->readAllStandardError()).trimmed();
                 DBG_CLI(QStringLiteral("<<< ") + cmdLine +
                         QStringLiteral(" [exit=") + QString::number(exitCode) + QStringLiteral("]"));
-                if (!out.isEmpty())
+                if (out.isEmpty() == false)
                     DBG_CLI(QStringLiteral("    stdout: ") + out);
-                if (!err.isEmpty())
+                if (err.isEmpty() == false)
                     DBG_CLI(QStringLiteral("    stderr: ") + err);
                 callback(exitCode, out, err);
                 process->deleteLater();
@@ -59,21 +59,21 @@ void VpnManager::runCommand(const QStringList& args,
 void VpnManager::checkInstalled()
 {
     DBG_CLI(QStringLiteral("Checking if protonvpn CLI is installed..."));
-    auto* process = new QProcess(this);
+    QProcess* process = new QProcess(this);
     connect(process, &QProcess::finished,
             this, [this, process](const int exitCode, QProcess::ExitStatus)
             {
                 Q_UNUSED(exitCode)
                 const QString out = QString::fromUtf8(process->readAllStandardOutput());
                 const QString err = QString::fromUtf8(process->readAllStandardError());
-                const bool installed = !out.isEmpty() || !err.isEmpty();
+                const bool installed = out.isEmpty() == false || err.isEmpty() == false;
                 process->deleteLater();
                 DBG_CLI(installed ? QStringLiteral("protonvpn CLI found.") : QStringLiteral("protonvpn CLI NOT found."));
                 emit installedResult(installed);
             });
     auto [program, fullArgs] = buildCliCommand({QStringLiteral("--help")});
     process->start(program, fullArgs);
-    if (!process->waitForStarted(2000))
+    if (process->waitForStarted(2000) == false)
     {
         process->deleteLater();
         emit installedResult(false);
@@ -88,7 +88,7 @@ void VpnManager::checkLoginStatus()
         QString username;
 
         const QRegularExpression re(QStringLiteral(R"(Account:\s*'([^']+)')"));
-        const auto match = re.match(out);
+        const QRegularExpressionMatch match = re.match(out);
         if (match.hasMatch())
         {
             const QString accountVal = match.captured(1).trimmed();
@@ -116,7 +116,7 @@ void VpnManager::login(const QString& username, const QString& password)
     //   stderr: "Password: "   → write password + '\n' to stdin
     //   stderr: "2FA Token: "  → optional; emit twoFactorRequired()
 
-    if (m_signinProcess)
+    if (m_signinProcess != nullptr)
     {
         m_signinProcess->kill();
         m_signinProcess->deleteLater();
@@ -132,18 +132,18 @@ void VpnManager::login(const QString& username, const QString& password)
         bool passwordSent = false;
         bool twoFAEmitted = false;
     };
-    auto* state = new State();
+    State* state = new State();
 
     auto processOutput = [this, process, state, password]()
     {
-        if (!state->passwordSent &&
+        if (state->passwordSent == false &&
             state->accumulated.contains(QStringLiteral("Password:")))
         {
             state->passwordSent = true;
             process->write((password + QLatin1Char('\n')).toUtf8());
         }
 
-        if (!state->twoFAEmitted &&
+        if (state->twoFAEmitted == false &&
             state->accumulated.contains(QStringLiteral("2FA Token:")))
         {
             state->twoFAEmitted = true;
@@ -183,21 +183,21 @@ void VpnManager::login(const QString& username, const QString& password)
                 process->deleteLater();
 
                 const bool outputHasError = combined.contains(QStringLiteral("error"), Qt::CaseInsensitive);
-                const bool ok = exitCode == 0 && !outputHasError;
+                const bool ok = exitCode == 0 && outputHasError == false;
                 DBG_CLI(ok ? QStringLiteral("Login succeeded.") : QStringLiteral("Login failed (exit=") + QString::number(exitCode) + QStringLiteral(")."));
                 QString errorMsg;
-                if (!ok)
+                if (ok == false)
                 {
                     const QStringList lines = combined.split(QLatin1Char('\n'), Qt::SkipEmptyParts);
                     QStringList errorLines;
                     for (const auto& line : lines)
                     {
                         const QString l = line.trimmed();
-                        if (!l.isEmpty()
-                            && !l.startsWith(QStringLiteral("Password:"))
-                            && !l.startsWith(QStringLiteral("2FA"))
-                            && !l.startsWith(QStringLiteral("Warning:"))
-                            && !l.contains(QStringLiteral(".py:")))
+                        if (l.isEmpty() == false
+                            && l.startsWith(QStringLiteral("Password:")) == false
+                            && l.startsWith(QStringLiteral("2FA")) == false
+                            && l.startsWith(QStringLiteral("Warning:")) == false
+                            && l.contains(QStringLiteral(".py:")) == false)
                         {
                             errorLines.append(l);
                         }
@@ -218,7 +218,7 @@ void VpnManager::login(const QString& username, const QString& password)
 
 void VpnManager::cancelLogin()
 {
-    if (m_signinProcess)
+    if (m_signinProcess != nullptr)
     {
         m_signinProcess->kill();
         m_signinProcess->deleteLater();
@@ -228,8 +228,10 @@ void VpnManager::cancelLogin()
 
 void VpnManager::submit2FA(const QString& token) const
 {
-    if (m_signinProcess && m_signinProcess->state() == QProcess::Running)
+    if (m_signinProcess != nullptr && m_signinProcess->state() == QProcess::Running)
+    {
         m_signinProcess->write((token + QStringLiteral("\n")).toUtf8());
+    }
 }
 
 void VpnManager::signOut()
@@ -260,10 +262,14 @@ void VpnManager::connectVpn(const QString& country, const QString& city)
     emit connectionStateChanged(m_state, QString());
 
     QStringList args{QStringLiteral("connect")};
-    if (!country.isEmpty())
+    if (country.isEmpty() == false)
+    {
         args << QStringLiteral("--country") << country;
-    if (!city.isEmpty())
+    }
+    if (city.isEmpty() == false)
+    {
         args << QStringLiteral("--city") << city;
+    }
 
     runCommand(args, [this](int exitCode, const QString& out, const QString& err)
     {
@@ -271,7 +277,7 @@ void VpnManager::connectVpn(const QString& country, const QString& city)
         {
             DBG_CLI(QStringLiteral("VPN connected successfully."));
             m_state = VpnState::Connected;
-            // Strip noise / port-forwarding guide lines from CLI output.
+            // Strip noise / port-forwarding guidelines from CLI output.
             QStringList lines = out.split(QLatin1Char('\n'));
             lines.erase(std::ranges::remove_if(lines, [](const QString& l)
             {
@@ -283,8 +289,12 @@ void VpnManager::connectVpn(const QString& country, const QString& city)
                     ll.contains(QLatin1String("natpmpc")) ||
                     (ll.startsWith(QLatin1String("guide:")) && ll.contains(QLatin1String("http")));
             }).begin(), lines.end());
-            while (!lines.isEmpty() && lines.first().trimmed().isEmpty())
+
+            while (lines.isEmpty() == false && lines.first().trimmed().isEmpty())
+            {
                 lines.removeFirst();
+            }
+
             emit connectionStateChanged(m_state, lines.join(QLatin1Char('\n')));
         }
         else
@@ -384,13 +394,15 @@ void VpnManager::fetchCountries()
             const QString trimmed = line.trimmed();
             if (trimmed.isEmpty()) continue;
             if (trimmed.startsWith(QStringLiteral("--"))) { pastSeparator = true; continue; }
-            if (!pastSeparator) continue;
+            if (pastSeparator == false) continue;
             const QStringList parts = line.split(QStringLiteral("  "), Qt::SkipEmptyParts);
             if (parts.size() < 2) continue;
             const QString name = parts.first().trimmed();
             const QString code = parts.last().trimmed();
-            if (!name.isEmpty() && !code.isEmpty())
+            if (name.isEmpty() == false && code.isEmpty() == false)
+            {
                 countries.insert(name, code);
+            }
         }
         emit countriesReady(countries);
     });
@@ -411,19 +423,21 @@ void VpnManager::fetchCities(const QString& countryCode)
                        const QString trimmed = line.trimmed();
                        if (trimmed.isEmpty()) continue;
                        if (trimmed.startsWith(QStringLiteral("--"))) { pastSeparator = true; continue; }
-                       if (!pastSeparator) continue;
+                       if (pastSeparator == false) continue;
                        const QStringList parts = line.split(QStringLiteral("  "), Qt::SkipEmptyParts);
                        const QString city     = parts.value(0).trimmed();
                        const QString features = parts.value(1).trimmed();
-                       if (!city.isEmpty())
+                       if (city.isEmpty() == false)
+                       {
                            cities.append({city, features});
+                       }
                    }
                    emit citiesReady(countryCode, cities);
                });
 }
 
 void VpnManager::fetchCityFeatures(const QString& countryCode, const QString& city,
-                                    std::function<void(const QString& features)> callback)
+                                   const std::function<void(const QString& features)>& callback)
 {
     runCommand({QStringLiteral("cities"), QStringLiteral("list"), countryCode},
                [city, callback](int, const QString& out, const QString& err)
@@ -435,8 +449,11 @@ void VpnManager::fetchCityFeatures(const QString& countryCode, const QString& ci
                    {
                        const QString trimmed = line.trimmed();
                        if (trimmed.isEmpty()) continue;
-                       if (trimmed.startsWith(QStringLiteral("--"))) { pastSeparator = true; continue; }
-                       if (!pastSeparator) continue;
+                       if (trimmed.startsWith(QStringLiteral("--")))
+                       {
+                           pastSeparator = true; continue;
+                       }
+                       if (pastSeparator == false) continue;
                        const QStringList parts = line.split(QStringLiteral("  "), Qt::SkipEmptyParts);
                        const QString cityName = parts.value(0).trimmed();
                        if (cityName.compare(city, Qt::CaseInsensitive) == 0)
@@ -458,7 +475,7 @@ void VpnManager::fetchInfo()
         QRegularExpressionMatchIterator it = re.globalMatch(out);
         while (it.hasNext())
         {
-            const auto m = it.next();
+            const QRegularExpressionMatch m = it.next();
             result.insert(m.captured(1).trimmed(), m.captured(2).trimmed());
         }
         emit infoReady(result);

@@ -31,7 +31,7 @@ protected:
         m_popup = new QFrame(nullptr, Qt::Popup | Qt::FramelessWindowHint);
         m_popup->setObjectName(QStringLiteral("locationPickerPopup"));
 
-        auto* popupLayout = new QVBoxLayout(m_popup);
+        QVBoxLayout* popupLayout = new QVBoxLayout(m_popup);
         popupLayout->setContentsMargins(0, 0, 0, 0);
         popupLayout->setSpacing(0);
 
@@ -57,13 +57,13 @@ protected:
         m_popup->setFixedWidth(width());
         m_popup->move(globalBottomLeft);
         m_popup->show();
-        if (m_chevron) m_chevron->setText(QStringLiteral("▴"));
+        if (m_chevron != nullptr) m_chevron->setText(QStringLiteral("▴"));
     }
 
     void closePopup() const
     {
         m_popup->hide();
-        if (m_chevron) m_chevron->setText(QStringLiteral("▾"));
+        if (m_chevron != nullptr) m_chevron->setText(QStringLiteral("▾"));
     }
 
     void resizeList() const
@@ -81,7 +81,7 @@ protected:
         w->setMouseTracking(true);
         w->installEventFilter(this);
         for (QObject* child : w->children())
-            if (auto* cw = qobject_cast<QWidget*>(child))
+            if (QWidget* cw = qobject_cast<QWidget*>(child))
                 installOnRowWidget(cw);
     }
 
@@ -97,18 +97,18 @@ protected:
         // Popup hidden by Qt (outside click auto-dismiss) → reset chevron
         if (obj == m_popup && ev->type() == QEvent::Hide)
         {
-            if (m_chevron) m_chevron->setText(QStringLiteral("▾"));
+            if (m_chevron != nullptr) m_chevron->setText(QStringLiteral("▾"));
             return false;
         }
 
         // Header click → toggle
         if (obj->isWidgetType() && ev->type() == QEvent::MouseButtonRelease)
         {
-            auto* w = dynamic_cast<QWidget*>(obj);
+            const QWidget* w = dynamic_cast<QWidget*>(obj);
             if (w->objectName() == QLatin1String("locationPickerHeader"))
             {
-                QWidget* p = w;
-                while (p)
+                const QWidget* p = w;
+                while (p != nullptr)
                 {
                     if (p == this) { togglePopup(); return true; }
                     p = p->parentWidget();
@@ -117,31 +117,38 @@ protected:
         }
 
         // Row hover / click
-        if (auto* w = qobject_cast<QWidget*>(obj))
+        if (QWidget* w = qobject_cast<QWidget*>(obj))
         {
             QWidget* rowRoot = nullptr;
             QWidget* cur = w;
-            while (cur)
+            while (cur != nullptr)
             {
                 if (cur->parent() == m_list->viewport()) { rowRoot = cur; break; }
                 cur = qobject_cast<QWidget*>(cur->parent());
             }
 
-            if (rowRoot)
+            if (rowRoot != nullptr)
             {
                 if (ev->type() == QEvent::Enter || ev->type() == QEvent::MouseMove)
                 {
                     for (QObject* child : m_list->viewport()->children())
-                        if (auto* cw = qobject_cast<QWidget*>(child); cw && cw != rowRoot)
+                    {
+                        QWidget* cw = qobject_cast<QWidget*>(child);
+                        if (cw != nullptr && cw != rowRoot)
+                        {
                             cw->setStyleSheet(QStringLiteral("background-color: transparent;"));
+                        }
+                    }
                     rowRoot->setStyleSheet(QStringLiteral("background-color: #2d2d4a;"));
                     return false;
                 }
                 if (ev->type() == QEvent::Leave)
                 {
                     const QPoint globalPos = QCursor::pos();
-                    if (!rowRoot->rect().contains(rowRoot->mapFromGlobal(globalPos)))
+                    if (rowRoot->rect().contains(rowRoot->mapFromGlobal(globalPos)) == false)
+                    {
                         rowRoot->setStyleSheet(QStringLiteral("background-color: transparent;"));
+                    }
                     return false;
                 }
                 if (ev->type() == QEvent::MouseButtonRelease)
@@ -149,7 +156,10 @@ protected:
                     const QPoint vp = m_list->viewport()->mapFromGlobal(
                         w->mapToGlobal(dynamic_cast<QMouseEvent*>(ev)->pos()));
                     QListWidgetItem* item = m_list->itemAt(vp);
-                    if (item) { onRowClicked(item); return true; }
+                    if (item != nullptr)
+                    {
+                        onRowClicked(item); return true;
+                    }
                 }
             }
         }

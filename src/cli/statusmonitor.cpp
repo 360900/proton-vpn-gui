@@ -7,8 +7,8 @@
 
 #include <QDebug>
 #include <QTimer>
+#include <csignal>
 #include <ranges>
-#include <signal.h>
 #include <sys/prctl.h>
 
 // ---------------------------------------------------------------------------
@@ -18,7 +18,7 @@
 // The process will appear under this name in ps/top/htop/bpftrace/journalctl.
 // Linux TASK_COMM_LEN is 16 bytes (15 usable chars); the full name is always
 // visible in /proc/PID/cmdline and `ps aux`.
-static constexpr char kProcessName[] = "protonvpn-qt-status-mon";
+static constexpr char kProcessName[] = "protonvpn-qt-status-mon"; // NOLINT(*-avoid-c-arrays)
 
 // Shell command run by the subprocess:
 //   1. exec -a renames the bash process to kProcessName (sets argv[0]).
@@ -66,7 +66,7 @@ StatusMonitor::~StatusMonitor()
 
 void StatusMonitor::start()
 {
-    if (m_process)
+    if (m_process != nullptr)
     {
 #ifdef QT_DEBUG
         qDebug("[StatusMonitor] start() called but monitor is already running "
@@ -84,8 +84,7 @@ void StatusMonitor::stop()
 {
     m_stopping = true;
 
-    if (!m_process)
-        return;
+    if (m_process == nullptr) return;
 
 #ifdef QT_DEBUG
     qDebug("[StatusMonitor] Stopping (PID %lld).",
@@ -103,7 +102,7 @@ void StatusMonitor::stop()
 
 bool StatusMonitor::isRunning() const
 {
-    return m_process && m_process->state() == QProcess::Running;
+    return m_process != nullptr && m_process->state() == QProcess::Running;
 }
 
 // ---------------------------------------------------------------------------
@@ -200,16 +199,20 @@ void StatusMonitor::onProcessFinished(int exitCode, QProcess::ExitStatus status)
     // external `kill`/`kill -9` or the kernel via PR_SET_PDEATHSIG.
     // NormalExit with a non-zero code means the shell loop exited on its own.
     if (status == QProcess::CrashExit)
+    {
         qDebug("[StatusMonitor] Process was killed externally (signal termination)."
                "  restart#=%d — restarting in %d ms.",
                m_restartCount,
                kRestartDelayMs);
+    }
     else
+    {
         qDebug("[StatusMonitor] Process exited unexpectedly (non-zero exit):"
                "  exitCode=%d  restart#=%d — restarting in %d ms.",
                exitCode,
                m_restartCount,
                kRestartDelayMs);
+    }
 #else
     Q_UNUSED(exitCode)
     Q_UNUSED(status)
@@ -252,8 +255,10 @@ QMap<QString, QString> StatusMonitor::parseStatusFields(const QString& combined)
         if (colonPos < 0) continue;
         const QString key   = line.left(colonPos).trimmed().toLower();
         const QString value = line.mid(colonPos + 1).trimmed();
-        if (!key.isEmpty() && !value.isEmpty())
+        if (key.isEmpty() == false && value.isEmpty() == false)
+        {
             fields.insert(key, value);
+        }
     }
     return fields;
 }

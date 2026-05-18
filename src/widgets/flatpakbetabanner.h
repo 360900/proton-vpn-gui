@@ -23,11 +23,10 @@ class FlatpakBetaBanner : public InfoBanner
 public:
     explicit FlatpakBetaBanner(QWidget* parent = nullptr)
         : InfoBanner(
-              QStringLiteral(
-                  "The <b>Flatpak</b> packaging of this app is currently in <b>beta</b>. "
-                  "You may encounter issues that do not occur in the native version. "
-                  "Please <a href='https://github.com/wheat32/proton-vpn-qt-app/issues'>"
-                  "report any problems on GitHub</a>."),
+              tr("The <b>Flatpak</b> packaging of this app is currently in <b>beta</b>. "
+                 "You may encounter issues that do not occur in the native version. "
+                 "Please <a href='https://github.com/wheat32/proton-vpn-qt-app/issues'>"
+                 "report any problems on GitHub</a>."),
               parent)
     {}
 
@@ -35,7 +34,7 @@ public:
     // so callers can unconditionally assign the result to a pointer member.
     static FlatpakBetaBanner* createIfFlatpak(QWidget* parent)
     {
-        if (!isRunningAsFlatpak())
+        if (isRunningAsFlatpak() == false)
         {
             return nullptr;
         }

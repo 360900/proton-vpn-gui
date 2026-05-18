@@ -1,5 +1,6 @@
 #include "errordetailsdialog.h"
 
+// ReSharper disable once CppUnusedIncludeDirective
 #include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QPlainTextEdit>
@@ -11,30 +12,29 @@
 ErrorDetailsDialog::ErrorDetailsDialog(const QString& errorText, QWidget* parent)
     : QDialog(parent)
 {
-    setWindowTitle(QStringLiteral("Error Details"));
+    setWindowTitle(tr("Error Details"));
     setMinimumSize(640, 400);
     setAttribute(Qt::WA_DeleteOnClose);
 
-    auto* layout = new QVBoxLayout(this);
+    QVBoxLayout* layout = new QVBoxLayout(this);
     layout->setSpacing(10);
 
-    auto* textEdit = new QPlainTextEdit(this);
+    QPlainTextEdit* textEdit = new QPlainTextEdit(this);
     textEdit->setReadOnly(true);
     textEdit->setPlainText(errorText);
     textEdit->setFont(QFont(QStringLiteral("Monospace"), 9));
     layout->addWidget(textEdit);
 
-    auto* btnRow = new QHBoxLayout();
-    auto* copyBtn = new QPushButton(QStringLiteral("Copy to Clipboard"), this);
+    QHBoxLayout* btnRow = new QHBoxLayout();
+    QPushButton* copyBtn = new QPushButton(tr("Copy to Clipboard"), this);
     connect(copyBtn, &QPushButton::clicked, this, [errorText]()
     {
         QGuiApplication::clipboard()->setText(errorText);
     });
-    auto* closeBtn = new QPushButton(QStringLiteral("Close"), this);
+    QPushButton* closeBtn = new QPushButton(tr("Close"), this);
     connect(closeBtn, &QPushButton::clicked, this, &QDialog::accept);
     btnRow->addWidget(copyBtn);
     btnRow->addStretch();
     btnRow->addWidget(closeBtn);
     layout->addLayout(btnRow);
 }
-

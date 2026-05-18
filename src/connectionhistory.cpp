@@ -7,6 +7,7 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QStandardPaths>
+// ReSharper disable once CppUnusedIncludeDirective
 #include <ranges>
 
 static QString historyFilePath()
