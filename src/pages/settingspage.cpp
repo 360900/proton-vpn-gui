@@ -3,7 +3,7 @@
 #include "../thememanager.h"
 #include "../connectionhistory.h"
 #include "../uihelpers.h"
-#include "../widgets/toggleswitch.h"
+#include "../widgets/togglewithstatus.h"
 #include "../cli/flatpakutils.h"
 
 #include <QSpinBox>
@@ -188,10 +188,10 @@ QWidget* SettingsPage::makeToggleRow(QWidget* parent, const QString& label,
     rl->setContentsMargins(16, 12, 16, 12);
     rl->setSpacing(16);
     rl->addWidget(makeTextCol(row, label, desc), 1);
-    auto* toggle = new ToggleSwitch(row);
+    auto* toggle = new ToggleWithStatus(row);
     rl->addWidget(toggle, 0);
 
-    connect(toggle, &ToggleSwitch::toggled, this,
+    connect(toggle, &ToggleWithStatus::toggled, this,
             [this, cliKey, onValue, label, toggle, requiresReconnect](bool on)
     {
         if (requiresReconnect && m_manager->currentState() != VpnState::Disconnected)
@@ -463,9 +463,9 @@ SettingsPage::SettingsPage(VpnManager* manager, NatPmpManager* natPmpManager, QW
                                   tr("Launch on Startup"),
                                   tr("Automatically start the app in the background when you log in "
                                      "(installs a systemd user service).")), 1);
-        m_autoStartToggle = new ToggleSwitch(m_autoStartRow);
+        m_autoStartToggle = new ToggleWithStatus(m_autoStartRow);
         m_autoStartToggle->setOn(autoStartEnabled(), false);
-        connect(m_autoStartToggle, &ToggleSwitch::toggled, this, [this](bool on)
+        connect(m_autoStartToggle, &ToggleWithStatus::toggled, this, [this](bool on)
         {
             QString err;
             if (!setAutoStart(on, err))
@@ -492,9 +492,9 @@ SettingsPage::SettingsPage(VpnManager* manager, NatPmpManager* natPmpManager, QW
         acRl->addWidget(makeTextCol(m_autoConnectRow,
                                     tr("Auto-connect on Startup"),
                                     tr("Automatically connect to the VPN when the app starts.")), 1);
-        m_autoConnectToggle = new ToggleSwitch(m_autoConnectRow);
+        m_autoConnectToggle = new ToggleWithStatus(m_autoConnectRow);
         m_autoConnectToggle->setOn(AppConfig::instance().autoConnect(), false);
-        connect(m_autoConnectToggle, &ToggleSwitch::toggled, this, [](bool on)
+        connect(m_autoConnectToggle, &ToggleWithStatus::toggled, this, [](bool on)
         {
             AppConfig::instance().setAutoConnect(on);
         });
@@ -515,9 +515,9 @@ SettingsPage::SettingsPage(VpnManager* manager, NatPmpManager* natPmpManager, QW
                                   tr("Desktop Notifications"),
                                   tr("Show a system notification when the VPN is connecting, "
                                      "connected, disconnecting, or disconnected.")), 1);
-        m_notificationsToggle = new ToggleSwitch(row);
+        m_notificationsToggle = new ToggleWithStatus(row);
         m_notificationsToggle->setOn(AppConfig::instance().notifications(), false);
-        connect(m_notificationsToggle, &ToggleSwitch::toggled, this, [](bool on)
+        connect(m_notificationsToggle, &ToggleWithStatus::toggled, this, [](bool on)
         {
             AppConfig::instance().setNotifications(on);
         });
@@ -570,9 +570,9 @@ SettingsPage::SettingsPage(VpnManager* manager, NatPmpManager* natPmpManager, QW
                                   tr("Start Hidden"),
                                   tr("Launch the app in the background without opening a "
                                      "window. Access it anytime via the system tray icon.")), 1);
-        auto* toggle = new ToggleSwitch(row);
+        auto* toggle = new ToggleWithStatus(row);
         toggle->setOn(AppConfig::instance().startHidden(), false);
-        connect(toggle, &ToggleSwitch::toggled, this, [](bool on)
+        connect(toggle, &ToggleWithStatus::toggled, this, [](bool on)
         {
             AppConfig::instance().setStartHidden(on);
         });
@@ -745,7 +745,7 @@ SettingsPage::SettingsPage(VpnManager* manager, NatPmpManager* natPmpManager, QW
         ksRowLayout->addWidget(makeTextCol(ksRow,
             tr("Kill Switch"),
             tr("Block internet access if the VPN connection drops unexpectedly.")), 1);
-        m_killSwitchToggle = new ToggleSwitch(ksRow);
+        m_killSwitchToggle = new ToggleWithStatus(ksRow);
         ksRowLayout->addWidget(m_killSwitchToggle, 0);
         ksVLayout->addWidget(ksRow);
 
@@ -834,7 +834,7 @@ SettingsPage::SettingsPage(VpnManager* manager, NatPmpManager* natPmpManager, QW
         ksVLayout->addWidget(m_killSwitchSubPanel);
 
         // Wire toggle → apply CLI value + show/hide sub-panel
-        connect(m_killSwitchToggle, &ToggleSwitch::toggled, this, [this](bool on)
+        connect(m_killSwitchToggle, &ToggleWithStatus::toggled, this, [this](bool on)
         {
             // The CLI refuses to change kill-switch while the VPN is active.
             // Guard against any non-Disconnected state.
@@ -940,7 +940,7 @@ SettingsPage::SettingsPage(VpnManager* manager, NatPmpManager* natPmpManager, QW
         m_portForwardingToggle = m_toggleRows.last().toggle;
 
         // Show a warning popup if the user enables port forwarding without natpmpc installed.
-        connect(m_portForwardingToggle, &ToggleSwitch::toggled, this, [this](bool on)
+        connect(m_portForwardingToggle, &ToggleWithStatus::toggled, this, [this](bool on)
         {
             if (on && NatPmpManager::isInstalled() == false)
             {
@@ -1054,7 +1054,7 @@ SettingsPage::SettingsPage(VpnManager* manager, NatPmpManager* natPmpManager, QW
         });
 
         // Hide the forwarded port row when port forwarding is turned off.
-        connect(m_portForwardingToggle, &ToggleSwitch::toggled, this, [this](const bool on)
+        connect(m_portForwardingToggle, &ToggleWithStatus::toggled, this, [this](const bool on)
         {
             if (on == false && m_settingsPortRow != nullptr)
             {
@@ -1173,7 +1173,7 @@ SettingsPage::SettingsPage(VpnManager* manager, NatPmpManager* natPmpManager, QW
                                      tr("Custom DNS"),
                                      tr("Override the VPN DNS with your own resolver(s). "
                                         "Separate multiple addresses with a comma.")), 1);
-        m_dnsToggle = new ToggleSwitch(dnsRow);
+        m_dnsToggle = new ToggleWithStatus(dnsRow);
         dnsRl->addWidget(m_dnsToggle);
         plusLayout->addWidget(dnsRow);
 
@@ -1191,7 +1191,7 @@ SettingsPage::SettingsPage(VpnManager* manager, NatPmpManager* natPmpManager, QW
         dnsAddrRl->addWidget(m_dnsApplyBtn);
         plusLayout->addWidget(dnsAddrRow);
 
-        connect(m_dnsToggle, &ToggleSwitch::toggled, this, [this, dnsAddrRow](const bool on)
+        connect(m_dnsToggle, &ToggleWithStatus::toggled, this, [this, dnsAddrRow](const bool on)
         {
             // Turning DNS off while connected requires a reconnect — show dialog
             // and revert the toggle until the user confirms.

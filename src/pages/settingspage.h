@@ -10,7 +10,7 @@
 #include "../vpnmanager.h"
 #include "../cli/natpmpmanager.h"
 #include "../dialogs/aboutdialog.h"
-#include "../widgets/toggleswitch.h"
+#include "../widgets/togglewithstatus.h"
 
 // ---------------------------------------------------------------------------
 // SettingsPage
@@ -31,7 +31,7 @@ private:
     struct ToggleRow
     {
         QString cliKey;
-        ToggleSwitch* toggle = nullptr;
+        ToggleWithStatus* toggle = nullptr;
         // Value sent to the CLI (and expected when loading) for the ON state.
         // Most settings use "on"; kill-switch uses "standard".
         QString onValue = QStringLiteral("on");
@@ -51,32 +51,32 @@ private:
     QList<ComboRow> m_comboRows;
 
     // Custom DNS widgets
-    ToggleSwitch* m_dnsToggle = nullptr;
+    ToggleWithStatus* m_dnsToggle = nullptr;
     QLineEdit* m_dnsEdit = nullptr;
     QPushButton* m_dnsApplyBtn = nullptr;
 
     // Port forwarding toggle
-    ToggleSwitch* m_portForwardingToggle = nullptr;
+    ToggleWithStatus* m_portForwardingToggle = nullptr;
     QWidget* m_settingsPortRow = nullptr;
     QLabel*  m_settingsPortLabel = nullptr;
 
     // Kill switch toggle + collapsible radio-button sub-panel
-    ToggleSwitch* m_killSwitchToggle   = nullptr;
+    ToggleWithStatus* m_killSwitchToggle   = nullptr;
     QWidget*      m_killSwitchSubPanel = nullptr;
     // True while an applyConfigValueAndReconnect() sequence is in flight;
     // keeps the whole VPN card disabled through the Disconnected interim.
     bool m_sequencePending = false;
 
     // Auto-start (systemd user service)
-    ToggleSwitch* m_autoStartToggle = nullptr;
+    ToggleWithStatus* m_autoStartToggle = nullptr;
     QWidget* m_autoStartRow = nullptr;
 
     // Auto-connect on startup (shown only when auto-start is on)
-    ToggleSwitch* m_autoConnectToggle = nullptr;
+    ToggleWithStatus* m_autoConnectToggle = nullptr;
     QWidget* m_autoConnectRow = nullptr;
 
     // Desktop notifications
-    ToggleSwitch* m_notificationsToggle = nullptr;
+    ToggleWithStatus* m_notificationsToggle = nullptr;
 
     // Theme selector combo box
     QComboBox* m_themeCombo = nullptr;

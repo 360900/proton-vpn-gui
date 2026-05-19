@@ -49,6 +49,7 @@ set(SOURCES
         widgets/toastnotification.h
         widgets/toggleswitch.h
         widgets/toggleswitch.cpp
+        widgets/togglewithstatus.h
         pages/notinstalledpage.h
         pages/notinstalledpage.cpp
         pages/loginpage.h
@@ -98,6 +99,10 @@ install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/../proton-vpn-sign.svg
         DESTINATION share/icons/hicolor/scalable/apps
         RENAME proton-vpn-qt-app.svg
 )
+
+# ── Tests ────────────────────────────────────────────────────────────────────
+enable_testing()
+add_subdirectory(tests)
 
 
 

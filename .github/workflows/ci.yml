@@ -29,6 +29,11 @@ jobs:
       - name: Build
         run: cmake --build build --parallel
 
+      - name: Run tests
+        run: ctest --test-dir build --output-on-failure --parallel $(nproc)
+        env:
+          QT_QPA_PLATFORM: offscreen
+
       - name: Confirm binary exists
         run: test -f build/proton_vpn_qt
 

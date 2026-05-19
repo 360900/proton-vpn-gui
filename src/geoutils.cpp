@@ -348,7 +348,7 @@ QIcon flagIcon(const QString& countryCode)
 {
     static QMap<QString, QIcon> cache;
     const QString key = countryCode.toLower();
-    auto it = cache.find(key);
+    const auto it = cache.find(key);
     if (it != cache.end())
         return it.value();
 
