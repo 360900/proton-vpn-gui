@@ -1,7 +1,9 @@
 #pragma once
 
+#include <QEvent>
 #include <QFile>
 #include <QFrame>
+#include <QGuiApplication>
 #include <QHBoxLayout>
 #include <QIntValidator>
 #include <QLineEdit>
@@ -104,9 +106,19 @@ public:
 signals:
     void valueChanged(int value);
 
+protected:
+    void changeEvent(QEvent* e) override
+    {
+        QFrame::changeEvent(e);
+        if (e->type() == QEvent::PaletteChange)
+        {
+            refreshArrowIcons();
+        }
+    }
+
 private:
-    // Load an SVG from a Qt resource, patch currentColor to the app text
-    // color in memory (never touching the file on disk), and return a QIcon.
+    // Load an SVG from a Qt resource, patch currentColor to the current palette
+    // text color, and return a QIcon.  Called at construction and on palette change.
     static QIcon svgIcon(const QString& resource)
     {
         QFile file(resource);
@@ -114,7 +126,8 @@ private:
             return {};
 
         QByteArray data = file.readAll();
-        data.replace("currentColor", "#eaeaea");
+        const QColor textColor = QGuiApplication::palette().color(QPalette::WindowText);
+        data.replace("currentColor", textColor.name().toLatin1());
 
         QSvgRenderer renderer(data);
         QPixmap pixmap(10, 10);
@@ -153,6 +166,12 @@ private:
     {
         m_upBtn->setEnabled(m_value < m_max);
         m_downBtn->setEnabled(m_value > m_min);
+    }
+
+    void refreshArrowIcons()
+    {
+        m_upBtn->setIcon(svgIcon(QStringLiteral(":/assets/chevron-up.svg")));
+        m_downBtn->setIcon(svgIcon(QStringLiteral(":/assets/chevron-down.svg")));
     }
 
     QLineEdit*   m_display  = nullptr;

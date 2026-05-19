@@ -48,11 +48,26 @@ void AppConfig::load()
     m_recentConnectionsCount = obj.value(QStringLiteral("recent_connections_count")).toInt(5);
     m_startHidden = obj.value(QStringLiteral("start_hidden")).toBool(false);
 
+    const QString themeStr = obj.value(QStringLiteral("theme")).toString(QStringLiteral("system"));
+    if (themeStr == QStringLiteral("dark"))
+    {
+        m_theme = Theme::Dark;
+    }
+    else if (themeStr == QStringLiteral("light"))
+    {
+        m_theme = Theme::Light;
+    }
+    else
+    {
+        m_theme = Theme::System;
+    }
+
     DBG_SETTINGS(QStringLiteral("Config loaded from: ") + configFile());
     DBG_SETTINGS(QStringLiteral("  auto_connect             = ") + (m_autoConnect ? QStringLiteral("true") : QStringLiteral("false")));
     DBG_SETTINGS(QStringLiteral("  notifications            = ") + (m_notifications ? QStringLiteral("true") : QStringLiteral("false")));
     DBG_SETTINGS(QStringLiteral("  recent_connections_count = ") + QString::number(m_recentConnectionsCount));
     DBG_SETTINGS(QStringLiteral("  start_hidden             = ") + (m_startHidden ? QStringLiteral("true") : QStringLiteral("false")));
+    DBG_SETTINGS(QStringLiteral("  theme                    = ") + themeStr);
 }
 
 bool AppConfig::save() const
@@ -66,6 +81,21 @@ bool AppConfig::save() const
     obj[QStringLiteral("notifications")] = m_notifications;
     obj[QStringLiteral("recent_connections_count")] = m_recentConnectionsCount;
     obj[QStringLiteral("start_hidden")] = m_startHidden;
+
+    QString themeStr;
+    switch (m_theme)
+    {
+    case Theme::Dark:
+        themeStr = QStringLiteral("dark");
+        break;
+    case Theme::Light:
+        themeStr = QStringLiteral("light");
+        break;
+    default:
+        themeStr = QStringLiteral("system");
+        break;
+    }
+    obj[QStringLiteral("theme")] = themeStr;
 
     QFile f(configFile());
     if (!f.open(QIODevice::WriteOnly | QIODevice::Text))
@@ -114,3 +144,13 @@ void AppConfig::setStartHidden(const bool value)
     m_startHidden = value;
     (void)save();
 }
+
+AppConfig::Theme AppConfig::theme() const { return m_theme; }
+
+void AppConfig::setTheme(const Theme value)
+{
+    if (m_theme == value) return;
+    m_theme = value;
+    (void)save();
+}
+

@@ -78,6 +78,9 @@ private:
     // Desktop notifications
     ToggleSwitch* m_notificationsToggle = nullptr;
 
+    // Theme selector combo box
+    QComboBox* m_themeCombo = nullptr;
+
     // Recent connections count (0 = disabled)
     class NumberSpinner* m_recentConnectionsSpinBox = nullptr;
 

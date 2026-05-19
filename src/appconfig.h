@@ -10,17 +10,21 @@
 class AppConfig
 {
 public:
+    enum class Theme { System, Dark, Light };
+
     static AppConfig &instance();
 
     bool autoConnect() const;
     bool notifications() const;
     int  recentConnectionsCount() const;
     bool startHidden() const;
+    Theme theme() const;
 
     void setAutoConnect(bool value);
     void setNotifications(bool value);
     void setRecentConnectionsCount(int value);
     void setStartHidden(bool value);
+    void setTheme(Theme value);
 
 private:
     AppConfig();
@@ -31,5 +35,6 @@ private:
     bool m_notifications  = true;
     int  m_recentConnectionsCount = 5;
     bool m_startHidden = false;
+    Theme m_theme = Theme::System;
 };
 

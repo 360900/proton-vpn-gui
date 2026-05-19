@@ -1,5 +1,6 @@
 #include "settingspage.h"
 #include "../appconfig.h"
+#include "../thememanager.h"
 #include "../connectionhistory.h"
 #include "../uihelpers.h"
 #include "../widgets/toggleswitch.h"
@@ -521,6 +522,41 @@ SettingsPage::SettingsPage(VpnManager* manager, NatPmpManager* natPmpManager, QW
             AppConfig::instance().setNotifications(on);
         });
         rl->addWidget(m_notificationsToggle);
+        addApp(row);
+    }
+
+    // ── Theme ─────────────────────────────────────────────────
+    {
+        auto* row = new QWidget(appCard);
+        auto* rl = new QHBoxLayout(row);
+        rl->setContentsMargins(16, 12, 16, 12);
+        rl->setSpacing(16);
+        rl->addWidget(makeTextCol(row,
+                                  tr("Theme"),
+                                  tr("Choose the colour scheme for the app.")), 1);
+        m_themeCombo = new QComboBox(row);
+        m_themeCombo->addItem(tr("System Settings"), QStringLiteral("system"));
+        m_themeCombo->addItem(tr("Dark"),            QStringLiteral("dark"));
+        m_themeCombo->addItem(tr("Light"),           QStringLiteral("light"));
+
+        // Select current saved value
+        {
+            const AppConfig::Theme t = AppConfig::instance().theme();
+            const int idx = (t == AppConfig::Theme::Dark)  ? 1 :
+                            (t == AppConfig::Theme::Light) ? 2 : 0;
+            m_themeCombo->setCurrentIndex(idx);
+        }
+
+        connect(m_themeCombo, &QComboBox::currentIndexChanged, this, [this](int idx)
+        {
+            const AppConfig::Theme t = (idx == 1) ? AppConfig::Theme::Dark  :
+                                       (idx == 2) ? AppConfig::Theme::Light :
+                                                    AppConfig::Theme::System;
+            AppConfig::instance().setTheme(t);
+            ThemeManager::apply(t);
+        });
+
+        rl->addWidget(m_themeCombo);
         addApp(row);
     }
 

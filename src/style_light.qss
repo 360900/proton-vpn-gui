@@ -1,0 +1,406 @@
+QWidget {
+    background-color: #f0f0f5;
+    color: #1a1a2e;
+    font-family: "Inter", "Noto Sans", "Segoe UI", sans-serif;
+    font-size: 13px;
+}
+
+QLabel {
+    background-color: transparent;
+}
+
+QWidget#sidebar {
+    background-color: #e2e2ec;
+    border-right: 1px solid #c8c8d8;
+}
+
+QFrame#sidebarDivider {
+    color: #c8c8d8;
+}
+
+QToolButton#navButton {
+    background-color: transparent;
+    border: none;
+    border-radius: 8px;
+    padding: 6px;
+}
+QToolButton#navButton:hover {
+    background-color: #d0d0e0;
+}
+QToolButton#navButton:checked {
+    background-color: #c0b0f0;
+}
+
+QToolButton#logoButton {
+    background-color: transparent;
+    border: none;
+    border-radius: 8px;
+    padding: 8px;
+}
+QToolButton#logoButton:hover {
+    background-color: #d0d0e0;
+}
+QToolButton#logoButton:checked {
+    background-color: #c0b0f0;
+}
+
+QWidget#loginCard {
+    background-color: #ffffff;
+    border-radius: 12px;
+    border: 1px solid #c8c8d8;
+}
+
+QLabel#sectionTitle {
+    font-size: 18px;
+    font-weight: bold;
+    color: #1a1a2e;
+}
+
+QLabel#fieldLabel {
+    color: #5a5a7a;
+    font-size: 12px;
+}
+
+QLabel#errorLabel,
+QAbstractScrollArea#errorLabel {
+    color: #c0392b;
+    background-color: rgba(192, 57, 43, 0.08);
+    border: 1px solid #c0392b;
+    border-radius: 6px;
+    padding: 8px;
+}
+
+QLabel#timerLabel {
+    font-size: 16px;
+    color: #5a5a7a;
+    font-family: "Courier New", "DejaVu Sans Mono", monospace;
+}
+
+QLabel#infoLabel {
+    color: #5a5a7a;
+    font-size: 12px;
+}
+
+QLabel#signOutHintLabel {
+    color: #8a6800;
+    font-size: 12px;
+    background-color: rgba(200, 160, 0, 0.08);
+    border: 1px solid rgba(200, 160, 0, 0.35);
+    border-radius: 6px;
+    padding: 8px 12px;
+}
+
+QLineEdit#inputField {
+    background-color: #ffffff;
+    border: 1px solid #c8c8d8;
+    border-radius: 6px;
+    padding: 8px 12px;
+    color: #1a1a2e;
+    selection-background-color: #6d4aff;
+}
+QLineEdit#inputField:focus {
+    border-color: #6d4aff;
+}
+
+QFrame#locationPicker {
+    background-color: transparent;
+}
+QFrame#locationPickerHeader {
+    background-color: #ffffff;
+    border: 1px solid #c8c8d8;
+    border-radius: 8px;
+}
+QFrame#locationPickerHeader:hover {
+    border-color: #6d4aff;
+}
+QLabel#locationPickerTop {
+    color: #5a5a7a;
+    font-size: 10px;
+}
+QLabel#locationPickerBottom {
+    color: #1a1a2e;
+    font-size: 13px;
+    font-weight: bold;
+}
+QLabel#locationPickerChevron {
+    color: #5a5a7a;
+    font-size: 12px;
+}
+QFrame#locationPickerPopup {
+    background-color: #ffffff;
+    border: 1px solid #c8c8d8;
+    border-top: none;
+    border-bottom-left-radius: 8px;
+    border-bottom-right-radius: 8px;
+}
+QListWidget#locationPickerList {
+    background-color: transparent;
+    border: none;
+    outline: none;
+}
+QListWidget#locationPickerList::item {
+    border-bottom: 1px solid #e0e0ec;
+}
+QListWidget#locationPickerList::item:selected,
+QListWidget#locationPickerList::item:selected:!active {
+    background-color: #e0d8ff;
+}
+QListWidget#locationPickerList::item:hover {
+    background-color: #ececf8;
+}
+QLabel#locationPickerItemLabel {
+    color: #1a1a2e;
+    font-size: 13px;
+}
+
+QPushButton#primaryButton {
+    background-color: #6d4aff;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    padding: 10px 24px;
+    font-weight: bold;
+    font-size: 14px;
+    min-width: 140px;
+}
+QPushButton#primaryButton:hover {
+    background-color: #5a3de0;
+}
+QPushButton#primaryButton:disabled {
+    background-color: #c8c8d8;
+    color: #9090a8;
+}
+
+QPushButton#secondaryButton {
+    background-color: transparent;
+    color: #5a5a7a;
+    border: 1px solid #c8c8d8;
+    border-radius: 6px;
+    padding: 4px 12px;
+}
+QPushButton#secondaryButton:hover {
+    background-color: #e0e0ec;
+    color: #1a1a2e;
+}
+
+QPushButton#leaveVpnOnButton {
+    background-color: transparent;
+    color: palette(window-text);
+    border: 1px solid palette(window-text);
+    border-radius: 6px;
+    padding: 4px 12px;
+}
+QPushButton#leaveVpnOnButton:hover {
+    background-color: rgba(0, 0, 0, 0.07);
+}
+
+QPushButton#dangerButton {
+    background-color: transparent;
+    color: #c0392b;
+    border: 1px solid #c0392b;
+    border-radius: 6px;
+    padding: 10px 24px;
+    font-weight: bold;
+}
+QPushButton#dangerButton:hover {
+    background-color: rgba(192, 57, 43, 0.10);
+}
+
+QPushButton#iconButton {
+    background-color: transparent;
+    border: none;
+    border-radius: 4px;
+}
+QPushButton#iconButton:hover {
+    background-color: #dcdcec;
+}
+
+QListWidget#serverList {
+    background-color: #ffffff;
+    border: 1px solid #c8c8d8;
+    border-radius: 6px;
+    outline: none;
+}
+QListWidget#serverList::item {
+    padding: 8px 12px;
+    border-bottom: 1px solid #e8e8f0;
+}
+QListWidget#serverList::item:selected {
+    background-color: #d8ccff;
+    color: #1a1a2e;
+}
+QListWidget#serverList::item:hover {
+    background-color: #ececf8;
+}
+
+QLabel#listHeader {
+    font-size: 12px;
+    font-weight: bold;
+    color: #5a5a7a;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    padding: 4px 0;
+}
+
+QWidget#infoCard {
+    background-color: #ffffff;
+    border-radius: 8px;
+    border: 1px solid #c8c8d8;
+}
+
+QWidget#infoRow {
+    background-color: transparent;
+}
+
+QLabel#infoKey {
+    color: #5a5a7a;
+}
+
+QLabel#infoValue {
+    color: #1a1a2e;
+    font-weight: bold;
+}
+
+QFrame#divider {
+    color: #c8c8d8;
+}
+
+QSplitter::handle {
+    background-color: #c8c8d8;
+    width: 1px;
+}
+
+QToolButton#accordionHeader {
+    background-color: #f0f0f5;
+    border: none;
+    border-bottom: 1px solid #e0e0ec;
+    color: #1a1a2e;
+    text-align: left;
+    padding: 0 12px;
+    font-size: 13px;
+}
+QToolButton#accordionHeader:hover {
+    background-color: #e4e4f0;
+}
+
+QScrollBar:vertical {
+    background: #e8e8f0;
+    width: 8px;
+    border-radius: 4px;
+}
+QScrollBar::handle:vertical {
+    background: #b8b8cc;
+    border-radius: 4px;
+    min-height: 30px;
+}
+QScrollBar::handle:vertical:hover {
+    background: #6d4aff;
+}
+QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
+    height: 0;
+}
+
+QFrame#numberSpinner {
+    background-color: #ffffff;
+    border: 1px solid #c8c8d8;
+    border-radius: 6px;
+}
+QFrame#numberSpinnerButtons {
+    background-color: transparent;
+    border-left: 1px solid #c8c8d8;
+}
+QLineEdit#numberSpinnerDisplay {
+    background-color: transparent;
+    color: #1a1a2e;
+    border: none;
+    padding: 2px 4px;
+    selection-background-color: #6d4aff;
+}
+QPushButton#numberSpinnerBtnUp,
+QPushButton#numberSpinnerBtnDown {
+    background-color: #e8e8f4;
+    border: none;
+    padding: 0;
+    margin: 0;
+    min-height: 0;
+}
+QPushButton#numberSpinnerBtnUp {
+    border-top-right-radius: 5px;
+}
+QPushButton#numberSpinnerBtnDown {
+    border-bottom-right-radius: 5px;
+}
+QPushButton#numberSpinnerBtnUp:hover,
+QPushButton#numberSpinnerBtnDown:hover {
+    background-color: #c8c8d8;
+}
+QPushButton#numberSpinnerBtnUp:disabled,
+QPushButton#numberSpinnerBtnDown:disabled {
+    background-color: #f0f0f5;
+}
+
+QFrame#toastNotification {
+    background-color: #e8f8ee;
+    border: 1px solid #5cb87a;
+    border-radius: 8px;
+}
+QFrame#toastNotification QLabel {
+    color: #2d6a4f;
+    background: transparent;
+    border: none;
+}
+QPushButton#toastCloseBtn {
+    color: #2d6a4f;
+    background: transparent;
+    border: none;
+    font-weight: bold;
+}
+QPushButton#toastCloseBtn:hover {
+    color: #1a4030;
+}
+
+QLabel#upgradeLabel {
+    color: #5a5a7a;
+    font-size: 9pt;
+    padding: 4px 0px;
+}
+QLabel#upgradeLabel a {
+    color: #6d4aff;
+}
+
+/* ── Plus Members Only divider (VPN settings tab) ── */
+QLabel#plusDividerLabel {
+    color: #6d4aff;
+    font-size: 9pt;
+    font-weight: bold;
+    background-color: transparent;
+}
+QFrame#plusDividerLine {
+    color: #c8c8d8;
+}
+
+/* ── Forwarded-port button group ── */
+QLabel#portValueLabel {
+    border: 1px solid palette(mid);
+    border-right: none;
+    border-top-left-radius: 5px;
+    border-bottom-left-radius: 5px;
+    background: transparent;
+    padding: 4px 12px;
+    font-weight: bold;
+}
+QPushButton#portCopyBtn {
+    border: 1px solid palette(mid);
+    border-top-right-radius: 5px;
+    border-bottom-right-radius: 5px;
+    background: transparent;
+    padding: 0px;
+}
+QPushButton#portCopyBtn:hover {
+    border-color: palette(highlight);
+    background: rgba(0,0,0,20);
+}
+QPushButton#portCopyBtn:pressed {
+    background: rgba(0,0,0,40);
+}
+

@@ -98,6 +98,7 @@ void LoginPage::buildCredsWidget()
 
     // Logo
     SvgBanner* logo = new SvgBanner(QStringLiteral(":/assets/proton-vpn-logo.svg"), 4.0, m_credsWidget);
+    logo->setLightResource(QStringLiteral(":/assets/proton-vpn-logo-light.svg"));
     layout->addWidget(logo, 0, Qt::AlignCenter);
 
     layout->addSpacing(8);
@@ -170,6 +171,7 @@ void LoginPage::buildTFAWidget()
 
     // Logo
     SvgBanner* logo = new SvgBanner(QStringLiteral(":/assets/proton-vpn-logo.svg"), 4.0, m_tfaWidget);
+    logo->setLightResource(QStringLiteral(":/assets/proton-vpn-logo-light.svg"));
     layout->addWidget(logo, 0, Qt::AlignCenter);
 
     layout->addSpacing(8);

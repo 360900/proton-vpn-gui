@@ -20,7 +20,12 @@
 #include "connectionhistory.h"
 #include "geoutils.h"
 
-static QIcon svgNavIcon(const QString& path, const QSize& size = {24, 24}, bool tintInDarkMode = true)
+// Renders the SVG at `path` into a QIcon of `size`.
+// When `tintForTheme` is true (used for monochrome utility icons), the result
+// is tinted white on dark backgrounds and dark navy on light backgrounds so
+// the icon is always legible.  Pass false for branded/coloured logos that
+// should be rendered with their own SVG colours unchanged.
+static QIcon svgNavIcon(const QString& path, const QSize& size = {24, 24}, bool tintForTheme = true)
 {
     QPixmap pix(size);
     pix.fill(Qt::transparent);
@@ -28,16 +33,14 @@ static QIcon svgNavIcon(const QString& path, const QSize& size = {24, 24}, bool 
     QSvgRenderer renderer(path);
     renderer.render(&p);
 
-    // Tint white in dark mode so monochrome icons are visible on the dark sidebar.
-    // Pass tintInDarkMode=false for logos/icons that carry their own colors.
-    if (tintInDarkMode)
+    if (tintForTheme)
     {
         const QColor windowColor = QApplication::palette().color(QPalette::Window);
-        if (windowColor.lightness() < 128)
-        {
-            p.setCompositionMode(QPainter::CompositionMode_SourceIn);
-            p.fillRect(pix.rect(), Qt::white);
-        }
+        const QColor tintColor = (windowColor.lightness() < 128)
+                                     ? Qt::white
+                                     : QColor(0x1a, 0x1a, 0x2e);
+        p.setCompositionMode(QPainter::CompositionMode_SourceIn);
+        p.fillRect(pix.rect(), tintColor);
     }
 
     p.end();
@@ -478,6 +481,26 @@ void MainWindow::setNavActive(const QToolButton* btn)
 void MainWindow::startupCheck() const
 {
     m_manager->checkInstalled();
+}
+
+void MainWindow::refreshIcons()
+{
+    // Logo button: render with original SVG colours (no tinting) — it's a branded icon.
+    setWindowIcon(svgNavIcon(QStringLiteral(":/assets/proton-vpn-sign.svg"), {64, 64}, false));
+    m_logoBtn->setIcon(svgNavIcon(QStringLiteral(":/assets/proton-vpn-sign.svg"), {40, 40}, false));
+    // Nav icons: monochrome utility icons — tint for legibility.
+    m_countriesNavBtn->setIcon(svgNavIcon(QStringLiteral(":/assets/server-smart-routing.svg"), {24, 24}));
+    m_accountNavBtn->setIcon(svgNavIcon(QStringLiteral(":/assets/person-lines-fill.svg"), {24, 24}));
+    m_settingsNavBtn->setIcon(svgNavIcon(QStringLiteral(":/assets/gear.svg"), {24, 24}));
+}
+
+void MainWindow::changeEvent(QEvent* event)
+{
+    QWidget::changeEvent(event);
+    if (event->type() == QEvent::PaletteChange)
+    {
+        refreshIcons();
+    }
 }
 
 void MainWindow::sendNotification(const QString& title, const QString& message) const

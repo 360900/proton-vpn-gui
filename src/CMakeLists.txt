@@ -23,6 +23,8 @@ set(SOURCES
         main.cpp
         appconfig.h
         appconfig.cpp
+        thememanager.h
+        thememanager.cpp
         connectionhistory.h
         connectionhistory.cpp
         geoutils.h

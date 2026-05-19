@@ -1,5 +1,6 @@
 #pragma once
 
+#include <QEvent>
 #include <QStackedWidget>
 #include <QToolButton>
 #include <QSystemTrayIcon>
@@ -51,10 +52,12 @@ private:
 
     void showPage(Page page) const;
     void setupSidebar();
+    void refreshIcons();
     void setNavActive(const QToolButton* btn);
     void startupCheck() const;
     void updateTrayIcon(VpnState state);
     void sendNotification(const QString& title, const QString& message) const;
+    void changeEvent(QEvent* event) override;
 
     QSystemTrayIcon* m_trayIcon;
     QAction* m_trayConnectAction;

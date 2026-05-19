@@ -2,6 +2,7 @@
 <RCC version="1.0">
     <qresource prefix="/assets">
         <file alias="proton-vpn-logo.svg">assets/proton-vpn-logo.svg</file>
+        <file alias="proton-vpn-logo-light.svg">assets/proton-vpn-logo-light.svg</file>
         <file alias="proton-vpn-sign.svg">assets/proton-vpn-sign.svg</file>
         <file alias="state-connected.svg">assets/state-connected.svg</file>
         <file alias="state-disconnected.svg">assets/state-disconnected.svg</file>
@@ -28,6 +29,7 @@
     <qresource prefix="/">
         <file>version.json</file>
         <file>style.qss</file>
+        <file>style_light.qss</file>
     </qresource>
     <qresource prefix="/init">
         <file alias="systemd/proton-vpn-qt.service">init/systemd/proton-vpn-qt.service</file>
