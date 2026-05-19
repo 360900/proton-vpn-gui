@@ -62,10 +62,14 @@ set(SOURCES
         pages/accountpage.cpp
         pages/settingspage.h
         pages/settingspage.cpp
+        pages/debugpage.h
+        pages/debugpage.cpp
         dialogs/aboutdialog.h
         dialogs/aboutdialog.cpp
         dialogs/errordetailsdialog.h
         dialogs/errordetailsdialog.cpp
+        dialogs/whatsnewdialog.h
+        dialogs/whatsnewdialog.cpp
         resources.qrc
         flags.qrc
 )

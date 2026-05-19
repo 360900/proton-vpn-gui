@@ -25,6 +25,7 @@
         <file alias="server-streaming.svg">assets/servers/streaming.svg</file>
         <file alias="server-tor.svg">assets/servers/tor.svg</file>
         <file alias="clipboard2-plus.svg">assets/clipboard2-plus.svg</file>
+        <file alias="bug.svg">assets/bug.svg</file>
     </qresource>
     <qresource prefix="/">
         <file>version.json</file>

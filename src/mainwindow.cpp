@@ -8,6 +8,11 @@
 #include <QToolButton>
 #include <QButtonGroup>
 #include <QFrame>
+#include <QTimer>
+#include <QFile>
+// ReSharper disable once CppUnusedIncludeDirective
+#include <QJsonDocument> // Ignore unused include warning; we do use QJsonDocument
+#include <QJsonObject>
 #include <utility>
 
 #include "pages/notinstalledpage.h"
@@ -19,6 +24,10 @@
 #include "appconfig.h"
 #include "connectionhistory.h"
 #include "geoutils.h"
+#include "dialogs/whatsnewdialog.h"
+#ifdef QT_DEBUG
+#include "pages/debugpage.h"
+#endif
 
 // Renders the SVG at `path` into a QIcon of `size`.
 // When `tintForTheme` is true (used for monochrome utility icons), the result
@@ -169,6 +178,12 @@ MainWindow::MainWindow(QWidget* parent)
     connect(m_settingsPage, &SettingsPage::locationPickerVisibilityChanged,
             m_vpnPage, &VpnPage::setLocationPickerVisible);
 
+#ifdef QT_DEBUG
+    // Debug page (index 7) – only present in debug builds
+    m_debugPage = new DebugPage();
+    m_stack->addWidget(m_debugPage); // index 7
+#endif
+
     // Keep the recent picker in sync with any history change (record, clear, trim).
     connect(&ConnectionHistory::instance(), &ConnectionHistory::changed,
             m_vpnPage, &VpnPage::refreshRecentPicker);
@@ -211,6 +226,8 @@ MainWindow::MainWindow(QWidget* parent)
             m_sidebar->setEnabled(false);
             showPage(Page::Login);
         }
+        // Delay slightly so the page transition is visible before the dialog pops.
+        QTimer::singleShot(400, this, &MainWindow::maybeShowWhatsNew);
     });
 
     connect(m_manager, &VpnManager::twoFactorRequired, this, [this]()
@@ -464,6 +481,15 @@ void MainWindow::setupSidebar()
         showPage(Page::Settings);
         m_settingsPage->refresh();
     });
+
+#ifdef QT_DEBUG
+    // Debug button – visible by default in debug builds, toggled with F11
+    m_debugNavBtn = makeNavBtn(tr("Debug"), QStringLiteral(":/assets/bug.svg"));
+    connect(m_debugNavBtn, &QToolButton::clicked, this, [this]()
+    {
+        showPage(Page::Debug);
+    });
+#endif
 }
 
 void MainWindow::showPage(Page page) const
@@ -474,6 +500,12 @@ void MainWindow::showPage(Page page) const
     m_countriesNavBtn->setChecked(page == Page::Countries);
     m_accountNavBtn->setChecked(page == Page::Account);
     m_settingsNavBtn->setChecked(page == Page::Settings);
+#ifdef QT_DEBUG
+    if (m_debugNavBtn != nullptr)
+    {
+        m_debugNavBtn->setChecked(page == Page::Debug);
+    }
+#endif
 }
 
 void MainWindow::setNavActive(const QToolButton* btn)
@@ -482,6 +514,12 @@ void MainWindow::setNavActive(const QToolButton* btn)
     {
         b->setChecked(b == btn);
     }
+#ifdef QT_DEBUG
+    if (m_debugNavBtn != nullptr)
+    {
+        m_debugNavBtn->setChecked(m_debugNavBtn == btn);
+    }
+#endif
 }
 
 void MainWindow::startupCheck() const
@@ -498,6 +536,12 @@ void MainWindow::refreshIcons()
     m_countriesNavBtn->setIcon(svgNavIcon(QStringLiteral(":/assets/server-smart-routing.svg"), {24, 24}));
     m_accountNavBtn->setIcon(svgNavIcon(QStringLiteral(":/assets/person-lines-fill.svg"), {24, 24}));
     m_settingsNavBtn->setIcon(svgNavIcon(QStringLiteral(":/assets/gear.svg"), {24, 24}));
+#ifdef QT_DEBUG
+    if (m_debugNavBtn != nullptr)
+    {
+        m_debugNavBtn->setIcon(svgNavIcon(QStringLiteral(":/assets/bug.svg"), {24, 24}));
+    }
+#endif
 }
 
 void MainWindow::changeEvent(QEvent* event)
@@ -507,6 +551,26 @@ void MainWindow::changeEvent(QEvent* event)
     {
         refreshIcons();
     }
+}
+
+void MainWindow::keyPressEvent(QKeyEvent* event)
+{
+#ifdef QT_DEBUG
+    if (event->key() == Qt::Key_F11 && m_debugNavBtn != nullptr)
+    {
+        m_debugNavBtn->setVisible(m_debugNavBtn->isVisible() == false);
+        // If the debug page is currently shown and we just hid the button,
+        // navigate away to avoid being stuck on a visually orphaned page.
+        if (m_debugNavBtn->isVisible() == false &&
+            m_stack->currentIndex() == std::to_underlying(Page::Debug))
+        {
+            showPage(Page::Vpn);
+        }
+        event->accept();
+        return;
+    }
+#endif
+    QWidget::keyPressEvent(event);
 }
 
 void MainWindow::sendNotification(const QString& title, const QString& message) const
@@ -526,8 +590,7 @@ void MainWindow::sendNotification(const QString& title, const QString& message) 
 }
 
 void MainWindow::updateTrayIcon(VpnState state)
-{
-    // Choose asset based on state
+{    // Choose asset based on state
     QString asset;
     switch (state)
     {
@@ -626,3 +689,37 @@ void MainWindow::updateTrayIcon(VpnState state)
     }
 }
 
+void MainWindow::maybeShowWhatsNew()
+{
+    if (m_whatsNewShown)
+        return;
+
+    m_whatsNewShown = true;
+
+    // Read the current app version from the embedded version.json resource.
+    QString currentVersion;
+    QFile vf(QStringLiteral(":/version.json"));
+    if (vf.open(QIODevice::ReadOnly))
+    {
+        const QJsonObject obj = QJsonDocument::fromJson(vf.readAll()).object();
+        vf.close();
+        currentVersion = obj.value(QStringLiteral("app_version")).toString();
+    }
+
+    if (currentVersion.isEmpty())
+        return;
+
+    const QString lastSeen = AppConfig::instance().lastSeenVersion();
+
+    // Show the dialog if this is the first launch or a version change was detected.
+    if (lastSeen != currentVersion)
+    {
+        // Update the stored version immediately so repeated crashes don't keep
+        // showing the dialog on every launch.
+        AppConfig::instance().setLastSeenVersion(currentVersion);
+
+        auto* dlg = new WhatsNewDialog(currentVersion, this);
+        dlg->setModal(true);
+        dlg->show();
+    }
+}

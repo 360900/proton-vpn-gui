@@ -20,6 +20,7 @@ public:
     bool startHidden() const;
     Theme theme() const;
     bool showLocationPicker() const;
+    QString lastSeenVersion() const;
 
     void setAutoConnect(bool value);
     void setNotifications(bool value);
@@ -27,6 +28,12 @@ public:
     void setStartHidden(bool value);
     void setTheme(Theme value);
     void setShowLocationPicker(bool value);
+    void setLastSeenVersion(const QString& value);
+
+    // Resets every setting to its compile-time default and deletes the config
+    // file. The in-memory state is usable immediately; the file will not be
+    // recreated until the next call to a setter (which triggers save()).
+    void resetToDefaults();
 
 private:
     AppConfig();
@@ -39,5 +46,5 @@ private:
     bool m_startHidden = false;
     Theme m_theme = Theme::System;
     bool m_showLocationPicker = true;
+    QString m_lastSeenVersion;
 };
-

@@ -48,6 +48,7 @@ void AppConfig::load()
     m_recentConnectionsCount = obj.value(QStringLiteral("recent_connections_count")).toInt(5);
     m_startHidden = obj.value(QStringLiteral("start_hidden")).toBool(false);
     m_showLocationPicker = obj.value(QStringLiteral("show_location_picker")).toBool(true);
+    m_lastSeenVersion = obj.value(QStringLiteral("last_seen_version")).toString();
 
     const QString themeStr = obj.value(QStringLiteral("theme")).toString(QStringLiteral("system"));
     if (themeStr == QStringLiteral("dark"))
@@ -84,6 +85,10 @@ bool AppConfig::save() const
     obj[QStringLiteral("recent_connections_count")] = m_recentConnectionsCount;
     obj[QStringLiteral("start_hidden")] = m_startHidden;
     obj[QStringLiteral("show_location_picker")] = m_showLocationPicker;
+    if (m_lastSeenVersion.isEmpty() == false)
+    {
+        obj[QStringLiteral("last_seen_version")] = m_lastSeenVersion;
+    }
 
     QString themeStr;
     switch (m_theme)
@@ -165,5 +170,32 @@ void AppConfig::setShowLocationPicker(const bool value)
     DBG_SETTINGS(QStringLiteral("Setting changed: show_location_picker = ") + (value ? QStringLiteral("true") : QStringLiteral("false")));
     m_showLocationPicker = value;
     (void)save();
+}
+
+QString AppConfig::lastSeenVersion() const { return m_lastSeenVersion; }
+
+void AppConfig::setLastSeenVersion(const QString& value)
+{
+    if (m_lastSeenVersion == value) return;
+    DBG_SETTINGS(QStringLiteral("Setting changed: last_seen_version = ") + value);
+    m_lastSeenVersion = value;
+    (void)save();
+}
+
+void AppConfig::resetToDefaults()
+{
+    DBG_SETTINGS(QStringLiteral("AppConfig::resetToDefaults() — deleting config file and resetting all values"));
+
+    // Delete the persisted file first so no stale data remains on disk.
+    QFile::remove(configFile());
+
+    // Reset every member to its compile-time default.
+    m_autoConnect            = false;
+    m_notifications          = true;
+    m_recentConnectionsCount = 5;
+    m_startHidden            = false;
+    m_theme                  = Theme::System;
+    m_showLocationPicker     = true;
+    m_lastSeenVersion        = QString();
 }
 
