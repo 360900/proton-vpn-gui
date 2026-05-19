@@ -25,4 +25,6 @@ inline void dbgPrint(const char* tag, const QString& message)
 #define DBG_APP(msg)      dbgPrint("APP     ", (msg))
 #define DBG_CLI(msg)      dbgPrint("CLI     ", (msg))
 #define DBG_SETTINGS(msg) dbgPrint("SETTINGS", (msg))
+#define DBG_STATUS(msg)   dbgPrint("STATUS  ", (msg))
+#define DBG_POLL(msg)     dbgPrint("POLL    ", (msg))
 

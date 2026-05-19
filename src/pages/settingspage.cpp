@@ -525,40 +525,6 @@ SettingsPage::SettingsPage(VpnManager* manager, NatPmpManager* natPmpManager, QW
         addApp(row);
     }
 
-    // ── Theme ─────────────────────────────────────────────────
-    {
-        auto* row = new QWidget(appCard);
-        auto* rl = new QHBoxLayout(row);
-        rl->setContentsMargins(16, 12, 16, 12);
-        rl->setSpacing(16);
-        rl->addWidget(makeTextCol(row,
-                                  tr("Theme"),
-                                  tr("Choose the colour scheme for the app.")), 1);
-        m_themeCombo = new QComboBox(row);
-        m_themeCombo->addItem(tr("System Settings"), QStringLiteral("system"));
-        m_themeCombo->addItem(tr("Dark"),            QStringLiteral("dark"));
-        m_themeCombo->addItem(tr("Light"),           QStringLiteral("light"));
-
-        // Select current saved value
-        {
-            const AppConfig::Theme t = AppConfig::instance().theme();
-            const int idx = (t == AppConfig::Theme::Dark)  ? 1 :
-                            (t == AppConfig::Theme::Light) ? 2 : 0;
-            m_themeCombo->setCurrentIndex(idx);
-        }
-
-        connect(m_themeCombo, &QComboBox::currentIndexChanged, this, [this](int idx)
-        {
-            const AppConfig::Theme t = (idx == 1) ? AppConfig::Theme::Dark  :
-                                       (idx == 2) ? AppConfig::Theme::Light :
-                                                    AppConfig::Theme::System;
-            AppConfig::instance().setTheme(t);
-            ThemeManager::apply(t);
-        });
-
-        rl->addWidget(m_themeCombo);
-        addApp(row);
-    }
 
     // ── Start Hidden ───────────────────────────────────────────
     {
@@ -615,6 +581,8 @@ SettingsPage::SettingsPage(VpnManager* manager, NatPmpManager* natPmpManager, QW
         connect(m_recentConnectionsSpinBox, &NumberSpinner::valueChanged, this, [](const int val)
         {
             AppConfig::instance().setRecentConnectionsCount(val);
+            // Trim stored history immediately so the picker reflects the new limit.
+            ConnectionHistory::instance().trimToCount(val);
         });
         rl->addWidget(m_recentConnectionsSpinBox);
         addAppPlus(row);
@@ -677,7 +645,82 @@ SettingsPage::SettingsPage(VpnManager* manager, NatPmpManager* natPmpManager, QW
     }
 
     // ============================================================
-    // TAB 2 – VPN
+    // TAB 2 – Appearance
+    // ============================================================
+    {
+        auto* appearanceTab = new QWidget();
+        auto [appearanceCard, appearanceCardLayout] = makeCard(appearanceTab);
+        tabs->addTab(appearanceTab, tr("Appearance"));
+
+        bool appearanceFirst = true;
+        auto addAppearance = [&](QWidget* w)
+        {
+            if (appearanceFirst == false)
+                addDivider(appearanceCardLayout, appearanceCard);
+            appearanceFirst = false;
+            appearanceCardLayout->addWidget(w);
+        };
+
+        // ── Theme ─────────────────────────────────────────────
+        {
+            auto* row = new QWidget(appearanceCard);
+            auto* rl = new QHBoxLayout(row);
+            rl->setContentsMargins(16, 12, 16, 12);
+            rl->setSpacing(16);
+            rl->addWidget(makeTextCol(row,
+                                      tr("Theme"),
+                                      tr("Choose the colour scheme for the app.")), 1);
+            m_themeCombo = new QComboBox(row);
+            m_themeCombo->addItem(tr("System Settings"), QStringLiteral("system"));
+            m_themeCombo->addItem(tr("Dark"),            QStringLiteral("dark"));
+            m_themeCombo->addItem(tr("Light"),           QStringLiteral("light"));
+
+            // Select current saved value
+            {
+                const AppConfig::Theme t = AppConfig::instance().theme();
+                const int idx = (t == AppConfig::Theme::Dark)  ? 1 :
+                                (t == AppConfig::Theme::Light) ? 2 : 0;
+                m_themeCombo->setCurrentIndex(idx);
+            }
+
+            connect(m_themeCombo, &QComboBox::currentIndexChanged, this, [this](int idx)
+            {
+                const AppConfig::Theme t = (idx == 1) ? AppConfig::Theme::Dark  :
+                                           (idx == 2) ? AppConfig::Theme::Light :
+                                                        AppConfig::Theme::System;
+                AppConfig::instance().setTheme(t);
+                ThemeManager::apply(t);
+            });
+
+            rl->addWidget(m_themeCombo);
+            addAppearance(row);
+        }
+
+        // ── Show Selected Location Picker ─────────────────────
+        {
+            auto* row = new QWidget(appearanceCard);
+            auto* rl = new QHBoxLayout(row);
+            rl->setContentsMargins(16, 12, 16, 12);
+            rl->setSpacing(16);
+            rl->addWidget(makeTextCol(row,
+                                      tr("Show Selected Location"),
+                                      tr("Display the Selected Location dropdown on the main VPN page.")), 1);
+            auto* toggle = new ToggleWithStatus(row);
+            toggle->setOn(AppConfig::instance().showLocationPicker(), false);
+            connect(toggle, &ToggleWithStatus::toggled, this, [this](bool on)
+            {
+                AppConfig::instance().setShowLocationPicker(on);
+                emit locationPickerVisibilityChanged(on);
+            });
+            rl->addWidget(toggle);
+            addAppearance(row);
+        }
+
+        appearanceCardLayout->addStretch();
+    }
+
+    // ============================================================
+    // TAB 3 – VPN
     // ============================================================
     auto* vpnTab = new QWidget();
     auto [vpnCard, vpnCardLayout] = makeCard(vpnTab);

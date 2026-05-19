@@ -123,6 +123,8 @@ public:
     void refreshRecentPicker() const;
     // Called when VpnManager has parsed a city from `protonvpn status`.
     void onStatusCityKnown(const QString& city);
+    // Shows or hides the "Selected Location" picker.
+    void setLocationPickerVisible(bool visible);
     // Returns true while the natpmpc keep-alive loop is running (port forwarding active).
     bool isPortForwardingActive() const { return m_natPmpManager != nullptr && m_natPmpManager->isRunning(); }
     NatPmpManager* natPmpManager() const { return m_natPmpManager; }

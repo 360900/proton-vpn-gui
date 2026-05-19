@@ -97,6 +97,27 @@ void ConnectionHistory::clear()
     emit changed();
 }
 
+void ConnectionHistory::trimToCount(const int newMax)
+{
+    if (newMax <= 0)
+    {
+        if (m_entries.isEmpty() == false)
+        {
+            m_entries.clear();
+            save();
+            emit changed();
+        }
+        return;
+    }
+
+    if (m_entries.size() > newMax)
+    {
+        m_entries = m_entries.sliced(0, newMax);
+        save();
+        emit changed();
+    }
+}
+
 void ConnectionHistory::load()
 {
     QFile f(historyFilePath());

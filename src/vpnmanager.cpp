@@ -6,6 +6,7 @@
 
 #include "vpnmanager.h"
 #include "cli/statusmonitor.h"
+#include "debug.h"
 
 #include <QDir>
 #include <QFile>
@@ -13,7 +14,6 @@
 #include <QJsonDocument> // Ignore unused include warning; we do use QJsonDocument
 #include <QJsonObject>
 #include <QJsonArray>
-#include <string_view>
 
 // Path to the ProtonVPN settings file, relative to the user's home directory.
 static const QString kSettingsPath =
@@ -33,7 +33,7 @@ void VpnManager::fetchSettings()
     QMap<QString, QString> settings;
 
     QFile f(kSettingsPath);
-    if (!f.open(QIODevice::ReadOnly))
+    if (f.open(QIODevice::ReadOnly) == false)
     {
         emit settingsReady(settings);
         return;
@@ -42,7 +42,7 @@ void VpnManager::fetchSettings()
     const QJsonDocument doc = QJsonDocument::fromJson(f.readAll());
     f.close();
 
-    if (!doc.isObject())
+    if (doc.isObject() == false)
     {
         emit settingsReady(settings);
         return;
@@ -63,12 +63,16 @@ void VpnManager::fetchSettings()
     }
 
     if (root.contains(QStringLiteral("ipv6")))
+    {
         settings.insert(QStringLiteral("ipv6"),
                         boolStr(root[QStringLiteral("ipv6")].toBool()));
+    }
 
     if (root.contains(QStringLiteral("anonymous_crash_reports")))
+    {
         settings.insert(QStringLiteral("anonymous-crash-reports"),
                         boolStr(root[QStringLiteral("anonymous_crash_reports")].toBool()));
+    }
 
     if (root.contains(QStringLiteral("custom_dns")))
     {
@@ -78,7 +82,10 @@ void VpnManager::fetchSettings()
         {
             const QJsonArray ipList = dns[QStringLiteral("ip_list")].toArray();
             QStringList ips;
-            for (const auto& v : ipList) ips << v.toString();
+            for (const auto& v : ipList)
+            {
+                ips << v.toString();
+            }
             settings.insert(QStringLiteral("custom-dns"),
                             ips.isEmpty() ? QStringLiteral("on") : ips.join(QLatin1Char(',')));
         }
@@ -98,24 +105,36 @@ void VpnManager::fetchSettings()
             QString nsVal;
             switch (ns)
             {
-            case 1:  nsVal = QStringLiteral("malware-only");         break;
-            case 2:  nsVal = QStringLiteral("malware-ads-trackers"); break;
-            default: nsVal = QStringLiteral("off");                  break;
+            case 1:
+                nsVal = QStringLiteral("malware-only");
+                break;
+            case 2:
+                nsVal = QStringLiteral("malware-ads-trackers");
+                break;
+            default:
+                nsVal = QStringLiteral("off");
+                break;
             }
             settings.insert(QStringLiteral("netshield"), nsVal);
         }
 
         if (feat.contains(QStringLiteral("moderate_nat")))
+        {
             settings.insert(QStringLiteral("moderate-nat"),
                             boolStr(feat[QStringLiteral("moderate_nat")].toBool()));
+        }
 
         if (feat.contains(QStringLiteral("vpn_accelerator")))
+        {
             settings.insert(QStringLiteral("vpn-accelerator"),
                             boolStr(feat[QStringLiteral("vpn_accelerator")].toBool()));
+        }
 
         if (feat.contains(QStringLiteral("port_forwarding")))
+        {
             settings.insert(QStringLiteral("port-forwarding"),
                             boolStr(feat[QStringLiteral("port_forwarding")].toBool()));
+        }
     }
 
     emit settingsReady(settings);
@@ -124,11 +143,11 @@ void VpnManager::fetchSettings()
 bool VpnManager::portForwardingEnabled() const
 {
     QFile f(kSettingsPath);
-    if (!f.open(QIODevice::ReadOnly))
+    if (f.open(QIODevice::ReadOnly) == false)
         return false;
     const QJsonDocument doc = QJsonDocument::fromJson(f.readAll());
     f.close();
-    if (!doc.isObject())
+    if (doc.isObject() == false)
         return false;
     return doc.object()
                .value(QStringLiteral("features")).toObject()
@@ -141,7 +160,7 @@ bool VpnManager::portForwardingEnabled() const
 
 void VpnManager::startStatusMonitor()
 {
-    if (m_statusMonitor)
+    if (m_statusMonitor != nullptr)
         return;
 
     m_statusMonitor = new StatusMonitor(this);
@@ -158,7 +177,7 @@ void VpnManager::startStatusMonitor()
 
 void VpnManager::stopStatusMonitor()
 {
-    if (!m_statusMonitor)
+    if (m_statusMonitor == nullptr)
         return;
 
     m_statusMonitor->stop();
@@ -188,25 +207,25 @@ void VpnManager::applyStatusFields(const QMap<QString, QString>& fields)
 
     // Country code — e.g. "US" from "US-NJ#203 in Secaucus, United States".
     QString countryCode;
-    if (!server.isEmpty())
+    if (server.isEmpty() == false)
     {
         const int dashPos = server.indexOf(QLatin1Char('-'));
         const int hashPos = server.indexOf(QLatin1Char('#'));
         const int endPos  = (dashPos >= 0 && (hashPos < 0 || dashPos < hashPos))
                             ? dashPos : hashPos;
         if (endPos > 0)
+        {
             countryCode = server.left(endPos).toUpper();
+        }
     }
 
-#ifdef QT_DEBUG
-    const VpnState dbgPrevState  = m_state;
-    const QString  dbgPrevServer = m_connectedServer;
-#endif
+    const VpnState prevState  = m_state;
+    const QString  prevServer = m_connectedServer;
 
     const bool stateChanged  = newState != m_state;
-    const bool serverChanged = !stateChanged &&
+    const bool serverChanged = stateChanged == false &&
                                newState == VpnState::Connected &&
-                               !m_connectedServer.isEmpty() &&
+                               m_connectedServer.isEmpty() == false &&
                                server != m_connectedServer;
 
     if (stateChanged || serverChanged)
@@ -216,8 +235,14 @@ void VpnManager::applyStatusFields(const QMap<QString, QString>& fields)
 
         if (newState == VpnState::Connected)
         {
-            if (!city.isEmpty())        emit connectionCityKnown(city);
-            if (!countryCode.isEmpty()) emit connectionCountryKnown(countryCode);
+            if (city.isEmpty() == false)
+            {
+                emit connectionCityKnown(city);
+            }
+            if (countryCode.isEmpty() == false)
+            {
+                emit connectionCountryKnown(countryCode);
+            }
             emit connectionStateChanged(m_state, info);
         }
         else
@@ -230,32 +255,36 @@ void VpnManager::applyStatusFields(const QMap<QString, QString>& fields)
         m_connectedServer = server;
     }
 
-#ifdef QT_DEBUG
+    auto stateToStr = [](VpnState s) -> QString
     {
-        auto stateToStr = [](const VpnState s) -> std::string_view
+        switch (s)
         {
-            switch (s)
-            {
-                case VpnState::Connected:     return "Connected";
-                case VpnState::Disconnected:  return "Disconnected";
-                case VpnState::Connecting:    return "Connecting";
-                case VpnState::Disconnecting: return "Disconnecting";
-                default:                      return "Error";
-            }
-        };
-        const bool dbgStateChanged  = newState != dbgPrevState;
-        const bool dbgServerChanged = !dbgStateChanged &&
-                                      newState == VpnState::Connected &&
-                                      !dbgPrevServer.isEmpty() &&
-                                      server != dbgPrevServer;
-        if (dbgStateChanged)
-            qDebug("[Status Polling] State changed:  %s → %s",
-                   stateToStr(dbgPrevState).data(), stateToStr(newState).data());
-        else if (dbgServerChanged)
-            qDebug("[Status Polling] Server changed: \"%s\" → \"%s\"",
-                   qUtf8Printable(dbgPrevServer), qUtf8Printable(server));
+            case VpnState::Connected:
+                return QStringLiteral("Connected");
+            case VpnState::Disconnected:
+                return QStringLiteral("Disconnected");
+            case VpnState::Connecting:
+                return QStringLiteral("Connecting");
+            case VpnState::Disconnecting:
+                return QStringLiteral("Disconnecting");
+            default:
+                return QStringLiteral("Error");
+        }
+    };
+
+    const bool dbgStateChanged  = newState != prevState;
+    const bool dbgServerChanged = dbgStateChanged == false &&
+                                  newState == VpnState::Connected &&
+                                  prevServer.isEmpty() == false &&
+                                  server != prevServer;
+    if (dbgStateChanged)
+    {
+        DBG_POLL(QStringLiteral("State changed:  %1 → %2")
+                     .arg(stateToStr(prevState), stateToStr(newState)));
     }
-#endif
+    else if (dbgServerChanged)
+    {
+        DBG_POLL(QStringLiteral("Server changed: \"%1\" → \"%2\"")
+                     .arg(prevServer, server));
+    }
 }
-
-

@@ -19,12 +19,14 @@ public:
     int  recentConnectionsCount() const;
     bool startHidden() const;
     Theme theme() const;
+    bool showLocationPicker() const;
 
     void setAutoConnect(bool value);
     void setNotifications(bool value);
     void setRecentConnectionsCount(int value);
     void setStartHidden(bool value);
     void setTheme(Theme value);
+    void setShowLocationPicker(bool value);
 
 private:
     AppConfig();
@@ -36,5 +38,6 @@ private:
     int  m_recentConnectionsCount = 5;
     bool m_startHidden = false;
     Theme m_theme = Theme::System;
+    bool m_showLocationPicker = true;
 };
 

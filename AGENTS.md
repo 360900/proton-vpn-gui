@@ -27,7 +27,13 @@ cmake --build cmake-build-debug
 ./cmake-build-debug/proton_vpn_qt
 ```
 
-Pre-built configs exist at `src/cmake-build-debug/` and `src/cmake-build-release/`. There are **no automated tests** in this project.
+Pre-built configs exist at `src/cmake-build-debug/` and `src/cmake-build-release/`.
+
+```bash
+# Build and run all tests
+cmake --build cmake-build-debug
+cd cmake-build-debug && ctest --output-on-failure
+```
 
 ## Flatpak Sandboxing
 
@@ -79,6 +85,8 @@ This transparently wraps commands with `flatpak-spawn --host` when inside a Flat
   // Not OK
   case VpnState::Connected: handleConnected(); break;
   ```
+- **Boolean negation**: use `== false` instead of `!` in conditions — `if (ok == false)` not `if (!ok)`. Likewise prefer `== true` when it improves clarity over a bare identifier.
+- **Pointer null checks**: always use `== nullptr` or `!= nullptr` explicitly — never rely on implicit pointer-to-bool conversion (`if (ptr)` or `if (!ptr)`).
 - **Condition bodies**: `if`/`else` bodies must use curly braces **unless** the body is a bare `return`, `continue`, or `break` with no other logic:
   ```cpp
   // OK — single control-flow statement
@@ -88,6 +96,50 @@ This transparently wraps commands with `flatpak-spawn --host` when inside a Flat
   // Not OK
   if (x) doSomething();                  // must use braces
   ```
+
+## Testing
+
+Tests live in `src/tests/` and use **Qt Test** (`QtTest/QtTest`). Each test file maps to one logical unit — the naming convention is `tst_<unit>.cpp`.
+
+**When to write tests:** write a test for any class/function that has pure or near-pure logic — parsers, data models, config helpers, utility functions. Do **not** try to test `QWidget` subclasses or `VpnManager` (subprocess-dependent); those are integration-level and are not tested here.
+
+**How to register a new test:**
+
+1. Create `src/tests/tst_<unit>.cpp`.
+2. Add it to `src/tests/CMakeLists.txt` using the existing `add_qt_test` macro, listing all the source files the unit depends on directly (no libraries beyond what `add_qt_test` provides by default):
+   ```cmake
+   add_qt_test(tst_myunit
+       tst_myunit.cpp
+       ../myunit.h
+       ../myunit.cpp
+   )
+   ```
+3. If the unit needs extra Qt modules (e.g. `Qt6::Gui`), add them with a separate `target_link_libraries` call after `add_qt_test`.
+
+**Test structure** — one `QObject` subclass per file, test slots in `private slots:`, `QTEST_MAIN` + `.moc` include at the bottom:
+
+```cpp
+#include <QtTest/QtTest>
+#include "myunit.h"
+
+class TstMyUnit : public QObject
+{
+    Q_OBJECT
+
+private slots:
+    void methodName_condition_expectedResult()
+    {
+        QCOMPARE(MyUnit::doThing("input"), QStringLiteral("expected"));
+    }
+};
+
+QTEST_MAIN(TstMyUnit)
+#include "tst_myunit.moc"
+```
+
+**Naming:** `methodName_condition_expectedResult` (e.g. `parseStatusFields_emptyInput_returnsEmptyMap`).
+
+**Singletons in tests** (`AppConfig`, `ConnectionHistory`): call `QStandardPaths::setTestModeEnabled(true)` in `initTestCase()` and restore it in `cleanupTestCase()` to keep tests isolated from the real user config directory. Restore any values mutated during a slot at the end of that slot.
 
 ## Page Navigation
 

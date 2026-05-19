@@ -166,6 +166,12 @@ MainWindow::MainWindow(QWidget* parent)
     m_stack->addWidget(m_settingsPage); // index 6
     connect(m_settingsPage, &SettingsPage::recentConnectionsCleared,
             m_vpnPage, &VpnPage::refreshRecentPicker);
+    connect(m_settingsPage, &SettingsPage::locationPickerVisibilityChanged,
+            m_vpnPage, &VpnPage::setLocationPickerVisible);
+
+    // Keep the recent picker in sync with any history change (record, clear, trim).
+    connect(&ConnectionHistory::instance(), &ConnectionHistory::changed,
+            m_vpnPage, &VpnPage::refreshRecentPicker);
 
     // VpnManager signals
     connect(m_manager, &VpnManager::connectionCityKnown,

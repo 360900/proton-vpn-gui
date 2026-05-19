@@ -25,6 +25,7 @@ public:
 
 signals:
     void recentConnectionsCleared();
+    void locationPickerVisibilityChanged(bool visible);
 
 private:
     // A simple on/off toggle row

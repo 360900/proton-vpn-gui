@@ -4,8 +4,8 @@
 
 #include "statusmonitor.h"
 #include "flatpakutils.h"
+#include "../debug.h"
 
-#include <QDebug>
 #include <QTimer>
 #include <csignal>
 #include <ranges>
@@ -68,11 +68,8 @@ void StatusMonitor::start()
 {
     if (m_process != nullptr)
     {
-#ifdef QT_DEBUG
-        qDebug("[StatusMonitor] start() called but monitor is already running "
-               "(PID %lld) — ignored.",
-               m_process->processId());
-#endif
+        DBG_STATUS(QStringLiteral("start() called but monitor is already running "
+                               "(PID %1) — ignored.").arg(m_process->processId()));
         return;
     }
 
@@ -86,10 +83,7 @@ void StatusMonitor::stop()
 
     if (m_process == nullptr) return;
 
-#ifdef QT_DEBUG
-    qDebug("[StatusMonitor] Stopping (PID %lld).",
-           static_cast<long long>(m_process->processId()));
-#endif
+    DBG_STATUS(QStringLiteral("Stopping (PID %1).").arg(m_process->processId()));
 
     // Disconnect finished() so onProcessFinished() does not schedule an
     // auto-restart after we deliberately kill the process.
@@ -138,35 +132,28 @@ void StatusMonitor::launchProcess()
     m_process->start(QStringLiteral("/bin/bash"),
                      {QStringLiteral("-c"), loopCommand});
 
-#ifdef QT_DEBUG
-    // waitForStarted so we can log the PID immediately.
     if (m_process->waitForStarted(2000))
     {
-        qDebug("[StatusMonitor] Process launched:"
-               "  name=\"%s\"  PID=%lld  restart#=%d"
-               "  command: /bin/bash -c \"%s\"",
-               kProcessName,
-               m_process->processId(),
-               m_restartCount,
-               qUtf8Printable(loopCommand));
+        DBG_STATUS(QStringLiteral("Process launched:"
+                               "  name=\"%1\"  PID=%2  restart#=%3"
+                               "  command: /bin/bash -c \"%4\"")
+                    .arg(QString::fromLatin1(kProcessName))
+                    .arg(m_process->processId())
+                    .arg(m_restartCount)
+                    .arg(loopCommand));
     }
     else
     {
-        qDebug("[StatusMonitor] ERROR: process failed to start within 2 s "
-               "(QProcess::ProcessError=%d).",
-               m_process->error());
+        DBG_STATUS(QStringLiteral("ERROR: process failed to start within 2 s "
+                               "(QProcess::ProcessError=%1).").arg(m_process->error()));
     }
-#endif
 }
 
 void StatusMonitor::onReadyRead()
 {
     const QString chunk = QString::fromUtf8(m_process->readAllStandardOutput());
 
-#ifdef QT_DEBUG
-    qDebug("[StatusMonitor] Raw data received (%lld bytes).",
-           chunk.size());
-#endif
+    DBG_STATUS(QStringLiteral("Raw data received (%1 bytes).").arg(chunk.size()));
 
     m_buffer += chunk;
 
@@ -180,13 +167,11 @@ void StatusMonitor::onReadyRead()
 
         const QMap<QString, QString> fields = parseStatusFields(snapshot);
 
-#ifdef QT_DEBUG
-        qDebug("[StatusMonitor] Snapshot parsed:"
-               "  status=\"%s\"  server=\"%s\"  fields=%lld.",
-               qUtf8Printable(fields.value(QStringLiteral("status"))),
-               qUtf8Printable(fields.value(QStringLiteral("server"))),
-               static_cast<long long>(fields.size()));
-#endif
+        DBG_STATUS(QStringLiteral("Snapshot parsed:"
+                               "  status=\"%1\"  server=\"%2\"  fields=%3.")
+                    .arg(fields.value(QStringLiteral("status")),
+                         fields.value(QStringLiteral("server")))
+                    .arg(fields.size()));
 
         emit statusParsed(fields);
     }
@@ -194,29 +179,21 @@ void StatusMonitor::onReadyRead()
 
 void StatusMonitor::onProcessFinished(int exitCode, QProcess::ExitStatus status)
 {
-#ifdef QT_DEBUG
     // CrashExit means the process was terminated by a signal — either an
     // external `kill`/`kill -9` or the kernel via PR_SET_PDEATHSIG.
     // NormalExit with a non-zero code means the shell loop exited on its own.
     if (status == QProcess::CrashExit)
     {
-        qDebug("[StatusMonitor] Process was killed externally (signal termination)."
-               "  restart#=%d — restarting in %d ms.",
-               m_restartCount,
-               kRestartDelayMs);
+        DBG_STATUS(QStringLiteral("Process was killed externally (signal termination)."
+                               "  restart#=%1 — restarting in %2 ms.")
+                    .arg(m_restartCount).arg(kRestartDelayMs));
     }
     else
     {
-        qDebug("[StatusMonitor] Process exited unexpectedly (non-zero exit):"
-               "  exitCode=%d  restart#=%d — restarting in %d ms.",
-               exitCode,
-               m_restartCount,
-               kRestartDelayMs);
+        DBG_STATUS(QStringLiteral("Process exited unexpectedly (non-zero exit):"
+                               "  exitCode=%1  restart#=%2 — restarting in %3 ms.")
+                    .arg(exitCode).arg(m_restartCount).arg(kRestartDelayMs));
     }
-#else
-    Q_UNUSED(exitCode)
-    Q_UNUSED(status)
-#endif
 
     m_process->deleteLater();
     m_process = nullptr;

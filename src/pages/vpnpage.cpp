@@ -1,4 +1,5 @@
 #include "vpnpage.h"
+#include "../appconfig.h"
 #include "../geoutils.h"
 #include "../connectionhistory.h"
 #include "../uihelpers.h"
@@ -719,6 +720,9 @@ VpnPage::VpnPage(VpnManager* manager, QWidget* parent)
 
     relayoutPickers(width());
 
+    // Apply persisted visibility preference for the location picker.
+    setLocationPickerVisible(AppConfig::instance().showLocationPicker());
+
     outerLayout->addWidget(topWidget);
 
     // ── Scrollable section: timer, info, hint, button ────────────────────
@@ -1058,6 +1062,15 @@ void VpnPage::refreshRecentPicker() const
     if (m_recentPicker != nullptr)
     {
         m_recentPicker->refresh();
+    }
+    relayoutPickers(width());
+}
+
+void VpnPage::setLocationPickerVisible(const bool visible)
+{
+    if (m_locationPicker != nullptr)
+    {
+        m_locationPicker->setVisible(visible);
     }
     relayoutPickers(width());
 }
