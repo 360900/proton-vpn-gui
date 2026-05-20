@@ -1,8 +1,10 @@
 #pragma once
 
+#include <QAbstractButton>
 #include <QCursor>
 #include <QEvent>
 #include <QFrame>
+#include <QHBoxLayout>
 #include <QListWidget>
 #include <QMouseEvent>
 #include <QVBoxLayout>
@@ -22,7 +24,28 @@ class PickerBase : public QFrame
 {
     Q_OBJECT
 public:
+    static constexpr int kCollapsedPickerW = 48;
+    static constexpr int kExpandedPickerW  = 260;
+
     explicit PickerBase(QWidget* parent = nullptr) : QFrame(parent) {}
+
+    // Switches between compact icon-only (collapsed) and full label (expanded) mode.
+    void setCollapsed(bool c)
+    {
+        m_collapsed = c;
+        if (m_topLine)    m_topLine->setVisible(!c);
+        if (m_bottomLine) m_bottomLine->setVisible(!c);
+        if (m_chevron)    m_chevron->setVisible(!c && m_list && m_list->count() > 0);
+        if (m_header) {
+            if (auto* hl = qobject_cast<QHBoxLayout*>(m_header->layout())) {
+                // Collapsed: 16 px each side of the 28 px icon fills the full 60 px button.
+                // No inter-item spacing so hidden stretch items steal nothing.
+                hl->setContentsMargins(10, c ? 10 : 8, 10, c ? 10 : 8);
+                hl->setSpacing(c ? 0 : 10);
+            }
+        }
+        setFixedWidth(c ? kCollapsedPickerW : kExpandedPickerW);
+    }
 
 protected:
     // Must be called by the subclass constructor after building the header.
@@ -54,7 +77,8 @@ protected:
         if (m_popup->isVisible()) { closePopup(); return; }
         resizeList();
         const QPoint globalBottomLeft = mapToGlobal(QPoint(0, height()));
-        m_popup->setFixedWidth(width());
+        // Always open popup at full expanded width so it's readable even when collapsed.
+        m_popup->setFixedWidth(qMax(width(), kExpandedPickerW));
         m_popup->move(globalBottomLeft);
         m_popup->show();
         if (m_chevron != nullptr) m_chevron->setText(QStringLiteral("▴"));
@@ -78,6 +102,8 @@ protected:
 
     void installOnRowWidget(QWidget* w)
     {
+        // Skip buttons so they can handle their own click events (e.g. star buttons).
+        if (qobject_cast<QAbstractButton*>(w)) return;
         w->setMouseTracking(true);
         w->installEventFilter(this);
         for (QObject* child : w->children())
@@ -169,11 +195,13 @@ protected:
     // Subclasses implement this to react to a row click.
     virtual void onRowClicked(QListWidgetItem* item) = 0;
 
-    QFrame*      m_popup  = nullptr;
-    QListWidget* m_list   = nullptr;
-    QLabel*      m_chevron = nullptr; // set by subclass before initPopup()
+    QFrame*      m_popup   = nullptr;
+    QListWidget* m_list    = nullptr;
+    QLabel*      m_chevron = nullptr;
+    QFrame*      m_header  = nullptr; // set by each subclass after building the header widget
 
     ElideLabel*  m_topLine    = nullptr;
     ElideLabel*  m_bottomLine = nullptr;
+    bool         m_collapsed  = false;
 };
 

@@ -2,11 +2,14 @@
 #include "../appconfig.h"
 #include "../geoutils.h"
 #include "../connectionhistory.h"
+#include "../favoritesmanager.h"
 #include "../uihelpers.h"
 #include "../widgets/svgbanner.h"
 #include "../widgets/flatpakbetabanner.h"
+#include "../widgets/starbutton.h"
 
 #include <QFile>
+#include <QGraphicsDropShadowEffect>
 #include <QHBoxLayout>
 // ReSharper disable once CppUnusedIncludeDirective
 #include <QJsonDocument> // Ignore unused include warning; we do use QJsonDocument
@@ -276,7 +279,7 @@ void LocationPicker::setFreeMode(const bool free)
     }
     if (m_chevron != nullptr)
     {
-        m_chevron->setVisible(free == false);
+        m_chevron->setVisible(free == false && m_collapsed == false);
     }
 }
 
@@ -350,7 +353,7 @@ void LocationPicker::setLoading(const bool loading)
             m_loadingTimer->stop();
         }
 
-        m_chevron->setVisible(true);
+        m_chevron->setVisible(m_collapsed == false);
         updateHeader();
     }
 }
@@ -431,6 +434,13 @@ void LocationPicker::populate(const QList<QPair<QString, QString>>& cities)
     fLabel->setStyleSheet(QStringLiteral("color: #ab8fff;"));
     fbox->addWidget(fLabel, 1, Qt::AlignVCenter);
 
+    if (AppConfig::instance().favoritesEnabled() && !m_countryCode.isEmpty())
+    {
+        const QString countryName = GeoUtils::countryCodeToName(m_countryCode);
+        fbox->addWidget(makeStarButton(m_countryCode, countryName, QString(), fastestRow),
+                        0, Qt::AlignVCenter);
+    }
+
     fastestItem->setSizeHint(QSize(0, 34));
     m_list->addItem(fastestItem);
     m_list->setItemWidget(fastestItem, fastestRow);
@@ -492,6 +502,13 @@ void LocationPicker::populate(const QList<QPair<QString, QString>>& cities)
             hbox->addWidget(iconLabel, 0, Qt::AlignVCenter);
         }
 
+        if (AppConfig::instance().favoritesEnabled() && !m_countryCode.isEmpty())
+        {
+            const QString countryName = GeoUtils::countryCodeToName(m_countryCode);
+            hbox->addWidget(makeStarButton(m_countryCode, countryName, city, row),
+                            0, Qt::AlignVCenter);
+        }
+
         item->setSizeHint(QSize(0, 34));
         m_list->addItem(item);
         m_list->setItemWidget(item, row);
@@ -515,6 +532,7 @@ RecentPicker::RecentPicker(QWidget* parent)
     QFrame* header = new QFrame(this);
     header->setObjectName(QStringLiteral("locationPickerHeader"));
     header->setCursor(Qt::PointingHandCursor);
+    m_header = header; // store in PickerBase for setCollapsed()
 
     QHBoxLayout* hl = new QHBoxLayout(header);
     hl->setContentsMargins(10, 8, 10, 8);
@@ -569,7 +587,7 @@ void RecentPicker::refresh()
         return;
     }
 
-    m_chevron->setVisible(true);
+    m_chevron->setVisible(m_collapsed == false);
     // Show most recent in header
     const ConnectionEntry& first = entries.first();
     const QString firstLabel = first.city.isEmpty()
@@ -609,6 +627,13 @@ void RecentPicker::refresh()
         dateLbl->setObjectName(QStringLiteral("locationPickerTop"));
         hbox->addWidget(dateLbl, 0, Qt::AlignVCenter);
 
+        // Star button
+        if (AppConfig::instance().favoritesEnabled())
+        {
+            hbox->addWidget(makeStarButton(e.countryCode, e.countryName, e.city, row),
+                            0, Qt::AlignVCenter);
+        }
+
         item->setSizeHint(QSize(0, 34));
         m_list->addItem(item);
         m_list->setItemWidget(item, row);
@@ -635,6 +660,268 @@ void RecentPicker::onRowClicked(QListWidgetItem* item)
 }
 
 // ============================================================
+// FavoritesPicker implementation
+// ============================================================
+
+FavoritesPicker::FavoritesPicker(QWidget* parent)
+    : PickerBase(parent)
+{
+    setObjectName(QStringLiteral("locationPicker")); // reuse same stylesheet
+    setFixedWidth(260);
+
+    QFrame* header = new QFrame(this);
+    header->setObjectName(QStringLiteral("locationPickerHeader"));
+    header->setCursor(Qt::PointingHandCursor);
+    m_header = header; // store in PickerBase for setCollapsed()
+
+    QHBoxLayout* hl = new QHBoxLayout(header);
+    hl->setContentsMargins(10, 8, 10, 8);
+    hl->setSpacing(10);
+
+    // Star icon
+    QLabel* starIcon = new QLabel(header);
+    {
+        const QPixmap px = GeoUtils::svgPixmap(
+            QStringLiteral(":/assets/star-fill.svg"), 14, QColor(0xFF, 0xD2, 0x4A));
+        starIcon->setPixmap(px);
+        starIcon->setFixedSize(28, 21);
+        starIcon->setAlignment(Qt::AlignCenter);
+    }
+    hl->addWidget(starIcon);
+
+    QVBoxLayout* textCol = new QVBoxLayout();
+    textCol->setSpacing(1);
+    textCol->setContentsMargins(0, 0, 0, 0);
+
+    m_topLine = new ElideLabel(tr("Favorites"), header);
+    m_topLine->setObjectName(QStringLiteral("locationPickerTop"));
+
+    m_bottomLine = new ElideLabel(tr("None yet"), header);
+    m_bottomLine->setObjectName(QStringLiteral("locationPickerBottom"));
+
+    textCol->addWidget(m_topLine);
+    textCol->addWidget(m_bottomLine);
+    hl->addLayout(textCol, 1);
+
+    m_chevron = new QLabel(QStringLiteral("▾"), header);
+    m_chevron->setObjectName(QStringLiteral("locationPickerChevron"));
+    hl->addWidget(m_chevron);
+
+    QVBoxLayout* outerLayout = new QVBoxLayout(this);
+    outerLayout->setContentsMargins(0, 0, 0, 0);
+    outerLayout->setSpacing(0);
+    outerLayout->addWidget(header);
+
+    initPopup();
+    header->installEventFilter(this);
+
+    connect(m_list, &QListWidget::itemClicked, this, &FavoritesPicker::onRowClicked);
+
+    refresh();
+}
+
+void FavoritesPicker::refresh()
+{
+    m_list->clear();
+    const QList<FavoriteEntry> entries = FavoritesManager::instance().entries();
+
+    if (entries.isEmpty())
+    {
+        m_bottomLine->setText(tr("None yet"));
+        m_chevron->setVisible(false);
+        return;
+    }
+
+    m_chevron->setVisible(m_collapsed == false);
+    // Show first favorite in header
+    const FavoriteEntry& first = entries.first();
+    const QString firstLabel = first.city.isEmpty()
+        ? tr("\u26a1  Fastest in %1").arg(first.countryName)
+        : QStringLiteral("%1, %2").arg(first.countryName, first.city);
+    m_bottomLine->setText(firstLabel);
+
+    for (const auto& e : entries)
+    {
+        QListWidgetItem* item = new QListWidgetItem();
+        item->setData(Qt::UserRole,     e.countryCode);
+        item->setData(Qt::UserRole + 1, e.city);
+
+        QWidget* row = new QWidget();
+        row->setCursor(Qt::PointingHandCursor);
+        QHBoxLayout* hbox = new QHBoxLayout(row);
+        hbox->setContentsMargins(10, 6, 10, 6);
+        hbox->setSpacing(8);
+
+        // Flag
+        QLabel* flagLbl = new QLabel(row);
+        const QPixmap pm = GeoUtils::svgPixmap(
+            QStringLiteral(":/flags/") + e.countryCode.toLower(), 20);
+        if (!pm.isNull()) { flagLbl->setPixmap(pm); flagLbl->setFixedSize(24, 18); }
+        hbox->addWidget(flagLbl, 0, Qt::AlignVCenter);
+
+        // Text
+        const QString label = e.city.isEmpty()
+            ? tr("\u26a1  Fastest in %1").arg(e.countryName)
+            : QStringLiteral("%1, %2").arg(e.countryName, e.city);
+        ElideLabel* lbl = new ElideLabel(label, row);
+        lbl->setObjectName(QStringLiteral("locationPickerItemLabel"));
+        hbox->addWidget(lbl, 1, Qt::AlignVCenter);
+
+        // Star button (unfavorite)
+        hbox->addWidget(makeStarButton(e.countryCode, e.countryName, e.city, row),
+                        0, Qt::AlignVCenter);
+
+        item->setSizeHint(QSize(0, 34));
+        m_list->addItem(item);
+        m_list->setItemWidget(item, row);
+        installOnRowWidget(row);
+    }
+}
+
+bool FavoritesPicker::eventFilter(QObject* obj, QEvent* ev)
+{
+    if (handleCommonEvents(obj, ev))
+        return true;
+    return PickerBase::eventFilter(obj, ev);
+}
+
+void FavoritesPicker::onRowClicked(QListWidgetItem* item)
+{
+    const QString code = item->data(Qt::UserRole).toString();
+    const QString city = item->data(Qt::UserRole + 1).toString();
+    closePopup();
+    if (!code.isEmpty())
+    {
+        emit connectionSelected(code, city);
+    }
+}
+
+// ============================================================
+// PickerDrawer implementation
+// ============================================================
+
+PickerDrawer::PickerDrawer(LocationPicker* loc, RecentPicker* rec,
+                           FavoritesPicker* fav, QWidget* parent)
+    : QFrame(parent), m_locationPicker(loc), m_recentPicker(rec), m_favoritesPicker(fav)
+{
+    setObjectName(QStringLiteral("pickerDrawer"));
+    setAttribute(Qt::WA_StyledBackground);
+
+    m_shadow = new QGraphicsDropShadowEffect(this);
+    m_shadow->setBlurRadius(20);
+    m_shadow->setOffset(6, 0);
+    m_shadow->setColor(QColor(0, 0, 0, 130));
+    m_shadow->setEnabled(false); // only enabled when expanded
+    setGraphicsEffect(m_shadow);
+
+    m_contentLayout = new QVBoxLayout(this);
+    // SetNoConstraint: lets the drawer resize freely even when pickers are larger.
+    m_contentLayout->setSizeConstraint(QLayout::SetNoConstraint);
+    m_contentLayout->setContentsMargins(0, 20, 0, 20);
+    m_contentLayout->setSpacing(8);
+
+    // Re-parent pickers into the drawer
+    m_locationPicker->setParent(this);
+    m_recentPicker->setParent(this);
+    if (m_favoritesPicker) m_favoritesPicker->setParent(this);
+
+    m_contentLayout->addWidget(m_locationPicker);
+    m_contentLayout->setAlignment(m_locationPicker, Qt::AlignHCenter);
+    m_contentLayout->addWidget(m_recentPicker);
+    m_contentLayout->setAlignment(m_recentPicker, Qt::AlignHCenter);
+    if (m_favoritesPicker) {
+        m_contentLayout->addWidget(m_favoritesPicker);
+        m_contentLayout->setAlignment(m_favoritesPicker, Qt::AlignHCenter);
+    }
+    m_contentLayout->addStretch(1);
+
+    setAllCollapsed(true);
+    setDrawerW(kCollapsedW);
+}
+
+void PickerDrawer::setDrawerW(int w)
+{
+    QWidget::setMinimumWidth(w);
+    QWidget::setMaximumWidth(w);
+    emit drawerWidthChanged(w);
+}
+
+void PickerDrawer::toggle()
+{
+    if (m_anim)
+        m_anim->stop(); // triggers destroyed → m_anim = nullptr
+
+    const int fromW = m_expanded ? kExpandedW : kCollapsedW;
+    const int toW   = m_expanded ? kCollapsedW : kExpandedW;
+    m_expanded = !m_expanded;
+
+    if (!m_expanded)
+    {
+        // Collapsing: shrink content immediately, then slide background in.
+        setAllCollapsed(true);
+        if (m_shadow) m_shadow->setEnabled(false);
+    }
+
+    m_anim = new QPropertyAnimation(this, "drawerW", this);
+    m_anim->setStartValue(fromW);
+    m_anim->setEndValue(toW);
+    m_anim->setDuration(220);
+    m_anim->setEasingCurve(QEasingCurve::OutCubic);
+
+    if (m_expanded)
+    {
+        // Expanding: reveal full content only after slide animation completes.
+        connect(m_anim, &QPropertyAnimation::finished, this, [this]()
+        {
+            setAllCollapsed(false);
+            if (m_shadow) m_shadow->setEnabled(true);
+        });
+    }
+
+    connect(m_anim, &QPropertyAnimation::destroyed, this, [this]()
+    {
+        m_anim = nullptr;
+    });
+
+    m_anim->start(QAbstractAnimation::DeleteWhenStopped);
+}
+
+void PickerDrawer::setAllCollapsed(bool c)
+{
+    m_locationPicker->setCollapsed(c);
+    if (m_recentPicker->isVisible())  m_recentPicker->setCollapsed(c);
+    if (m_favoritesPicker != nullptr && m_favoritesPicker->isVisible())
+    {
+        m_favoritesPicker->setCollapsed(c);
+    }
+
+    m_contentLayout->setContentsMargins(c ? 0 : 16, 20, c ? 2 : 16, 20);
+}
+
+void PickerDrawer::syncVisibility(bool isFreeUser, bool showFavDropdown, bool favEnabled)
+{
+    const bool hasHistory   = !isFreeUser
+                              && !ConnectionHistory::instance().entries().isEmpty();
+    const bool hasFavorites = !isFreeUser && favEnabled && showFavDropdown
+                              && FavoritesManager::instance().hasAnyEntries();
+
+    m_recentPicker->setVisible(hasHistory);
+    if (m_favoritesPicker) m_favoritesPicker->setVisible(hasFavorites);
+
+    // Apply the current collapse state to newly-shown pickers.
+    if (!m_expanded)
+    {
+        if (hasHistory)  m_recentPicker->setCollapsed(true);
+        if (hasFavorites && m_favoritesPicker) m_favoritesPicker->setCollapsed(true);
+    }
+    else
+    {
+        if (hasHistory)  m_recentPicker->setCollapsed(false);
+        if (hasFavorites && m_favoritesPicker) m_favoritesPicker->setCollapsed(false);
+    }
+}
+
+// ============================================================
 // VpnPage implementation
 // ============================================================
 
@@ -644,7 +931,9 @@ VpnPage::VpnPage(VpnManager* manager, QWidget* parent)
 {
     QVBoxLayout* outerLayout = new QVBoxLayout(this);
     outerLayout->setSpacing(0);
-    outerLayout->setContentsMargins(0, 0, 0, 0);
+    // Left margin reserves space for the always-visible collapsed drawer (kCollapsedW px)
+    // so no page content is hidden behind it.
+    outerLayout->setContentsMargins(PickerDrawer::kCollapsedW, 0, 0, 0);
 
     // ── Fixed top section: logo + power button + status label ────────────
     QWidget* topWidget = new QWidget(this);
@@ -710,15 +999,34 @@ VpnPage::VpnPage(VpnManager* manager, QWidget* parent)
                 }
             });
 
-    QWidget* pickerContainer = new QWidget(topWidget);
-    m_pickerRow = new QHBoxLayout(pickerContainer);
-    m_pickerRow->setContentsMargins(0, 0, 0, 0);
-    m_pickerRow->setSpacing(12);
-    m_pickerRow->addWidget(m_locationPicker, 1);
-    m_pickerRow->addWidget(m_recentPicker, 1);
-    topLayout->addWidget(pickerContainer, 0, Qt::AlignHCenter);
+    // Favorites picker
+    m_favoritesPicker = new FavoritesPicker(topWidget);
+    connect(m_favoritesPicker, &FavoritesPicker::connectionSelected,
+            this, [this](const QString& code, const QString& city)
+            {
+                if (m_currentState == VpnState::Connected || m_currentState == VpnState::Connecting)
+                {
+                    m_locationPicker->setSelectedCity(city);
+                    emit m_locationPicker->selectionChanged(city);
+                }
+                else
+                {
+                    m_activeCity = city;
+                    emit connectRequested(code, city);
+                }
+            });
 
-    relayoutPickers(width());
+    // Auto-refresh favorites picker when favorites change
+    connect(&FavoritesManager::instance(), &FavoritesManager::changed,
+            this, [this]()
+            {
+                if (m_favoritesPicker != nullptr)
+                    m_favoritesPicker->refresh();
+                relayoutPickers();
+            });
+
+    // Note: pickers are NOT added to topLayout here.
+    // They live inside m_drawer (an absolutely-positioned overlay) created below.
 
     // Apply persisted visibility preference for the location picker.
     setLocationPickerVisible(AppConfig::instance().showLocationPicker());
@@ -1021,6 +1329,50 @@ VpnPage::VpnPage(VpnManager* manager, QWidget* parent)
             emit connectRequested(m_localCountryCode, city);
         }
     });
+
+    // ── Sliding picker drawer (overlay — not part of outerLayout) ──────────
+    // The drawer sits on the left edge of the VpnPage and overlays the main content.
+    m_drawer = new PickerDrawer(m_locationPicker, m_recentPicker, m_favoritesPicker, this);
+    m_drawer->setGeometry(0, 0, PickerDrawer::kCollapsedW, qMax(height(), 400));
+    m_drawer->raise();
+
+    // Notch toggle button — protrudes from the drawer's right edge
+    m_drawerNotch = new QFrame(this);
+    m_drawerNotch->setObjectName(QStringLiteral("drawerNotch"));
+    m_drawerNotch->setFixedSize(20, 60);
+    m_drawerNotch->setCursor(Qt::PointingHandCursor);
+    m_drawerNotch->setAttribute(Qt::WA_StyledBackground);
+
+    QVBoxLayout* notchLayout = new QVBoxLayout(m_drawerNotch);
+    notchLayout->setContentsMargins(2, 0, 2, 0);
+    m_drawerNotchIcon = new QLabel(m_drawerNotch);
+    m_drawerNotchIcon->setAlignment(Qt::AlignCenter);
+    notchLayout->addWidget(m_drawerNotchIcon, 0, Qt::AlignCenter);
+    updateDrawerNotchIcon();
+
+    // Transparent click overlay so the whole notch frame is clickable
+    auto* notchBtn = new QPushButton(m_drawerNotch);
+    notchBtn->setFlat(true);
+    notchBtn->setGeometry(0, 0, 20, 60);
+    notchBtn->setCursor(Qt::PointingHandCursor);
+    notchBtn->setStyleSheet(QStringLiteral("background: transparent; border: none;"));
+    connect(notchBtn, &QPushButton::clicked, this, [this]()
+    {
+        m_drawer->toggle();
+        updateDrawerNotchIcon();
+    });
+
+    connect(m_drawer, &PickerDrawer::drawerWidthChanged, this, [this](int w)
+    {
+        repositionDrawerNotch(w);
+    });
+
+    repositionDrawerNotch(PickerDrawer::kCollapsedW);
+    m_drawerNotch->raise();
+
+    // Sync drawer with current config
+    m_showFavoritesDropdown = AppConfig::instance().showFavoritesDropdown();
+    relayoutPickers();
 }
 
 void VpnPage::notifyExternalConnect(const QString& city)
@@ -1060,62 +1412,67 @@ void VpnPage::applyPendingStatusCity()
 void VpnPage::refreshRecentPicker() const
 {
     if (m_recentPicker != nullptr)
-    {
         m_recentPicker->refresh();
-    }
-    relayoutPickers(width());
+    relayoutPickers();
+}
+
+void VpnPage::refreshFavoritesPicker() const
+{
+    if (m_favoritesPicker != nullptr)
+        m_favoritesPicker->refresh();
+    relayoutPickers();
+}
+
+void VpnPage::setFavoritesDropdownVisible(const bool visible)
+{
+    m_showFavoritesDropdown = visible;
+    relayoutPickers();
+}
+
+void VpnPage::setFavoritesEnabled(const bool enabled)
+{
+    Q_UNUSED(enabled);
+    relayoutPickers();
 }
 
 void VpnPage::setLocationPickerVisible(const bool visible)
 {
     if (m_locationPicker != nullptr)
-    {
         m_locationPicker->setVisible(visible);
-    }
-    relayoutPickers(width());
 }
 
-void VpnPage::relayoutPickers(const int width) const
+void VpnPage::relayoutPickers(int /*width*/) const
 {
-    if (m_recentPicker == nullptr) return;
+    if (m_drawer)
+        m_drawer->syncVisibility(m_isFreeUser, m_showFavoritesDropdown,
+                                  AppConfig::instance().favoritesEnabled());
+}
 
-    // Free users never see the recent connections picker.
-    if (m_isFreeUser)
-    {
-        m_recentPicker->setVisible(false);
-        m_locationPicker->setFixedWidth(260);
-        return;
-    }
+void VpnPage::repositionDrawerNotch(int drawerW)
+{
+    if (m_drawerNotch)
+        m_drawerNotch->move(drawerW, 30);
+}
 
-    const bool hasHistory = !ConnectionHistory::instance().entries().isEmpty();
-    if (hasHistory == false)
-    {
-        m_recentPicker->setVisible(false);
-        return;
-    }
-
-    if (width >= kWideThreshold)
-    {
-        // Side-by-side: set equal fixed widths
-        m_locationPicker->setFixedWidth(240);
-        m_recentPicker->setFixedWidth(240);
-        m_recentPicker->setVisible(true);
-        m_pickerRow->setDirection(QBoxLayout::LeftToRight);
-    }
-    else
-    {
-        // Stacked: full width each
-        m_locationPicker->setFixedWidth(260);
-        m_recentPicker->setFixedWidth(260);
-        m_recentPicker->setVisible(true);
-        m_pickerRow->setDirection(QBoxLayout::TopToBottom);
-    }
+void VpnPage::updateDrawerNotchIcon()
+{
+    if (!m_drawerNotchIcon || !m_drawer) return;
+    const QString path = m_drawer->isExpanded()
+        ? QStringLiteral(":/assets/arrow-bar-left.svg")
+        : QStringLiteral(":/assets/arrow-bar-right.svg");
+    m_drawerNotchIcon->setPixmap(GeoUtils::svgPixmap(path, 14, QColor(200, 200, 220)));
 }
 
 void VpnPage::resizeEvent(QResizeEvent* event)
 {
     QWidget::resizeEvent(event);
-    relayoutPickers(event->size().width());
+    if (m_drawer)
+    {
+        const int h = event->size().height();
+        m_drawer->setMinimumHeight(h);
+        m_drawer->setMaximumHeight(h);
+        repositionDrawerNotch(m_drawer->width());
+    }
 }
 
 void VpnPage::onCitiesReady(const QString& countryCode,
@@ -1448,15 +1805,8 @@ void VpnPage::applyFreeUserMode() const
     // Location picker: block/unblock user interaction.
     m_locationPicker->setFreeMode(m_isFreeUser);
 
-    // Recent connections: never shown for free users.
-    if (m_recentPicker != nullptr)
-    {
-        m_recentPicker->setVisible(
-            !m_isFreeUser && !ConnectionHistory::instance().entries().isEmpty());
-    }
-
-    // Re-run layout so picker widths are recalculated correctly.
-    relayoutPickers(width());
+    // Re-sync drawer visibility (hides recent + favorites for free users).
+    relayoutPickers();
 }
 
 // ---------------------------------------------------------------------------

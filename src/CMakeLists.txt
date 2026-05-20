@@ -27,6 +27,8 @@ set(SOURCES
         thememanager.cpp
         connectionhistory.h
         connectionhistory.cpp
+        favoritesmanager.h
+        favoritesmanager.cpp
         geoutils.h
         geoutils.cpp
         uihelpers.h

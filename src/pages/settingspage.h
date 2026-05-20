@@ -26,6 +26,9 @@ public:
 signals:
     void recentConnectionsCleared();
     void locationPickerVisibilityChanged(bool visible);
+    void favoritesDropdownVisibilityChanged(bool visible);
+    void favoritesEnabledChanged(bool enabled);
+    void favoritesCleared();
 
 private:
     // A simple on/off toggle row
@@ -87,6 +90,9 @@ private:
 
     // "Clear history" row – shown only when history is non-empty
     QWidget* m_clearRecentRow = nullptr;
+
+    // "Clear favorites" row – shown only when favorites is non-empty
+    QWidget* m_clearFavoritesRow = nullptr;
 
     // Plus Members Only section (VPN tab)
     QWidget* m_plusSection  = nullptr;

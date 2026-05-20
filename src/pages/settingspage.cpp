@@ -2,6 +2,7 @@
 #include "../appconfig.h"
 #include "../thememanager.h"
 #include "../connectionhistory.h"
+#include "../favoritesmanager.h"
 #include "../uihelpers.h"
 #include "../widgets/togglewithstatus.h"
 #include "../cli/flatpakutils.h"
@@ -629,6 +630,67 @@ SettingsPage::SettingsPage(VpnManager* manager, NatPmpManager* natPmpManager, QW
         });
     }
 
+    // ── Enable Favorites ──────────────────────────────────────
+    {
+        auto* row = new QWidget(m_appPlusSection);
+        auto* rl = new QHBoxLayout(row);
+        rl->setContentsMargins(16, 12, 16, 12);
+        rl->setSpacing(16);
+        rl->addWidget(makeTextCol(row,
+                                  tr("Enable Favorites"),
+                                  tr("Allow marking VPN locations as favorites for quick access.")), 1);
+        auto* toggle = new ToggleWithStatus(row);
+        toggle->setOn(AppConfig::instance().favoritesEnabled(), false);
+        connect(toggle, &ToggleWithStatus::toggled, this, [this](bool on)
+        {
+            AppConfig::instance().setFavoritesEnabled(on);
+            emit favoritesEnabledChanged(on);
+        });
+        rl->addWidget(toggle);
+        addAppPlus(row);
+    }
+
+    // ── Clear Favorites (only shown when favorites list is non-empty) ─────
+    {
+        m_clearFavoritesRow = new QWidget(m_appPlusSection);
+        auto* cLayout = new QVBoxLayout(m_clearFavoritesRow);
+        cLayout->setContentsMargins(0, 0, 0, 0);
+        cLayout->setSpacing(0);
+
+        auto* div = new QFrame(m_clearFavoritesRow);
+        div->setFrameShape(QFrame::HLine);
+        div->setObjectName(QStringLiteral("divider"));
+        cLayout->addWidget(div);
+
+        auto* inner = new QWidget(m_clearFavoritesRow);
+        auto* rl = new QHBoxLayout(inner);
+        rl->setContentsMargins(16, 12, 16, 12);
+        rl->setSpacing(16);
+        rl->addWidget(makeTextCol(inner,
+                                  tr("Clear Favorites"),
+                                  tr("Remove all saved favorite locations.")), 1);
+        auto* clearBtn = new QPushButton(tr("Clear"), inner);
+        clearBtn->setObjectName(QStringLiteral("dangerButton"));
+        clearBtn->setCursor(Qt::PointingHandCursor);
+        connect(clearBtn, &QPushButton::clicked, this, [this]()
+        {
+            FavoritesManager::instance().clear();
+            m_clearFavoritesRow->setVisible(false);
+            emit favoritesCleared();
+            ToastNotification::popup(this, tr("Favorites cleared."));
+        });
+        rl->addWidget(clearBtn);
+        cLayout->addWidget(inner);
+
+        appPlusLayout->addWidget(m_clearFavoritesRow);
+        m_clearFavoritesRow->setVisible(FavoritesManager::instance().hasAnyEntries());
+
+        connect(&FavoritesManager::instance(), &FavoritesManager::changed, this, [this]()
+        {
+            m_clearFavoritesRow->setVisible(FavoritesManager::instance().hasAnyEntries());
+        });
+    }
+
     appCardLayout->addStretch();
 
     // ── About button – sits inside the App tab, below the card ──
@@ -711,6 +773,26 @@ SettingsPage::SettingsPage(VpnManager* manager, NatPmpManager* natPmpManager, QW
             {
                 AppConfig::instance().setShowLocationPicker(on);
                 emit locationPickerVisibilityChanged(on);
+            });
+            rl->addWidget(toggle);
+            addAppearance(row);
+        }
+
+        // ── Show Favorites Dropdown ───────────────────────────
+        {
+            auto* row = new QWidget(appearanceCard);
+            auto* rl = new QHBoxLayout(row);
+            rl->setContentsMargins(16, 12, 16, 12);
+            rl->setSpacing(16);
+            rl->addWidget(makeTextCol(row,
+                                      tr("Show Favorites Dropdown"),
+                                      tr("Display the Favorites dropdown on the main VPN page.")), 1);
+            auto* toggle = new ToggleWithStatus(row);
+            toggle->setOn(AppConfig::instance().showFavoritesDropdown(), false);
+            connect(toggle, &ToggleWithStatus::toggled, this, [this](bool on)
+            {
+                AppConfig::instance().setShowFavoritesDropdown(on);
+                emit favoritesDropdownVisibilityChanged(on);
             });
             rl->addWidget(toggle);
             addAppearance(row);

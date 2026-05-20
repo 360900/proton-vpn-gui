@@ -20,6 +20,8 @@ public:
     bool startHidden() const;
     Theme theme() const;
     bool showLocationPicker() const;
+    bool showFavoritesDropdown() const;
+    bool favoritesEnabled() const;
     QString lastSeenVersion() const;
 
     void setAutoConnect(bool value);
@@ -28,6 +30,8 @@ public:
     void setStartHidden(bool value);
     void setTheme(Theme value);
     void setShowLocationPicker(bool value);
+    void setShowFavoritesDropdown(bool value);
+    void setFavoritesEnabled(bool value);
     void setLastSeenVersion(const QString& value);
 
     // Resets every setting to its compile-time default and deletes the config
@@ -46,5 +50,7 @@ private:
     bool m_startHidden = false;
     Theme m_theme = Theme::System;
     bool m_showLocationPicker = true;
+    bool m_showFavoritesDropdown = true;
+    bool m_favoritesEnabled = true;
     QString m_lastSeenVersion;
 };

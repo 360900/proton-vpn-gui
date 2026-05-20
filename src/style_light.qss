@@ -12,6 +12,7 @@ QLabel {
 QWidget#sidebar {
     background-color: #e2e2ec;
     border-right: 1px solid #c8c8d8;
+    padding: 0;
 }
 
 QFrame#sidebarDivider {
@@ -404,3 +405,22 @@ QPushButton#portCopyBtn:pressed {
     background: rgba(0,0,0,40);
 }
 
+/* ── Picker Drawer ───────────────────────────────────────────────────────── */
+QFrame#pickerDrawer {
+    background-color: #f0f0f8;
+    border-right: 1px solid #c0c0d8;
+}
+
+QFrame#drawerNotch {
+    background-color: #e0e0f0;
+    border-top-right-radius: 8px;
+    border-bottom-right-radius: 8px;
+    border-top-left-radius: 0px;
+    border-bottom-left-radius: 0px;
+    border: 1px solid #c0c0d8;
+    border-left: none;
+}
+
+QFrame#drawerNotch:hover {
+    background-color: #d0d0e8;
+}

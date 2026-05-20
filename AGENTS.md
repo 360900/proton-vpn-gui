@@ -68,6 +68,7 @@ This transparently wraps commands with `flatpak-spawn --host` when inside a Flat
 - **Versioning**: single source of truth is `src/version.json` (keys: `app_version`, `cli_version_tested`); read at runtime via embedded resource `:/version.json`
 - **Palette**: dark Proton-branded theme set in `main.cpp` (`bg #1a1a2e`, accent purple `#6d4aff`)
 - **Translations**: Qt Linguist, source file `i18n/proton_vpn_qt_en.ts`; UI strings use `tr()` or `QCoreApplication::translate()`
+- **Language**: American English only — variable names, comments, and default/fallback text strings (e.g. `color` not `colour`, `canceled` not `cancelled`, `initialize` not `initialise`)
 
 ### Code Style
 

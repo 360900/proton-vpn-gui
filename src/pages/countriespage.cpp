@@ -1,6 +1,8 @@
 #include "countriespage.h"
+#include "../appconfig.h"
 #include "../geoutils.h"
 #include "../uihelpers.h"
+#include "../widgets/starbutton.h"
 
 #include <algorithm>
 #include <ranges>
@@ -1252,6 +1254,14 @@ void CountriesPage::addWideCityItem(const QString& city, const QString& features
         hbox->addWidget(iconLabel, 0, Qt::AlignVCenter);
     }
 
+    // Star button (favorites)
+    if (AppConfig::instance().favoritesEnabled() && !m_selectedCode.isEmpty())
+    {
+        hbox->addWidget(
+            makeStarButton(m_selectedCode, m_selectedCountry, city, row),
+            0, Qt::AlignVCenter);
+    }
+
     int itemH = -1;
     if (m_countriesList != nullptr && m_countriesList->count() > 0)
     {
@@ -1328,6 +1338,14 @@ void CountriesPage::addNarrowCityItem(QVBoxLayout* layout, const QString& city,
         iconLabel->setAlignment(Qt::AlignCenter);
         iconLabel->setToolTip(translatedFeatureTooltip(meta));
         hbox->addWidget(iconLabel, 0, Qt::AlignVCenter);
+    }
+
+    // Star button (favorites) — narrow mode
+    if (AppConfig::instance().favoritesEnabled())
+    {
+        const QString countryName = GeoUtils::countryCodeToName(code);
+        hbox->addWidget(makeStarButton(code, countryName, city, row),
+                        0, Qt::AlignVCenter);
     }
 
     // Connect button

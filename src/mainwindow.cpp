@@ -82,6 +82,7 @@ MainWindow::MainWindow(QWidget* parent)
     // Vertical divider
     auto* divider = new QFrame(this);
     divider->setFrameShape(QFrame::VLine);
+    divider->setFixedWidth(1);
     divider->setObjectName(QStringLiteral("sidebarDivider"));
     rootLayout->addWidget(divider);
 
@@ -177,6 +178,12 @@ MainWindow::MainWindow(QWidget* parent)
             m_vpnPage, &VpnPage::refreshRecentPicker);
     connect(m_settingsPage, &SettingsPage::locationPickerVisibilityChanged,
             m_vpnPage, &VpnPage::setLocationPickerVisible);
+    connect(m_settingsPage, &SettingsPage::favoritesDropdownVisibilityChanged,
+            m_vpnPage, &VpnPage::setFavoritesDropdownVisible);
+    connect(m_settingsPage, &SettingsPage::favoritesEnabledChanged,
+            m_vpnPage, &VpnPage::setFavoritesEnabled);
+    connect(m_settingsPage, &SettingsPage::favoritesCleared,
+            m_vpnPage, &VpnPage::refreshFavoritesPicker);
 
 #ifdef QT_DEBUG
     // Debug page (index 7) – only present in debug builds
@@ -427,6 +434,7 @@ void MainWindow::setupSidebar()
     auto* layout = new QVBoxLayout(m_sidebar);
     layout->setContentsMargins(0, 8, 0, 8);
     layout->setSpacing(4);
+    layout->setAlignment(Qt::AlignHCenter);
 
     auto* btnGroup = new QButtonGroup(m_sidebar);
     btnGroup->setExclusive(true);
