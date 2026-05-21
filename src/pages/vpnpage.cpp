@@ -797,129 +797,6 @@ void FavoritesPicker::onRowClicked(QListWidgetItem* item)
 }
 
 // ============================================================
-// PickerDrawer implementation
-// ============================================================
-
-PickerDrawer::PickerDrawer(LocationPicker* loc, RecentPicker* rec,
-                           FavoritesPicker* fav, QWidget* parent)
-    : QFrame(parent), m_locationPicker(loc), m_recentPicker(rec), m_favoritesPicker(fav)
-{
-    setObjectName(QStringLiteral("pickerDrawer"));
-    setAttribute(Qt::WA_StyledBackground);
-
-    m_shadow = new QGraphicsDropShadowEffect(this);
-    m_shadow->setBlurRadius(20);
-    m_shadow->setOffset(6, 0);
-    m_shadow->setColor(QColor(0, 0, 0, 130));
-    m_shadow->setEnabled(false); // only enabled when expanded
-    setGraphicsEffect(m_shadow);
-
-    m_contentLayout = new QVBoxLayout(this);
-    // SetNoConstraint: lets the drawer resize freely even when pickers are larger.
-    m_contentLayout->setSizeConstraint(QLayout::SetNoConstraint);
-    m_contentLayout->setContentsMargins(0, 20, 0, 20);
-    m_contentLayout->setSpacing(8);
-
-    // Re-parent pickers into the drawer
-    m_locationPicker->setParent(this);
-    m_recentPicker->setParent(this);
-    if (m_favoritesPicker) m_favoritesPicker->setParent(this);
-
-    m_contentLayout->addWidget(m_locationPicker);
-    m_contentLayout->setAlignment(m_locationPicker, Qt::AlignHCenter);
-    m_contentLayout->addWidget(m_recentPicker);
-    m_contentLayout->setAlignment(m_recentPicker, Qt::AlignHCenter);
-    if (m_favoritesPicker) {
-        m_contentLayout->addWidget(m_favoritesPicker);
-        m_contentLayout->setAlignment(m_favoritesPicker, Qt::AlignHCenter);
-    }
-    m_contentLayout->addStretch(1);
-
-    setAllCollapsed(true);
-    setDrawerW(kCollapsedW);
-}
-
-void PickerDrawer::setDrawerW(int w)
-{
-    QWidget::setMinimumWidth(w);
-    QWidget::setMaximumWidth(w);
-    emit drawerWidthChanged(w);
-}
-
-void PickerDrawer::toggle()
-{
-    if (m_anim)
-        m_anim->stop(); // triggers destroyed → m_anim = nullptr
-
-    const int fromW = m_expanded ? kExpandedW : kCollapsedW;
-    const int toW   = m_expanded ? kCollapsedW : kExpandedW;
-    m_expanded = !m_expanded;
-
-    if (!m_expanded)
-    {
-        // Collapsing: shrink content immediately, then slide background in.
-        setAllCollapsed(true);
-        if (m_shadow) m_shadow->setEnabled(false);
-    }
-
-    m_anim = new QPropertyAnimation(this, "drawerW", this);
-    m_anim->setStartValue(fromW);
-    m_anim->setEndValue(toW);
-    m_anim->setDuration(220);
-    m_anim->setEasingCurve(QEasingCurve::OutCubic);
-
-    if (m_expanded)
-    {
-        // Expanding: reveal full content only after slide animation completes.
-        connect(m_anim, &QPropertyAnimation::finished, this, [this]()
-        {
-            setAllCollapsed(false);
-            if (m_shadow) m_shadow->setEnabled(true);
-        });
-    }
-
-    connect(m_anim, &QPropertyAnimation::destroyed, this, [this]()
-    {
-        m_anim = nullptr;
-    });
-
-    m_anim->start(QAbstractAnimation::DeleteWhenStopped);
-}
-
-void PickerDrawer::setAllCollapsed(bool c)
-{
-    m_locationPicker->setCollapsed(c);
-    if (m_recentPicker->isVisible())  m_recentPicker->setCollapsed(c);
-    if (m_favoritesPicker != nullptr && m_favoritesPicker->isVisible())
-    {
-        m_favoritesPicker->setCollapsed(c);
-    }
-
-    m_contentLayout->setContentsMargins(c ? 0 : 16, 20, c ? 2 : 16, 20);
-}
-
-void PickerDrawer::syncVisibility(bool isFreeUser, bool showFavDropdown, bool favEnabled)
-{
-    const bool hasHistory   = !isFreeUser
-                              && !ConnectionHistory::instance().entries().isEmpty();
-    const bool hasFavorites = !isFreeUser && favEnabled && showFavDropdown
-                              && FavoritesManager::instance().hasAnyEntries();
-
-    m_recentPicker->setVisible(hasHistory);
-    if (m_favoritesPicker) m_favoritesPicker->setVisible(hasFavorites);
-
-    // Apply the current collapse state to newly-shown pickers.
-    if (!m_expanded)
-    {
-        if (hasHistory)  m_recentPicker->setCollapsed(true);
-        if (hasFavorites && m_favoritesPicker) m_favoritesPicker->setCollapsed(true);
-    }
-    else
-    {
-        if (hasHistory)  m_recentPicker->setCollapsed(false);
-        if (hasFavorites && m_favoritesPicker) m_favoritesPicker->setCollapsed(false);
-    }
-}
 
 // ============================================================
 // VpnPage implementation
@@ -930,25 +807,35 @@ VpnPage::VpnPage(VpnManager* manager, QWidget* parent)
       m_localCountryCode(GeoUtils::detectUserCountry())
 {
     QVBoxLayout* outerLayout = new QVBoxLayout(this);
+    m_outerLayout = outerLayout;
     outerLayout->setSpacing(0);
-    // Left margin reserves space for the always-visible collapsed drawer (kCollapsedW px)
-    // so no page content is hidden behind it.
-    outerLayout->setContentsMargins(PickerDrawer::kCollapsedW, 0, 0, 0);
+    // No left margin here — logo and power button span the full page width so they
+    // are visually centred.  The kCollapsedW offset is applied only to the scroll
+    // area via m_scrollOffsetWidget, keeping content clear of the drawer overlay.
+    outerLayout->setContentsMargins(0, 0, 0, 0);
 
-    // ── Fixed top section: logo + power button + status label ────────────
-    QWidget* topWidget = new QWidget(this);
-    topWidget->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
-    QVBoxLayout* topLayout = new QVBoxLayout(topWidget);
-    topLayout->setSpacing(24);
-    topLayout->setContentsMargins(40, 40, 40, 8);
+    // ── Logo row — always at the top, full width ─────────────────────────
+    m_logoRow = new QWidget(this);
+    m_logoRow->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+    auto* logoRowLayout = new QHBoxLayout(m_logoRow);
+    logoRowLayout->setContentsMargins(40, 40, 40, 0);
 
     // Proton VPN logo banner
-    SvgBanner* logoWidget = new SvgBanner(QStringLiteral(":/assets/proton-vpn-logo.svg"), 4.0, topWidget);
+    SvgBanner* logoWidget = new SvgBanner(QStringLiteral(":/assets/proton-vpn-logo.svg"), 4.0, m_logoRow);
     logoWidget->setLightResource(QStringLiteral(":/assets/proton-vpn-logo-light.svg"));
-    topLayout->addWidget(logoWidget, 0, Qt::AlignCenter);
+    logoRowLayout->addWidget(logoWidget, 0, Qt::AlignCenter);
+
+    outerLayout->addWidget(m_logoRow);
+
+    // ── Fixed top section: power button + status label ───────────────────
+    m_topContentWidget = new QWidget(this);
+    m_topContentWidget->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+    QVBoxLayout* topLayout = new QVBoxLayout(m_topContentWidget);
+    topLayout->setSpacing(24);
+    topLayout->setContentsMargins(40, 24, 40, 8);
 
     // Power button
-    m_powerBtn = new PowerButton(topWidget);
+    m_powerBtn = new PowerButton(m_topContentWidget);
     connect(m_powerBtn, &PowerButton::clicked, this, [this]()
     {
         if (m_currentState == VpnState::Connected)
@@ -970,7 +857,7 @@ VpnPage::VpnPage(VpnManager* manager, QWidget* parent)
     topLayout->addWidget(m_powerBtn, 0, Qt::AlignCenter);
 
     // Status text
-    m_statusLabel = new QLabel(tr("Checking\u2026"), topWidget);
+    m_statusLabel = new QLabel(tr("Checking\u2026"), m_topContentWidget);
     m_statusLabel->setObjectName(QStringLiteral("vpnStatusLabel"));
     m_statusLabel->setAlignment(Qt::AlignCenter);
     topLayout->addWidget(m_statusLabel, 0, Qt::AlignCenter);
@@ -979,11 +866,11 @@ VpnPage::VpnPage(VpnManager* manager, QWidget* parent)
     const QString localCountryName = m_localCountryCode.isEmpty()
         ? QString()
         : GeoUtils::countryCodeToName(m_localCountryCode);
-    m_locationPicker = new LocationPicker(m_localCountryCode, localCountryName, topWidget);
+    m_locationPicker = new LocationPicker(m_localCountryCode, localCountryName, this);
     connect(m_locationPicker, &LocationPicker::changeCountryRequested,
             this, &VpnPage::changeCountryRequested);
 
-    m_recentPicker = new RecentPicker(topWidget);
+    m_recentPicker = new RecentPicker(this);
     connect(m_recentPicker, &RecentPicker::connectionSelected,
             this, [this](const QString& code, const QString& city)
             {
@@ -1000,7 +887,7 @@ VpnPage::VpnPage(VpnManager* manager, QWidget* parent)
             });
 
     // Favorites picker
-    m_favoritesPicker = new FavoritesPicker(topWidget);
+    m_favoritesPicker = new FavoritesPicker(this);
     connect(m_favoritesPicker, &FavoritesPicker::connectionSelected,
             this, [this](const QString& code, const QString& city)
             {
@@ -1031,7 +918,6 @@ VpnPage::VpnPage(VpnManager* manager, QWidget* parent)
     // Apply persisted visibility preference for the location picker.
     setLocationPickerVisible(AppConfig::instance().showLocationPicker());
 
-    outerLayout->addWidget(topWidget);
 
     // ── Scrollable section: timer, info, hint, button ────────────────────
     QWidget* scrollContent = new QWidget();
@@ -1148,19 +1034,68 @@ VpnPage::VpnPage(VpnManager* manager, QWidget* parent)
 
     scrollLayout->addStretch(1);
 
-    auto* scrollArea = new QScrollArea(this);
-    scrollArea->setObjectName(QStringLiteral("vpnScrollArea"));
-    scrollArea->setWidget(scrollContent);
-    scrollArea->setWidgetResizable(true);
-    scrollArea->setFrameShape(QFrame::NoFrame);
-    scrollArea->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
-    scrollArea->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
-    scrollArea->setStyleSheet(QStringLiteral(
+    m_scrollArea = new QScrollArea(this);
+    m_scrollArea->setObjectName(QStringLiteral("vpnScrollArea"));
+    m_scrollArea->setWidget(scrollContent);
+    m_scrollArea->setWidgetResizable(true);
+    m_scrollArea->setFrameShape(QFrame::NoFrame);
+    m_scrollArea->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    m_scrollArea->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
+    m_scrollArea->setStyleSheet(QStringLiteral(
         "QScrollArea#vpnScrollArea { background: transparent; }"
         "QScrollArea#vpnScrollArea > QWidget > QWidget { background: transparent; }"));
     scrollContent->setAutoFillBackground(false);
 
-    outerLayout->addWidget(scrollArea, 1);
+    // ── Narrow mode wrapper (default) ───────────────────────────────────
+    m_narrowContent = new QWidget(this);
+    m_narrowContent->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+    m_narrowContentLayout = new QVBoxLayout(m_narrowContent);
+    m_narrowContentLayout->setContentsMargins(0, 0, 0, 0);
+    m_narrowContentLayout->setSpacing(0);
+    m_narrowContentLayout->addWidget(m_topContentWidget);
+
+    // Scroll offset wrapper: gives the scroll area a kCollapsedW left margin so
+    // it sits to the right of the drawer overlay.  The logo row and power-button
+    // section are NOT wrapped here, so they remain visually centred on the page.
+    m_scrollOffsetWidget = new QWidget(m_narrowContent);
+    m_scrollOffsetWidget->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+    m_scrollOffsetLayout = new QVBoxLayout(m_scrollOffsetWidget);
+    m_scrollOffsetLayout->setContentsMargins(PickerDrawer::kCollapsedW, 0, 0, 0);
+    m_scrollOffsetLayout->setSpacing(0);
+    m_scrollOffsetLayout->addWidget(m_scrollArea, 1);
+
+    m_narrowContentLayout->addWidget(m_scrollOffsetWidget, 1);
+    outerLayout->addWidget(m_narrowContent, 1);
+
+    // ── Wide mode wrapper (two-column layout, initially hidden) ─────────
+    m_wideContent = new QWidget(this);
+    m_wideContent->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+    m_wideContent->setVisible(false);
+
+    auto* wideLayout = new QHBoxLayout(m_wideContent);
+    wideLayout->setContentsMargins(0, 0, 0, 0);
+    wideLayout->setSpacing(0);
+
+    // Left column: picker sidebar (fixed width, pickers at bottom)
+    m_pickerSidebar = new QWidget(m_wideContent);
+    m_pickerSidebar->setFixedWidth(kWideSidebarW);
+    m_pickerSidebar->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Expanding);
+    m_pickerSidebarLayout = new QVBoxLayout(m_pickerSidebar);
+    m_pickerSidebarLayout->setContentsMargins(20, 0, 0, 24);
+    m_pickerSidebarLayout->setSpacing(8);
+    m_pickerSidebarLayout->addStretch(1); // pushes pickers to bottom
+
+    // Right column: power button, status, scrollable content
+    m_rightContent = new QWidget(m_wideContent);
+    m_rightContent->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+    m_rightContentLayout = new QVBoxLayout(m_rightContent);
+    m_rightContentLayout->setContentsMargins(0, 0, 0, 0);
+    m_rightContentLayout->setSpacing(0);
+    // topContentWidget and scrollArea are added here in applyWideMode(true)
+
+    wideLayout->addWidget(m_pickerSidebar);
+    wideLayout->addWidget(m_rightContent, 1);
+    outerLayout->addWidget(m_wideContent, 1);
 
     // Elapsed timer
     m_elapsedTimer = new QTimer(this);
@@ -1333,18 +1268,18 @@ VpnPage::VpnPage(VpnManager* manager, QWidget* parent)
     // ── Sliding picker drawer (overlay — not part of outerLayout) ──────────
     // The drawer sits on the left edge of the VpnPage and overlays the main content.
     m_drawer = new PickerDrawer(m_locationPicker, m_recentPicker, m_favoritesPicker, this);
-    m_drawer->setGeometry(0, 0, PickerDrawer::kCollapsedW, qMax(height(), 400));
+    m_drawer->setGeometry(0, 0, PickerDrawer::kCollapsedW, m_drawer->sizeHint().height());
     m_drawer->raise();
 
     // Notch toggle button — protrudes from the drawer's right edge
     m_drawerNotch = new QFrame(this);
     m_drawerNotch->setObjectName(QStringLiteral("drawerNotch"));
-    m_drawerNotch->setFixedSize(20, 60);
+    m_drawerNotch->setFixedSize(28, 64);
     m_drawerNotch->setCursor(Qt::PointingHandCursor);
     m_drawerNotch->setAttribute(Qt::WA_StyledBackground);
 
     QVBoxLayout* notchLayout = new QVBoxLayout(m_drawerNotch);
-    notchLayout->setContentsMargins(2, 0, 2, 0);
+    notchLayout->setContentsMargins(4, 0, 4, 0);
     m_drawerNotchIcon = new QLabel(m_drawerNotch);
     m_drawerNotchIcon->setAlignment(Qt::AlignCenter);
     notchLayout->addWidget(m_drawerNotchIcon, 0, Qt::AlignCenter);
@@ -1353,7 +1288,7 @@ VpnPage::VpnPage(VpnManager* manager, QWidget* parent)
     // Transparent click overlay so the whole notch frame is clickable
     auto* notchBtn = new QPushButton(m_drawerNotch);
     notchBtn->setFlat(true);
-    notchBtn->setGeometry(0, 0, 20, 60);
+    notchBtn->setGeometry(0, 0, 28, 60);
     notchBtn->setCursor(Qt::PointingHandCursor);
     notchBtn->setStyleSheet(QStringLiteral("background: transparent; border: none;"));
     connect(notchBtn, &QPushButton::clicked, this, [this]()
@@ -1365,6 +1300,26 @@ VpnPage::VpnPage(VpnManager* manager, QWidget* parent)
     connect(m_drawer, &PickerDrawer::drawerWidthChanged, this, [this](int w)
     {
         repositionDrawerNotch(w);
+    });
+
+    connect(m_drawer, &PickerDrawer::pickerAvailabilityChanged, this, [this](bool hasAny)
+    {
+        if (m_wideMode == true)
+        {
+            if (m_pickerSidebar != nullptr)
+            {
+                m_pickerSidebar->setVisible(hasAny);
+            }
+        }
+        else
+        {
+            m_drawer->setVisible(hasAny);
+            m_drawerNotch->setVisible(hasAny);
+            // Only offset the scroll area; logo/power rows stay full-width.
+            const int leftMargin = hasAny ? PickerDrawer::kCollapsedW : 0;
+            m_scrollOffsetLayout->setContentsMargins(leftMargin, 0, 0, 0);
+            repositionDrawer();
+        }
     });
 
     repositionDrawerNotch(PickerDrawer::kCollapsedW);
@@ -1438,7 +1393,11 @@ void VpnPage::setFavoritesEnabled(const bool enabled)
 void VpnPage::setLocationPickerVisible(const bool visible)
 {
     if (m_locationPicker != nullptr)
+    {
         m_locationPicker->setVisible(visible);
+        if (m_drawer != nullptr)
+            m_drawer->notifyAvailability();
+    }
 }
 
 void VpnPage::relayoutPickers(int /*width*/) const
@@ -1448,10 +1407,110 @@ void VpnPage::relayoutPickers(int /*width*/) const
                                   AppConfig::instance().favoritesEnabled());
 }
 
+void VpnPage::repositionDrawer()
+{
+    if (m_drawer == nullptr)
+        return;
+    const int drawerH = m_drawer->sizeHint().height();
+    m_drawer->setFixedHeight(drawerH);
+    m_drawer->move(0, height() - drawerH);
+    repositionDrawerNotch(m_drawer->width());
+}
+
+void VpnPage::applyWideMode(bool wide)
+{
+    if (m_wideMode == wide)
+        return;
+    m_wideMode = wide;
+
+    if (wide == true)
+    {
+        // ── Switch to wide mode ──────────────────────────────────────────
+        // 1. Release pickers from the drawer and place them in the sidebar.
+        m_drawer->releasePickers();
+        m_pickerSidebarLayout->addWidget(m_locationPicker, 0, Qt::AlignLeft);
+        m_pickerSidebarLayout->addWidget(m_recentPicker, 0, Qt::AlignLeft);
+        if (m_favoritesPicker != nullptr)
+        {
+            m_pickerSidebarLayout->addWidget(m_favoritesPicker, 0, Qt::AlignLeft);
+        }
+        // Ensure all pickers are in their expanded (full-size) form.
+        // Note: isVisible() cannot be used here because the parent hierarchy
+        // (m_wideContent) is still hidden at this point — it would always return
+        // false, causing recent/favorites to stay collapsed.  Instead, expand
+        // every picker unconditionally; hidden pickers will be given setCollapsed
+        // again if they are ever re-shown via syncVisibility in narrow mode.
+        m_locationPicker->setCollapsed(false);
+        m_recentPicker->setCollapsed(false);
+        if (m_favoritesPicker != nullptr)
+        {
+            m_favoritesPicker->setCollapsed(false);
+        }
+
+        // 2. Move topContentWidget and scrollArea into the right column.
+        m_narrowContentLayout->removeWidget(m_topContentWidget);
+        m_scrollOffsetLayout->removeWidget(m_scrollArea);
+        m_rightContentLayout->addWidget(m_topContentWidget);
+        m_rightContentLayout->addWidget(m_scrollArea, 1);
+
+        // 3. Swap visible containers.
+        m_narrowContent->setVisible(false);
+        m_wideContent->setVisible(true);
+
+        // 4. Hide the drawer overlay and notch.
+        m_drawer->setVisible(false);
+        m_drawerNotch->setVisible(false);
+
+        // 5. Sidebar is shown only when at least one picker is available.
+        m_pickerSidebar->setVisible(m_drawer->hasAnyVisiblePicker());
+    }
+    else
+    {
+        // ── Switch to narrow mode ────────────────────────────────────────
+        // 1. Remove pickers from sidebar and reclaim them into the drawer.
+        m_pickerSidebarLayout->removeWidget(m_locationPicker);
+        m_pickerSidebarLayout->removeWidget(m_recentPicker);
+        if (m_favoritesPicker != nullptr)
+        {
+            m_pickerSidebarLayout->removeWidget(m_favoritesPicker);
+        }
+        m_drawer->reclaimPickers();
+        // Restore collapsed state to match the current drawer state.
+        // isVisible() must not be used here: the pickers were just reparented
+        // to the hidden drawer, so isVisible() returns false for all of them.
+        const bool collapsed = (m_drawer->isExpanded() == false);
+        m_locationPicker->setCollapsed(collapsed);
+        m_recentPicker->setCollapsed(collapsed);
+        if (m_favoritesPicker != nullptr)
+        {
+            m_favoritesPicker->setCollapsed(collapsed);
+        }
+
+        // 2. Move topContentWidget and scrollArea back to the narrow wrapper.
+        m_rightContentLayout->removeWidget(m_topContentWidget);
+        m_rightContentLayout->removeWidget(m_scrollArea);
+        m_narrowContentLayout->insertWidget(0, m_topContentWidget);
+        m_scrollOffsetLayout->addWidget(m_scrollArea, 1);
+        // Restore the scroll offset: only push right when the drawer is present.
+        const int leftMargin = m_drawer->hasAnyVisiblePicker() ? PickerDrawer::kCollapsedW : 0;
+        m_scrollOffsetLayout->setContentsMargins(leftMargin, 0, 0, 0);
+
+        // 3. Swap visible containers.
+        m_wideContent->setVisible(false);
+        m_narrowContent->setVisible(true);
+
+        // 4. Restore drawer/notch/margin via the availability signal.
+        m_drawer->notifyAvailability();
+        repositionDrawer();
+    }
+}
+
 void VpnPage::repositionDrawerNotch(int drawerW)
 {
-    if (m_drawerNotch)
-        m_drawerNotch->move(drawerW, 30);
+    if (m_drawerNotch == nullptr || m_drawer == nullptr)
+        return;
+    const int notchY = m_drawer->y() + (m_drawer->height() - m_drawerNotch->height()) / 2;
+    m_drawerNotch->move(drawerW, notchY);
 }
 
 void VpnPage::updateDrawerNotchIcon()
@@ -1466,12 +1525,10 @@ void VpnPage::updateDrawerNotchIcon()
 void VpnPage::resizeEvent(QResizeEvent* event)
 {
     QWidget::resizeEvent(event);
-    if (m_drawer)
+    applyWideMode(event->size().width() >= kWideThreshold);
+    if (m_wideMode == false && m_drawer != nullptr)
     {
-        const int h = event->size().height();
-        m_drawer->setMinimumHeight(h);
-        m_drawer->setMaximumHeight(h);
-        repositionDrawerNotch(m_drawer->width());
+        repositionDrawer();
     }
 }
 

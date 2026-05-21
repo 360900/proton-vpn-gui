@@ -47,6 +47,8 @@ set(SOURCES
         widgets/flatpakbetabanner.h
         widgets/numberspinner.h
         widgets/pickerbase.h
+        widgets/pickerdrawer.h
+        widgets/pickerdrawer.cpp
         widgets/svgbanner.h
         widgets/toastnotification.h
         widgets/toggleswitch.h

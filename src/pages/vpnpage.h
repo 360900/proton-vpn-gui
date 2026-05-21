@@ -3,11 +3,13 @@
 #include <optional>
 #include <QTimer>
 #include <QPropertyAnimation>
+#include <QScrollArea>
 #include <QVersionNumber>
 #include <QGraphicsDropShadowEffect>
 #include "../vpnmanager.h"
 #include "../cli/natpmpmanager.h"
 #include "../widgets/pickerbase.h"
+#include "../widgets/pickerdrawer.h"
 #include "../widgets/infobanner.h"
 #include "../widgets/flatpakbetabanner.h"
 #include "../dialogs/errordetailsdialog.h"
@@ -128,43 +130,6 @@ protected:
     void onRowClicked(QListWidgetItem* item) override;
 };
 
-// ---------------------------------------------------------------------------
-// PickerDrawer – animated left-side overlay drawer containing all picker dropdowns
-// ---------------------------------------------------------------------------
-class PickerDrawer : public QFrame
-{
-    Q_OBJECT
-    Q_PROPERTY(int drawerW READ drawerW WRITE setDrawerW)
-public:
-    static constexpr int kCollapsedW = 60;  // drawer width when collapsed (picker 48 + 6px pad each side)
-    static constexpr int kExpandedW  = 292; // 16px pad + 260px picker + 16px pad
-
-    explicit PickerDrawer(LocationPicker* loc, RecentPicker* rec,
-                          FavoritesPicker* fav, QWidget* parent = nullptr);
-
-    int  drawerW() const { return width(); }
-    void setDrawerW(int w);
-
-    void toggle();
-    bool isExpanded() const { return m_expanded; }
-
-    // Refresh which pickers are shown based on current state.
-    void syncVisibility(bool isFreeUser, bool showFavDropdown, bool favEnabled);
-
-signals:
-    void drawerWidthChanged(int w);
-
-private:
-    LocationPicker*   m_locationPicker;
-    RecentPicker*     m_recentPicker;
-    FavoritesPicker*  m_favoritesPicker;
-    QVBoxLayout*      m_contentLayout = nullptr;
-    QGraphicsDropShadowEffect* m_shadow = nullptr;
-    bool              m_expanded = false;
-    QPropertyAnimation* m_anim  = nullptr;
-
-    void setAllCollapsed(bool c);
-};
 
 // ---------------------------------------------------------------------------
 // VpnPage
@@ -222,6 +187,27 @@ private:
     PickerDrawer*     m_drawer           = nullptr;
     QFrame*           m_drawerNotch      = nullptr;
     QLabel*           m_drawerNotchIcon  = nullptr;
+    QVBoxLayout*      m_outerLayout      = nullptr;
+
+    // Wide-mode layout widgets
+    QWidget*          m_logoRow              = nullptr;
+    QWidget*          m_topContentWidget     = nullptr;
+    QScrollArea*      m_scrollArea           = nullptr;
+    // Narrow-mode scroll offset wrapper — carries the kCollapsedW left margin so
+    // only the scroll area is pushed right (logo/power remain full-width centred).
+    QWidget*          m_scrollOffsetWidget   = nullptr;
+    QVBoxLayout*      m_scrollOffsetLayout   = nullptr;
+    QWidget*          m_narrowContent        = nullptr;
+    QVBoxLayout*      m_narrowContentLayout  = nullptr;
+    QWidget*          m_wideContent          = nullptr;
+    QWidget*          m_pickerSidebar        = nullptr;
+    QVBoxLayout*      m_pickerSidebarLayout  = nullptr;
+    QWidget*          m_rightContent         = nullptr;
+    QVBoxLayout*      m_rightContentLayout   = nullptr;
+    bool              m_wideMode             = false;
+
+    static constexpr int kWideThreshold = 700;
+    static constexpr int kWideSidebarW  = 300;
     bool            m_showFavoritesDropdown = true; // cached from AppConfig
     InfoBanner*     m_versionBanner = nullptr;
     InfoBanner*     m_prereleaseBanner = nullptr;
@@ -257,6 +243,8 @@ private:
     void stopElapsedTimer() const;
     void showErrorDetails() const;
     void relayoutPickers(int width = 0) const; // delegates to drawer syncVisibility
+    void applyWideMode(bool wide);
+    void repositionDrawer();
     void repositionDrawerNotch(int drawerW);
     void updateDrawerNotchIcon();
     void checkPrereleaseBanner();

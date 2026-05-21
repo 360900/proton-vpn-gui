@@ -35,7 +35,7 @@ AboutDialog::AboutDialog(const QString& installedCliVersion, QWidget* parent)
     }
 
     setWindowTitle(tr("About ProtonVPN Qt App"));
-    setMinimumSize(520, 440);
+    setMinimumSize(520, 480);
 
     auto* layout = new QVBoxLayout(this);
     layout->setSpacing(10);

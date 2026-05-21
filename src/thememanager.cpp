@@ -79,7 +79,7 @@ static void applyLight()
         qApp->setStyleSheet(QString::fromUtf8(f.readAll()));
 }
 
-// Detect whether the system is using a dark colour scheme.
+// Detect whether the system is using a dark color scheme.
 static bool systemIsDark()
 {
 #if QT_VERSION >= QT_VERSION_CHECK(6, 5, 0)

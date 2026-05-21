@@ -4,6 +4,7 @@
 #include "../connectionhistory.h"
 #include "../favoritesmanager.h"
 #include "../uihelpers.h"
+#include "../geoutils.h"
 #include "../widgets/togglewithstatus.h"
 #include "../cli/flatpakutils.h"
 
@@ -32,7 +33,9 @@
 #include <QRadioButton>
 #include <QButtonGroup>
 #include <QDebug>
+#include <QMouseEvent>
 #include <algorithm>
+#include <memory>
 #include <optional>
 
 
@@ -224,7 +227,8 @@ QWidget* SettingsPage::makeToggleRow(QWidget* parent, const QString& label,
 
 QWidget* SettingsPage::makeComboRow(QWidget* parent, const QString& label,
                                     const QString& desc, const QString& cliKey,
-                                    const QStringList& labels, const QStringList& cliValues)
+                                    const QStringList& labels, const QStringList& cliValues,
+                                    bool requiresReconnect)
 {
     auto* row = new QWidget(parent);
     auto* rl = new QHBoxLayout(row);
@@ -236,10 +240,38 @@ QWidget* SettingsPage::makeComboRow(QWidget* parent, const QString& label,
     combo->setMinimumWidth(160);
     rl->addWidget(combo, 0);
 
+    // Track the previously-selected index so we can revert on cancel.
+    auto prevIdx = std::make_shared<int>(combo->currentIndex());
+
     connect(combo, &QComboBox::currentIndexChanged,
-            this, [this, cliKey, cliValues](int idx)
+            this, [this, cliKey, cliValues, combo, label, requiresReconnect, prevIdx](int idx)
             {
+                const int oldIdx = *prevIdx;
+                *prevIdx = idx;
                 if (idx < 0 || idx >= cliValues.size()) return;
+
+                if (requiresReconnect && m_manager->currentState() != VpnState::Disconnected)
+                {
+                    // Revert the combo immediately; re-apply optimistically if accepted.
+                    combo->blockSignals(true);
+                    combo->setCurrentIndex(oldIdx);
+                    combo->blockSignals(false);
+                    *prevIdx = oldIdx;
+
+                    const QString newValue = cliValues[idx];
+                    showReconnectDialog(label,
+                        [this, combo, idx, cliKey, newValue, prevIdx]()
+                        {
+                            combo->blockSignals(true);
+                            combo->setCurrentIndex(idx);
+                            combo->blockSignals(false);
+                            *prevIdx = idx;
+                            m_sequencePending = true;
+                            m_manager->applyConfigValueAndReconnect(cliKey, newValue);
+                        });
+                    return;
+                }
+
                 m_manager->applyConfigValue(cliKey, cliValues[idx]);
                 // Reconnect detection is handled via the configApplied signal.
             });
@@ -436,275 +468,371 @@ SettingsPage::SettingsPage(VpnManager* manager, NatPmpManager* natPmpManager, QW
     };
 
     // ============================================================
-    // TAB 1 – App
+    // TAB 1 – App  (multi-section layout)
     // ============================================================
     auto* appTab = new QWidget();
-    auto [appCard, appCardLayout] = makeCard(appTab);
     tabs->addTab(appTab, tr("App"));
 
-    bool appFirst = true;
-    auto addApp = [&](QWidget* w)
+    // Build a scroll area whose content widget holds per-section cards.
     {
-        if (appFirst == false)
+        auto* scroll = new QScrollArea(appTab);
+        scroll->setWidgetResizable(true);
+        scroll->setFrameShape(QFrame::NoFrame);
+        auto* pageLayout = new QVBoxLayout(appTab);
+        pageLayout->setContentsMargins(0, 8, 0, 0);
+        pageLayout->setSpacing(0);
+        pageLayout->addWidget(scroll, 1);
+        auto* appContent = new QWidget();
+        auto* appContentLayout = new QVBoxLayout(appContent);
+        appContentLayout->setContentsMargins(0, 0, 0, 8);
+        appContentLayout->setSpacing(8);
+        scroll->setWidget(appContent);
+
+        // Helper: add a section header label (uppercase, muted)
+        auto addHeader = [&](const QString& title)
         {
-            addDivider(appCardLayout, appCard);
+            auto* w = new QWidget(appContent);
+            auto* hl = new QHBoxLayout(w);
+            hl->setContentsMargins(4, 8, 4, 2);
+            auto* lbl = new QLabel(title.toUpper(), w);
+            lbl->setObjectName(QStringLiteral("appSectionHeader"));
+            hl->addWidget(lbl);
+            appContentLayout->addWidget(w);
+        };
+
+        // Helper: create a new inline infoCard inside appContent
+        auto makeAppCard = [&]() -> std::pair<QWidget*, QVBoxLayout*>
+        {
+            auto* card = new QWidget(appContent);
+            card->setObjectName(QStringLiteral("infoCard"));
+            auto* cl = new QVBoxLayout(card);
+            cl->setContentsMargins(0, 0, 0, 0);
+            cl->setSpacing(0);
+            appContentLayout->addWidget(card);
+            return {card, cl};
+        };
+
+        // Helper: create a new inline infoCard inside an arbitrary parent widget/layout
+        auto makeSubCard = [&](QWidget* parent, QVBoxLayout* parentLayout)
+            -> std::pair<QWidget*, QVBoxLayout*>
+        {
+            auto* card = new QWidget(parent);
+            card->setObjectName(QStringLiteral("infoCard"));
+            auto* cl = new QVBoxLayout(card);
+            cl->setContentsMargins(0, 0, 0, 0);
+            cl->setSpacing(0);
+            parentLayout->addWidget(card);
+            return {card, cl};
+        };
+
+        // ── Section: Startup ─────────────────────────────────
+        addHeader(tr("Startup"));
+        auto [startupCard, startupLayout] = makeAppCard();
+
+        bool startupFirst = true;
+        auto addStartup = [&](QWidget* w)
+        {
+            if (!startupFirst) addDivider(startupLayout, startupCard);
+            startupFirst = false;
+            startupLayout->addWidget(w);
+        };
+
+        if (systemdAvailable())
+        {
+            m_autoStartRow = new QWidget(startupCard);
+            auto* rl = new QHBoxLayout(m_autoStartRow);
+            rl->setContentsMargins(16, 12, 16, 12);
+            rl->setSpacing(16);
+            rl->addWidget(makeTextCol(m_autoStartRow,
+                                      tr("Launch on Startup"),
+                                      tr("Automatically start the app in the background when you log in "
+                                         "(installs a systemd user service).")), 1);
+            m_autoStartToggle = new ToggleWithStatus(m_autoStartRow);
+            m_autoStartToggle->setOn(autoStartEnabled(), false);
+            connect(m_autoStartToggle, &ToggleWithStatus::toggled, this, [this](bool on)
+            {
+                QString err;
+                if (!setAutoStart(on, err))
+                {
+                    m_autoStartToggle->setOn(!on, false);
+                    QMessageBox::warning(this,
+                                         tr("Auto-start Error"),
+                                         tr("Failed to %1 auto-start:\n%2")
+                                         .arg(on ? tr("enable") : tr("disable"), err));
+                }
+                else
+                {
+                    updateAutoConnectRowVisibility();
+                }
+            });
+            rl->addWidget(m_autoStartToggle);
+            addStartup(m_autoStartRow);
+
+            // Sub-row: indented auto-connect (no divider – belongs to the row above)
+            m_autoConnectRow = new QWidget(startupCard);
+            auto* acRl = new QHBoxLayout(m_autoConnectRow);
+            acRl->setContentsMargins(32, 8, 16, 12);
+            acRl->setSpacing(16);
+            acRl->addWidget(makeTextCol(m_autoConnectRow,
+                                        tr("Auto-connect on Startup"),
+                                        tr("Automatically connect to the VPN when the app starts.")), 1);
+            m_autoConnectToggle = new ToggleWithStatus(m_autoConnectRow);
+            m_autoConnectToggle->setOn(AppConfig::instance().autoConnect(), false);
+            connect(m_autoConnectToggle, &ToggleWithStatus::toggled, this, [](bool on)
+            {
+                AppConfig::instance().setAutoConnect(on);
+            });
+            acRl->addWidget(m_autoConnectToggle);
+            startupLayout->addWidget(m_autoConnectRow); // direct add – no divider above it
+            updateAutoConnectRowVisibility();
         }
-        appFirst = false;
-        appCardLayout->addWidget(w);
-    };
 
-    // ── Launch on Startup ─────────────────────────────────────
-    if (systemdAvailable())
-    {
-        m_autoStartRow = new QWidget(appCard);
-        auto* rl = new QHBoxLayout(m_autoStartRow);
-        rl->setContentsMargins(16, 12, 16, 12);
-        rl->setSpacing(16);
-        rl->addWidget(makeTextCol(m_autoStartRow,
-                                  tr("Launch on Startup"),
-                                  tr("Automatically start the app in the background when you log in "
-                                     "(installs a systemd user service).")), 1);
-        m_autoStartToggle = new ToggleWithStatus(m_autoStartRow);
-        m_autoStartToggle->setOn(autoStartEnabled(), false);
-        connect(m_autoStartToggle, &ToggleWithStatus::toggled, this, [this](bool on)
+        // Start Hidden
         {
-            QString err;
-            if (!setAutoStart(on, err))
+            auto* row = new QWidget(startupCard);
+            auto* rl = new QHBoxLayout(row);
+            rl->setContentsMargins(16, 12, 16, 12);
+            rl->setSpacing(16);
+            rl->addWidget(makeTextCol(row,
+                                      tr("Start Hidden"),
+                                      tr("Launch the app in the background without opening a "
+                                         "window. Access it anytime via the system tray icon.")), 1);
+            auto* toggle = new ToggleWithStatus(row);
+            toggle->setOn(AppConfig::instance().startHidden(), false);
+            connect(toggle, &ToggleWithStatus::toggled, this, [](bool on)
             {
-                m_autoStartToggle->setOn(!on, false);
-                QMessageBox::warning(this,
-                                     tr("Auto-start Error"),
-                                     tr("Failed to %1 auto-start:\n%2")
-                                     .arg(on ? tr("enable") : tr("disable"), err));
-            }
-            else
+                AppConfig::instance().setStartHidden(on);
+            });
+            rl->addWidget(toggle);
+            addStartup(row);
+        }
+
+        // ── Section: Notifications ───────────────────────────
+        addHeader(tr("Notifications"));
+        auto [notifCard, notifLayout] = makeAppCard();
+        (void)notifLayout; // layout used implicitly via makeAppCard
+
+        {
+            auto* row = new QWidget(notifCard);
+            auto* rl = new QHBoxLayout(row);
+            rl->setContentsMargins(16, 12, 16, 12);
+            rl->setSpacing(16);
+            rl->addWidget(makeTextCol(row,
+                                      tr("Desktop Notifications"),
+                                      tr("Show a system notification when the VPN is connecting, "
+                                         "connected, disconnecting, or disconnected.")), 1);
+            m_notificationsToggle = new ToggleWithStatus(row);
+            m_notificationsToggle->setOn(AppConfig::instance().notifications(), false);
+            connect(m_notificationsToggle, &ToggleWithStatus::toggled, this, [](bool on)
             {
-                updateAutoConnectRowVisibility();
-            }
-        });
-        rl->addWidget(m_autoStartToggle);
-        addApp(m_autoStartRow);
+                AppConfig::instance().setNotifications(on);
+            });
+            rl->addWidget(m_notificationsToggle);
+            notifLayout->addWidget(row);
+        }
 
-        // ── Auto-connect on startup (indented, only when auto-start is on) ──
-        m_autoConnectRow = new QWidget(appCard);
-        auto* acRl = new QHBoxLayout(m_autoConnectRow);
-        acRl->setContentsMargins(32, 8, 16, 12);
-        acRl->setSpacing(16);
-        acRl->addWidget(makeTextCol(m_autoConnectRow,
-                                    tr("Auto-connect on Startup"),
-                                    tr("Automatically connect to the VPN when the app starts.")), 1);
-        m_autoConnectToggle = new ToggleWithStatus(m_autoConnectRow);
-        m_autoConnectToggle->setOn(AppConfig::instance().autoConnect(), false);
-        connect(m_autoConnectToggle, &ToggleWithStatus::toggled, this, [](bool on)
+        // ── Plus Members Only divider ─────────────────────────
+        m_appPlusDivider = makePlusDivider(appContent);
+        appContentLayout->addWidget(m_appPlusDivider);
+
+        // ── Plus-only section container ───────────────────────
+        // m_appPlusSection wraps History + Favorites so updatePlusSectionState
+        // can disable/fade the whole block for free users.
+        m_appPlusSection = new QWidget(appContent);
+        auto* appPlusSectionLayout = new QVBoxLayout(m_appPlusSection);
+        appPlusSectionLayout->setContentsMargins(0, 0, 0, 0);
+        appPlusSectionLayout->setSpacing(8);
+        appContentLayout->addWidget(m_appPlusSection);
+
+        // Section header helper that targets m_appPlusSection
+        auto addPlusHeader = [&](const QString& title)
         {
-            AppConfig::instance().setAutoConnect(on);
-        });
-        acRl->addWidget(m_autoConnectToggle);
-        // Added directly so it shares a visual group with autostart (no extra divider above it)
-        appCardLayout->addWidget(m_autoConnectRow);
+            auto* w = new QWidget(m_appPlusSection);
+            auto* hl = new QHBoxLayout(w);
+            hl->setContentsMargins(4, 4, 4, 2);
+            auto* lbl = new QLabel(title.toUpper(), w);
+            lbl->setObjectName(QStringLiteral("appSectionHeader"));
+            hl->addWidget(lbl);
+            appPlusSectionLayout->addWidget(w);
+        };
 
-        updateAutoConnectRowVisibility();
-    }
+        // ── Sub-section: Connection History ──────────────────
+        addPlusHeader(tr("Connection History"));
+        auto [histCard, histLayout] = makeSubCard(m_appPlusSection, appPlusSectionLayout);
 
-    // ── Desktop Notifications ─────────────────────────────────
-    {
-        auto* row = new QWidget(appCard);
-        auto* rl = new QHBoxLayout(row);
-        rl->setContentsMargins(16, 12, 16, 12);
-        rl->setSpacing(16);
-        rl->addWidget(makeTextCol(row,
-                                  tr("Desktop Notifications"),
-                                  tr("Show a system notification when the VPN is connecting, "
-                                     "connected, disconnecting, or disconnected.")), 1);
-        m_notificationsToggle = new ToggleWithStatus(row);
-        m_notificationsToggle->setOn(AppConfig::instance().notifications(), false);
-        connect(m_notificationsToggle, &ToggleWithStatus::toggled, this, [](bool on)
+        bool histFirst = true;
+        auto addHist = [&](QWidget* w)
         {
-            AppConfig::instance().setNotifications(on);
-        });
-        rl->addWidget(m_notificationsToggle);
-        addApp(row);
-    }
+            if (!histFirst) addDivider(histLayout, histCard);
+            histFirst = false;
+            histLayout->addWidget(w);
+        };
 
-
-    // ── Start Hidden ───────────────────────────────────────────
-    {
-        auto* row = new QWidget(appCard);
-        auto* rl = new QHBoxLayout(row);
-        rl->setContentsMargins(16, 12, 16, 12);
-        rl->setSpacing(16);
-        rl->addWidget(makeTextCol(row,
-                                  tr("Start Hidden"),
-                                  tr("Launch the app in the background without opening a "
-                                     "window. Access it anytime via the system tray icon.")), 1);
-        auto* toggle = new ToggleWithStatus(row);
-        toggle->setOn(AppConfig::instance().startHidden(), false);
-        connect(toggle, &ToggleWithStatus::toggled, this, [](bool on)
         {
-            AppConfig::instance().setStartHidden(on);
-        });
-        rl->addWidget(toggle);
-        addApp(row);
-    }
+            auto* row = new QWidget(histCard);
+            auto* rl = new QHBoxLayout(row);
+            rl->setContentsMargins(16, 12, 16, 12);
+            rl->setSpacing(16);
+            rl->addWidget(makeTextCol(row,
+                                      tr("Recent Connections"),
+                                      tr("Number of recent VPN connections to remember and show "
+                                         "on the home screen. Set to 0 to disable.")), 1);
+            m_recentConnectionsSpinBox = new NumberSpinner(row);
+            m_recentConnectionsSpinBox->setRange(0, 20);
+            m_recentConnectionsSpinBox->setValue(AppConfig::instance().recentConnectionsCount());
+            connect(m_recentConnectionsSpinBox, &NumberSpinner::valueChanged, this, [](const int val)
+            {
+                AppConfig::instance().setRecentConnectionsCount(val);
+                ConnectionHistory::instance().trimToCount(val);
+            });
+            rl->addWidget(m_recentConnectionsSpinBox);
+            addHist(row);
+        }
 
-    // ── Plus Members Only divider (App tab) ───────────────────
-    m_appPlusDivider = makePlusDivider(appCard);
-    appCardLayout->addWidget(m_appPlusDivider);
-
-    // ── PLUS-ONLY section (App tab) ───────────────────────────
-    m_appPlusSection = new QWidget(appCard);
-    auto* appPlusLayout = new QVBoxLayout(m_appPlusSection);
-    appPlusLayout->setContentsMargins(0, 0, 0, 0);
-    appPlusLayout->setSpacing(0);
-    appCardLayout->addWidget(m_appPlusSection);
-
-    bool appPlusFirst = true;
-    auto addAppPlus = [&](QWidget* w)
-    {
-        if (!appPlusFirst) addDivider(appPlusLayout, m_appPlusSection);
-        appPlusFirst = false;
-        appPlusLayout->addWidget(w);
-    };
-
-    // ── Recent Connections ────────────────────────────────────
-    {
-        auto* row = new QWidget(m_appPlusSection);
-        auto* rl = new QHBoxLayout(row);
-        rl->setContentsMargins(16, 12, 16, 12);
-        rl->setSpacing(16);
-        rl->addWidget(makeTextCol(row,
-                                  tr("Recent Connections"),
-                                  tr("Number of recent VPN connections to remember and show "
-                                     "on the home screen. Set to 0 to disable.")), 1);
-        m_recentConnectionsSpinBox = new NumberSpinner(row);
-        m_recentConnectionsSpinBox->setRange(0, 20);
-        m_recentConnectionsSpinBox->setValue(AppConfig::instance().recentConnectionsCount());
-        connect(m_recentConnectionsSpinBox, &NumberSpinner::valueChanged, this, [](const int val)
+        // Clear Recent Connections (self-contained divider + row, hidden when empty)
         {
-            AppConfig::instance().setRecentConnectionsCount(val);
-            // Trim stored history immediately so the picker reflects the new limit.
-            ConnectionHistory::instance().trimToCount(val);
-        });
-        rl->addWidget(m_recentConnectionsSpinBox);
-        addAppPlus(row);
-    }
-
-    // ── Clear Recent Connections (only shown when history is non-empty) ────
-    {
-        m_clearRecentRow = new QWidget(m_appPlusSection);
-        auto* cLayout = new QVBoxLayout(m_clearRecentRow);
-        cLayout->setContentsMargins(0, 0, 0, 0);
-        cLayout->setSpacing(0);
-
-        auto* div = new QFrame(m_clearRecentRow);
-        div->setFrameShape(QFrame::HLine);
-        div->setObjectName(QStringLiteral("divider"));
-        cLayout->addWidget(div);
-
-        auto* inner = new QWidget(m_clearRecentRow);
-        auto* rl = new QHBoxLayout(inner);
-        rl->setContentsMargins(16, 12, 16, 12);
-        rl->setSpacing(16);
-        rl->addWidget(makeTextCol(inner,
-                                  tr("Clear Recent Connections"),
-                                  tr("Remove all saved recent connection history.")), 1);
-        auto* clearBtn = new QPushButton(tr("Clear"), inner);
-        clearBtn->setObjectName(QStringLiteral("dangerButton"));
-        clearBtn->setCursor(Qt::PointingHandCursor);
-        connect(clearBtn, &QPushButton::clicked, this, [this]()
-        {
-            ConnectionHistory::instance().clear();
-            m_clearRecentRow->setVisible(false);
-            emit recentConnectionsCleared();
-            ToastNotification::popup(this, tr("Recent connection history cleared."));
-        });
-        rl->addWidget(clearBtn);
-        cLayout->addWidget(inner);
-
-        appPlusLayout->addWidget(m_clearRecentRow);
-        m_clearRecentRow->setVisible(ConnectionHistory::instance().hasAnyEntries());
-
-        connect(&ConnectionHistory::instance(), &ConnectionHistory::changed, this, [this]()
-        {
+            m_clearRecentRow = new QWidget(histCard);
+            auto* cLayout = new QVBoxLayout(m_clearRecentRow);
+            cLayout->setContentsMargins(0, 0, 0, 0);
+            cLayout->setSpacing(0);
+            auto* div = new QFrame(m_clearRecentRow);
+            div->setFrameShape(QFrame::HLine);
+            div->setObjectName(QStringLiteral("divider"));
+            cLayout->addWidget(div);
+            auto* inner = new QWidget(m_clearRecentRow);
+            auto* rl = new QHBoxLayout(inner);
+            rl->setContentsMargins(16, 12, 16, 12);
+            rl->setSpacing(16);
+            rl->addWidget(makeTextCol(inner,
+                                      tr("Clear Recent Connections"),
+                                      tr("Remove all saved recent connection history.")), 1);
+            auto* clearBtn = new QPushButton(tr("Clear"), inner);
+            clearBtn->setObjectName(QStringLiteral("dangerButton"));
+            clearBtn->setCursor(Qt::PointingHandCursor);
+            connect(clearBtn, &QPushButton::clicked, this, [this]()
+            {
+                ConnectionHistory::instance().clear();
+                m_clearRecentRow->setVisible(false);
+                emit recentConnectionsCleared();
+                ToastNotification::popup(this, tr("Recent connection history cleared."));
+            });
+            rl->addWidget(clearBtn);
+            cLayout->addWidget(inner);
+            histLayout->addWidget(m_clearRecentRow);
             m_clearRecentRow->setVisible(ConnectionHistory::instance().hasAnyEntries());
-        });
-    }
+            connect(&ConnectionHistory::instance(), &ConnectionHistory::changed, this, [this]()
+            {
+                m_clearRecentRow->setVisible(ConnectionHistory::instance().hasAnyEntries());
+            });
+        }
 
-    // ── Enable Favorites ──────────────────────────────────────
-    {
-        auto* row = new QWidget(m_appPlusSection);
-        auto* rl = new QHBoxLayout(row);
-        rl->setContentsMargins(16, 12, 16, 12);
-        rl->setSpacing(16);
-        rl->addWidget(makeTextCol(row,
-                                  tr("Enable Favorites"),
-                                  tr("Allow marking VPN locations as favorites for quick access.")), 1);
-        auto* toggle = new ToggleWithStatus(row);
-        toggle->setOn(AppConfig::instance().favoritesEnabled(), false);
-        connect(toggle, &ToggleWithStatus::toggled, this, [this](bool on)
+        // ── Sub-section: Favorites ────────────────────────────
+        addPlusHeader(tr("Favorites"));
+        auto [favCard, favLayout] = makeSubCard(m_appPlusSection, appPlusSectionLayout);
+
+        bool favFirst = true;
+        auto addFav = [&](QWidget* w)
         {
-            AppConfig::instance().setFavoritesEnabled(on);
-            emit favoritesEnabledChanged(on);
-        });
-        rl->addWidget(toggle);
-        addAppPlus(row);
-    }
+            if (!favFirst) addDivider(favLayout, favCard);
+            favFirst = false;
+            favLayout->addWidget(w);
+        };
 
-    // ── Clear Favorites (only shown when favorites list is non-empty) ─────
-    {
-        m_clearFavoritesRow = new QWidget(m_appPlusSection);
-        auto* cLayout = new QVBoxLayout(m_clearFavoritesRow);
-        cLayout->setContentsMargins(0, 0, 0, 0);
-        cLayout->setSpacing(0);
-
-        auto* div = new QFrame(m_clearFavoritesRow);
-        div->setFrameShape(QFrame::HLine);
-        div->setObjectName(QStringLiteral("divider"));
-        cLayout->addWidget(div);
-
-        auto* inner = new QWidget(m_clearFavoritesRow);
-        auto* rl = new QHBoxLayout(inner);
-        rl->setContentsMargins(16, 12, 16, 12);
-        rl->setSpacing(16);
-        rl->addWidget(makeTextCol(inner,
-                                  tr("Clear Favorites"),
-                                  tr("Remove all saved favorite locations.")), 1);
-        auto* clearBtn = new QPushButton(tr("Clear"), inner);
-        clearBtn->setObjectName(QStringLiteral("dangerButton"));
-        clearBtn->setCursor(Qt::PointingHandCursor);
-        connect(clearBtn, &QPushButton::clicked, this, [this]()
+        // Enable Favorites
         {
-            FavoritesManager::instance().clear();
-            m_clearFavoritesRow->setVisible(false);
-            emit favoritesCleared();
-            ToastNotification::popup(this, tr("Favorites cleared."));
-        });
-        rl->addWidget(clearBtn);
-        cLayout->addWidget(inner);
+            auto* row = new QWidget(favCard);
+            auto* rl = new QHBoxLayout(row);
+            rl->setContentsMargins(16, 12, 16, 12);
+            rl->setSpacing(16);
+            rl->addWidget(makeTextCol(row,
+                                      tr("Enable Favorites"),
+                                      tr("Allow marking VPN locations as favorites for quick access.")), 1);
+            auto* toggle = new ToggleWithStatus(row);
+            toggle->setOn(AppConfig::instance().favoritesEnabled(), false);
+            connect(toggle, &ToggleWithStatus::toggled, this, [this](bool on)
+            {
+                AppConfig::instance().setFavoritesEnabled(on);
+                emit favoritesEnabledChanged(on);
+                if (m_showFavoritesDropdownToggle != nullptr)
+                {
+                    m_showFavoritesDropdownToggle->setEnabled(on);
+                    const QString tip = on ? QString()
+                                           : tr("Enable the Favorites system to use this setting.");
+                    m_showFavoritesDropdownRow->setToolTip(tip);
+                    m_showFavoritesDropdownToggle->setToolTip(tip);
+                }
+            });
+            rl->addWidget(toggle);
+            addFav(row);
+        }
 
-        appPlusLayout->addWidget(m_clearFavoritesRow);
-        m_clearFavoritesRow->setVisible(FavoritesManager::instance().hasAnyEntries());
-
-        connect(&FavoritesManager::instance(), &FavoritesManager::changed, this, [this]()
+        // Clear Favorites (self-contained divider + row, hidden when empty)
         {
+            m_clearFavoritesRow = new QWidget(favCard);
+            auto* cLayout = new QVBoxLayout(m_clearFavoritesRow);
+            cLayout->setContentsMargins(0, 0, 0, 0);
+            cLayout->setSpacing(0);
+            auto* div = new QFrame(m_clearFavoritesRow);
+            div->setFrameShape(QFrame::HLine);
+            div->setObjectName(QStringLiteral("divider"));
+            cLayout->addWidget(div);
+            auto* inner = new QWidget(m_clearFavoritesRow);
+            auto* rl = new QHBoxLayout(inner);
+            rl->setContentsMargins(16, 12, 16, 12);
+            rl->setSpacing(16);
+            rl->addWidget(makeTextCol(inner,
+                                      tr("Clear Favorites"),
+                                      tr("Remove all saved favorite locations.")), 1);
+            auto* clearBtn = new QPushButton(tr("Clear"), inner);
+            clearBtn->setObjectName(QStringLiteral("dangerButton"));
+            clearBtn->setCursor(Qt::PointingHandCursor);
+            connect(clearBtn, &QPushButton::clicked, this, [this]()
+            {
+                FavoritesManager::instance().clear();
+                m_clearFavoritesRow->setVisible(false);
+                emit favoritesCleared();
+                ToastNotification::popup(this, tr("Favorites cleared."));
+            });
+            rl->addWidget(clearBtn);
+            cLayout->addWidget(inner);
+            favLayout->addWidget(m_clearFavoritesRow);
             m_clearFavoritesRow->setVisible(FavoritesManager::instance().hasAnyEntries());
-        });
-    }
+            connect(&FavoritesManager::instance(), &FavoritesManager::changed, this, [this]()
+            {
+                m_clearFavoritesRow->setVisible(FavoritesManager::instance().hasAnyEntries());
+            });
+        }
 
-    appCardLayout->addStretch();
+        // ── Section: About ────────────────────────────────────
+        addHeader(tr("About"));
+        auto [aboutCard, aboutLayout] = makeAppCard();
+        (void)aboutLayout;
 
-    // ── About button – sits inside the App tab, below the card ──
-    {
-        auto* appPageLayout = qobject_cast<QVBoxLayout*>(appTab->layout());
-        auto* aboutBtn = new QPushButton(tr("About"), appTab);
-        aboutBtn->setObjectName(QStringLiteral("secondaryButton"));
-        aboutBtn->setCursor(Qt::PointingHandCursor);
-        connect(aboutBtn, &QPushButton::clicked, this, [this]() {
-            AboutDialog dlg(m_installedCliVersion, this);
-            dlg.exec();
-        });
-        appPageLayout->addWidget(aboutBtn);
-    }
+        {
+            const QPixmap arrowPm = GeoUtils::svgPixmap(
+                QStringLiteral(":/assets/box-arrow-up-right.svg"), 16, 16,
+                QColor(QStringLiteral("#9999bb")));
+
+            m_aboutRow = new QWidget(aboutCard);
+            m_aboutRow->setObjectName(QStringLiteral("appNavRow"));
+            m_aboutRow->setCursor(Qt::PointingHandCursor);
+            m_aboutRow->installEventFilter(this);
+
+            auto* rl = new QHBoxLayout(m_aboutRow);
+            rl->setContentsMargins(16, 12, 16, 12);
+            rl->setSpacing(16);
+            rl->addWidget(makeTextCol(m_aboutRow,
+                                      tr("About Proton VPN"),
+                                      tr("View app version, licenses, and credits.")), 1);
+            auto* iconLbl = new QLabel(m_aboutRow);
+            iconLbl->setPixmap(arrowPm);
+            iconLbl->setAttribute(Qt::WA_TransparentForMouseEvents);
+            rl->addWidget(iconLbl);
+            aboutLayout->addWidget(m_aboutRow);
+        }
+
+        appContentLayout->addStretch();
+    } // end App tab scroll area
 
     // ============================================================
     // TAB 2 – Appearance
@@ -731,7 +859,7 @@ SettingsPage::SettingsPage(VpnManager* manager, NatPmpManager* natPmpManager, QW
             rl->setSpacing(16);
             rl->addWidget(makeTextCol(row,
                                       tr("Theme"),
-                                      tr("Choose the colour scheme for the app.")), 1);
+                                      tr("Choose the color scheme for the app.")), 1);
             m_themeCombo = new QComboBox(row);
             m_themeCombo->addItem(tr("System Settings"), QStringLiteral("system"));
             m_themeCombo->addItem(tr("Dark"),            QStringLiteral("dark"));
@@ -795,6 +923,20 @@ SettingsPage::SettingsPage(VpnManager* manager, NatPmpManager* natPmpManager, QW
                 emit favoritesDropdownVisibilityChanged(on);
             });
             rl->addWidget(toggle);
+
+            // Save references so "Enable Favorites" can disable this control.
+            m_showFavoritesDropdownRow    = row;
+            m_showFavoritesDropdownToggle = toggle;
+
+            // Apply initial disabled state if favorites are currently off.
+            if (!AppConfig::instance().favoritesEnabled())
+            {
+                const QString tip = tr("Enable the Favorites system to use this setting.");
+                toggle->setEnabled(false);
+                row->setToolTip(tip);
+                toggle->setToolTip(tip);
+            }
+
             addAppearance(row);
         }
 
@@ -808,25 +950,46 @@ SettingsPage::SettingsPage(VpnManager* manager, NatPmpManager* natPmpManager, QW
     auto [vpnCard, vpnCardLayout] = makeCard(vpnTab);
     m_vpnCard = vpnCard; // kept so we can bulk-disable during VPN transitions
 
-    // Refresh button + spinner live inside the VPN tab's page layout
+    // Wrap the card in a plain QWidget so the 18 px spacer above the card
+    // paints the page background color (flat, no card fill, no rounded
+    // corners).  takeWidget() detaches vpnCard without deleting it, then
+    // setWidget(wrapper) is called only once so Qt never deletes vpnCard.
+    {
+        auto* scroll = vpnTab->findChild<QScrollArea*>();
+        scroll->takeWidget();              // detach vpnCard — does NOT delete it
+        auto* wrapper = new QWidget();
+        auto* wl = new QVBoxLayout(wrapper);
+        wl->setContentsMargins(0, 20, 0, 0);
+        wl->setSpacing(0);
+        wl->addWidget(vpnCard, 1);         // re-parent card into wrapper
+        scroll->setWidget(wrapper);        // scroll now owns wrapper (single setWidget call)
+        scroll->setWidgetResizable(true);
+    }
+
+    // Status label lives in the page layout (above the scroll area) so it
+    // appears naturally in flow when visible during a refresh.
     {
         auto* vpnPageLayout = qobject_cast<QVBoxLayout*>(vpnTab->layout());
-
-        auto* headerRow = new QHBoxLayout();
-        m_refreshBtn = new QPushButton(tr("↻ Refresh"), vpnTab);
-        m_refreshBtn->setObjectName(QStringLiteral("secondaryButton"));
-        m_refreshBtn->setFixedHeight(30);
-        connect(m_refreshBtn, &QPushButton::clicked, this, &SettingsPage::refresh);
-        headerRow->addStretch();
-        headerRow->addWidget(m_refreshBtn);
-        // Insert the header row above the scroll area (which was inserted as item 0)
-        vpnPageLayout->insertLayout(0, headerRow);
-
         m_statusLabel = new QLabel(vpnTab);
         m_statusLabel->setAlignment(Qt::AlignCenter);
         m_statusLabel->setObjectName(QStringLiteral("settingsStatusLabel"));
         m_statusLabel->setVisible(false);
-        vpnPageLayout->insertWidget(1, m_statusLabel);
+        vpnPageLayout->insertWidget(0, m_statusLabel);
+    }
+
+    // Refresh button – floating overlay anchored to the top-right of vpnTab.
+    // It is NOT in the layout, so it does not push the scroll area down or
+    // carve out a rectangular block.  An event filter keeps it positioned
+    // correctly whenever vpnTab is resized.
+    {
+        m_refreshBtn = new QPushButton(tr("↻ Refresh"), vpnTab);
+        m_refreshBtn->setObjectName(QStringLiteral("refreshOverlayButton"));
+        m_refreshBtn->setFixedHeight(30);
+        connect(m_refreshBtn, &QPushButton::clicked, this, &SettingsPage::refresh);
+        m_refreshBtn->raise();
+
+        m_vpnTabWidget = vpnTab;
+        vpnTab->installEventFilter(this);
     }
 
     tabs->addTab(vpnTab, tr("VPN"));
@@ -997,6 +1160,7 @@ SettingsPage::SettingsPage(VpnManager* manager, NatPmpManager* natPmpManager, QW
     }
 
     // ── Plus Members Only divider ─────────────────────────────
+    addDivider(vpnCardLayout, vpnCard);   // separator between last free row and plus section
     m_plusDivider = makePlusDivider(vpnCard);
     vpnCardLayout->addWidget(m_plusDivider);
 
@@ -1030,7 +1194,8 @@ SettingsPage::SettingsPage(VpnManager* manager, NatPmpManager* natPmpManager, QW
                          QStringLiteral("moderate-nat"),
                          {tr("Strict (Type 3)"),
                           tr("Moderate (Type 2)")},
-                         {QStringLiteral("off"), QStringLiteral("on")}));
+                         {QStringLiteral("off"), QStringLiteral("on")},
+                         /*requiresReconnect=*/true));
 
     // ── VPN Accelerator ───────────────────────────────────────
     addPlus(makeToggleRow(m_plusSection,
@@ -1459,6 +1624,35 @@ void SettingsPage::refresh()
     m_manager->fetchSettings();
 }
 
+bool SettingsPage::eventFilter(QObject* obj, QEvent* event)
+{
+    // Keep the floating Refresh button anchored to the top-right of the VPN tab.
+    if (obj == m_vpnTabWidget && m_refreshBtn != nullptr
+        && (event->type() == QEvent::Resize || event->type() == QEvent::Show))
+    {
+        const int margin = 8;
+        const int btnH   = 30;
+        const int btnW   = m_refreshBtn->sizeHint().width();
+        m_refreshBtn->setGeometry(m_vpnTabWidget->width() - btnW - margin,
+                                  margin, btnW, btnH);
+        m_refreshBtn->raise();
+    }
+
+    // Fire the About dialog when the user clicks the About nav row.
+    if (obj == m_aboutRow && event->type() == QEvent::MouseButtonRelease)
+    {
+        auto* me = static_cast<QMouseEvent*>(event);
+        if (me->button() == Qt::LeftButton
+            && m_aboutRow->rect().contains(me->position().toPoint()))
+        {
+            AboutDialog dlg(m_installedCliVersion, this);
+            dlg.exec();
+        }
+    }
+
+    return QWidget::eventFilter(obj, event);
+}
+
 void SettingsPage::updatePlusSectionState() const
 {
     const bool isFree = m_manager->accountType() == AccountType::Free;
@@ -1505,6 +1699,19 @@ void SettingsPage::setLoading(const bool loading)
     else
     {
         m_spinnerTimer->stop();
+
+        // Re-enable the VPN card if the VPN is not currently transitioning.
+        // This is necessary after an applyConfigValueAndReconnect() sequence:
+        // the card is disabled for the whole sequence but setLoading(false) is
+        // the only place that knows the sequence is truly finished.
+        if (m_vpnCard != nullptr)
+        {
+            const VpnState s = m_manager->currentState();
+            const bool transitioning = s == VpnState::Connecting
+                                    || s == VpnState::Disconnecting;
+            if (!transitioning)
+                m_vpnCard->setEnabled(true);
+        }
     }
     for (const ToggleRow& r : std::as_const(m_toggleRows))
     {

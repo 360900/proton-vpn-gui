@@ -94,6 +94,14 @@ private:
     // "Clear favorites" row – shown only when favorites is non-empty
     QWidget* m_clearFavoritesRow = nullptr;
 
+    // Clickable "About" row in the App tab (event filter handles the click)
+    QWidget* m_aboutRow = nullptr;
+
+    // "Show Favorites Dropdown" toggle in the Appearance tab – disabled when
+    // the Favorites system is turned off from the App tab.
+    QWidget*          m_showFavoritesDropdownRow    = nullptr;
+    ToggleWithStatus* m_showFavoritesDropdownToggle = nullptr;
+
     // Plus Members Only section (VPN tab)
     QWidget* m_plusSection  = nullptr;
     QWidget* m_plusDivider  = nullptr;
@@ -115,6 +123,10 @@ private:
     int m_spinnerFrame = 0;
     bool m_loading = false;
 
+    // The VPN tab widget – watched via eventFilter to keep m_refreshBtn
+    // positioned as a floating overlay in its top-right corner.
+    QWidget* m_vpnTabWidget = nullptr;
+
     // Helpers
     QWidget* makeToggleRow(QWidget* parent, const QString& label, const QString& desc,
                            const QString& cliKey,
@@ -122,7 +134,7 @@ private:
                            bool requiresReconnect = false);
     QWidget* makeComboRow(QWidget* parent, const QString& label, const QString& desc,
                           const QString& cliKey, const QStringList& labels,
-                          const QStringList& cliValues);
+                          const QStringList& cliValues, bool requiresReconnect = false);
     // Shows the standard "Apply & Reconnect" dialog for any setting
     // that cannot be changed while the VPN is active.  onAccept is called if
     // the user clicks the primary button; nothing extra is called on dismiss.
@@ -142,4 +154,5 @@ private:
 
     void onSettingsReady(const QMap<QString, QString>& settings);
     void setLoading(bool loading);
+    bool eventFilter(QObject* obj, QEvent* event) override;
 };

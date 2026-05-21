@@ -32,8 +32,8 @@
 // Renders the SVG at `path` into a QIcon of `size`.
 // When `tintForTheme` is true (used for monochrome utility icons), the result
 // is tinted white on dark backgrounds and dark navy on light backgrounds so
-// the icon is always legible.  Pass false for branded/coloured logos that
-// should be rendered with their own SVG colours unchanged.
+// the icon is always legible.  Pass false for branded/colored logos that
+// should be rendered with their own SVG colors unchanged.
 static QIcon svgNavIcon(const QString& path, const QSize& size = {24, 24}, bool tintForTheme = true)
 {
     QPixmap pix(size);
@@ -537,7 +537,7 @@ void MainWindow::startupCheck() const
 
 void MainWindow::refreshIcons()
 {
-    // Logo button: render with original SVG colours (no tinting) — it's a branded icon.
+    // Logo button: render with original SVG colors (no tinting) — it's a branded icon.
     setWindowIcon(svgNavIcon(QStringLiteral(":/assets/proton-vpn-sign.svg"), {64, 64}, false));
     m_logoBtn->setIcon(svgNavIcon(QStringLiteral(":/assets/proton-vpn-sign.svg"), {40, 40}, false));
     // Nav icons: monochrome utility icons — tint for legibility.

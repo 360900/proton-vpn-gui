@@ -5,6 +5,7 @@
 #include <QEvent>
 #include <QFrame>
 #include <QHBoxLayout>
+#include <QHideEvent>
 #include <QListWidget>
 #include <QMouseEvent>
 #include <QVBoxLayout>
@@ -194,6 +195,12 @@ protected:
 
     // Subclasses implement this to react to a row click.
     virtual void onRowClicked(QListWidgetItem* item) = 0;
+
+    void hideEvent(QHideEvent* event) override
+    {
+        closePopup();
+        QFrame::hideEvent(event);
+    }
 
     QFrame*      m_popup   = nullptr;
     QListWidget* m_list    = nullptr;

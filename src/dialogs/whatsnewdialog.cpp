@@ -13,7 +13,7 @@ WhatsNewDialog::WhatsNewDialog(const QString& version, QWidget* parent)
     : QDialog(parent)
 {
     setWindowTitle(tr("What's New in ProtonVPN Qt App"));
-    setMinimumSize(500, 420);
+    setMinimumSize(480, 280);
     setAttribute(Qt::WA_DeleteOnClose);
 
     auto* layout = new QVBoxLayout(this);
