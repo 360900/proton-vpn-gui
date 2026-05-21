@@ -70,13 +70,7 @@ private slots:
     {
         // The spinner frame array size must equal kSpinnerFrameCount so any
         // frame-index loop using `% kSpinnerFrameCount` stays in bounds.
-        int count = 0;
-        while (kSpinnerFrames[count] != nullptr)
-        {
-            ++count;
-            if (count > 100) break; // guard against a run-away loop in tests
-        }
-        QCOMPARE(count, kSpinnerFrameCount);
+        QCOMPARE(static_cast<int>(std::size(kSpinnerFrames)), kSpinnerFrameCount);
     }
 
     // ── kServerFeatures sanity ────────────────────────────────────────────────
