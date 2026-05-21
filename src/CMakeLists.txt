@@ -16,8 +16,9 @@ find_package(Qt6 COMPONENTS
         Widgets
         Svg
         SvgWidgets
-        LinguistTools
         REQUIRED)
+
+find_package(Qt6 COMPONENTS LinguistTools QUIET)
 
 set(SOURCES
         main.cpp
@@ -80,12 +81,16 @@ set(SOURCES
 
 add_executable(proton_vpn_qt ${SOURCES})
 
-qt_add_translations(proton_vpn_qt
-        TS_FILES
-            i18n/proton_vpn_qt_en.ts
-        RESOURCE_PREFIX "/i18n"
-        NO_GENERATE_PLURALS_TS_FILE
-)
+if(Qt6LinguistTools_FOUND)
+    qt_add_translations(proton_vpn_qt
+            TS_FILES
+                i18n/proton_vpn_qt_en.ts
+            RESOURCE_PREFIX "/i18n"
+            NO_GENERATE_PLURALS_TS_FILE
+    )
+else()
+    message(WARNING "Qt6LinguistTools not found — translations will not be compiled.")
+endif()
 
 target_link_libraries(proton_vpn_qt
         Qt6::Core
