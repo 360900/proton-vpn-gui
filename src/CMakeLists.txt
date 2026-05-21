@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 4.2)
+cmake_minimum_required(VERSION 3.31)
 project(proton_vpn_qt)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
