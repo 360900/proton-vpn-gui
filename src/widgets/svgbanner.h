@@ -1,5 +1,7 @@
 #pragma once
 
+#include <QEvent>
+#include <QGuiApplication>
 #include <QPainter>
 #include <QSvgRenderer>
 #include <QWidget>
@@ -11,6 +13,10 @@
 // and stays centered via the parent layout's alignment flag.
 //
 // aspectRatio = width / height  (e.g. 4.0 for a 4:1 banner)
+//
+// Call setLightResource() with an alternate SVG path to have
+// the widget automatically switch to that asset on light
+// backgrounds (and back to the primary asset on dark ones).
 // ============================================================
 class SvgBanner : public QWidget
 {
@@ -32,6 +38,14 @@ public:
         updateGeometry();
     }
 
+    // Provide an alternate SVG resource to use when the background is light.
+    // Pass an empty string to disable theme-switching.
+    void setLightResource(const QString& resource)
+    {
+        m_lightRenderer = resource.isEmpty() ? nullptr : std::make_unique<QSvgRenderer>(resource);
+        update();
+    }
+
     [[nodiscard]] QSize sizeHint() const override
     {
         const int parentW = parentWidget() ? parentWidget()->width() : m_maxWidth;
@@ -51,7 +65,9 @@ protected:
     {
         QPainter p(this);
         p.setRenderHint(QPainter::Antialiasing);
-        m_renderer.render(&p, QRectF(rect()));
+
+        QSvgRenderer& active = activeRenderer();
+        active.render(&p, QRectF(rect()));
     }
 
     void resizeEvent(QResizeEvent* e) override
@@ -65,10 +81,34 @@ protected:
         updateGeometry();
     }
 
+    void changeEvent(QEvent* e) override
+    {
+        QWidget::changeEvent(e);
+        if (m_lightRenderer && e->type() == QEvent::PaletteChange)
+        {
+            update();
+        }
+    }
+
 private:
+    // Returns the renderer appropriate for the current palette.
+    QSvgRenderer& activeRenderer()
+    {
+        if (m_lightRenderer)
+        {
+            const QColor windowColor = QGuiApplication::palette().color(QPalette::Window);
+            if (windowColor.lightness() >= 128)
+            {
+                return *m_lightRenderer;
+            }
+        }
+        return m_renderer;
+    }
+
     int defaultMaxWidth = 500;
 
     QSvgRenderer m_renderer;
+    std::unique_ptr<QSvgRenderer> m_lightRenderer;
     qreal m_aspect;
     int   m_maxWidth;
 };

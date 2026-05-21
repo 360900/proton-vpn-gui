@@ -17,7 +17,7 @@
 //   ToastNotification::popup(this, "Recent connections cleared.");
 //
 // The toast attaches itself to the top-level window of the
-// given anchor widget, positions at the bottom-centre, and
+// given anchor widget, positions at the bottom-center, and
 // deletes itself when dismissed.
 // ============================================================
 class ToastNotification : public QFrame
@@ -33,23 +33,23 @@ public:
 
     explicit ToastNotification(const QString& message, const QWidget* anchor,
                                const int durationMs = 3000)
-        : QFrame(anchor ? anchor->window() : nullptr)
+        : QFrame(anchor != nullptr ? anchor->window() : nullptr)
     {
         setObjectName(QStringLiteral("toastNotification"));
 
-        auto* hLayout = new QHBoxLayout(this);
+        QHBoxLayout* hLayout = new QHBoxLayout(this);
         hLayout->setContentsMargins(12, 8, 8, 8);
         hLayout->setSpacing(8);
 
-        auto* iconLabel = new QLabel(QStringLiteral("✓"), this);
+        QLabel* iconLabel = new QLabel(QStringLiteral("✓"), this);
         iconLabel->setStyleSheet(QStringLiteral("font-size: 14px; font-weight: bold;"));
         hLayout->addWidget(iconLabel);
 
-        auto* msgLabel = new QLabel(message, this);
+        QLabel* msgLabel = new QLabel(message, this);
         msgLabel->setWordWrap(false);
         hLayout->addWidget(msgLabel, 1);
 
-        auto* closeBtn = new QPushButton(QStringLiteral("✕"), this);
+        QPushButton* closeBtn = new QPushButton(QStringLiteral("✕"), this);
         closeBtn->setObjectName(QStringLiteral("toastCloseBtn"));
         closeBtn->setFixedSize(20, 20);
         closeBtn->setFlat(true);
@@ -69,14 +69,16 @@ public:
         connect(m_fadeAnim, &QPropertyAnimation::finished, this, &QObject::deleteLater);
 
         // Auto-dismiss timer
-        auto* autoTimer = new QTimer(this);
+        QTimer* autoTimer = new QTimer(this);
         autoTimer->setSingleShot(true);
         connect(autoTimer, &QTimer::timeout, this, &ToastNotification::dismiss);
         autoTimer->start(durationMs);
 
         // Track parent window resizes so we can reposition
-        if (parentWidget())
+        if (parentWidget() != nullptr)
+        {
             parentWidget()->installEventFilter(this);
+        }
 
         QFrame::show();
         raise();
@@ -92,7 +94,10 @@ protected:
     bool eventFilter(QObject* watched, QEvent* event) override
     {
         if (watched == parentWidget() && event->type() == QEvent::Resize)
+        {
             reposition();
+        }
+
         return QFrame::eventFilter(watched, event);
     }
 
@@ -107,7 +112,7 @@ public slots:
 private:
     void reposition()
     {
-        if (!parentWidget()) return;
+        if (parentWidget() == nullptr) return;
         const QSize ps = parentWidget()->size();
         move((ps.width() - width()) / 2, ps.height() - height() - 32);
     }
@@ -116,4 +121,3 @@ private:
     QPropertyAnimation*     m_fadeAnim = nullptr;
     bool                    m_dismissed = false;
 };
-

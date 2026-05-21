@@ -163,9 +163,7 @@ jobs:
             ```
 
             ### Flatpak bundle
-            The Flatpak calls the host's `protonvpn` CLI via `flatpak-spawn --host`, so the
-            [Proton VPN Linux CLI](https://protonvpn.com/support/linux-vpn-tool/) must be
-            installed on your host system.
+            The Flatpak calls the host's `protonvpn` CLI via `flatpak-spawn --host`, so the [Proton VPN Linux CLI](https://protonvpn.com/support/linux-vpn-tool/) must be installed on your host system.
 
             ```bash
             flatpak install io.github.wheat32.ProtonVPNQt.flatpak

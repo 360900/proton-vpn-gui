@@ -10,7 +10,7 @@
 #include "../vpnmanager.h"
 #include "../cli/natpmpmanager.h"
 #include "../dialogs/aboutdialog.h"
-#include "../widgets/toggleswitch.h"
+#include "../widgets/togglewithstatus.h"
 
 // ---------------------------------------------------------------------------
 // SettingsPage
@@ -25,13 +25,17 @@ public:
 
 signals:
     void recentConnectionsCleared();
+    void locationPickerVisibilityChanged(bool visible);
+    void favoritesDropdownVisibilityChanged(bool visible);
+    void favoritesEnabledChanged(bool enabled);
+    void favoritesCleared();
 
 private:
     // A simple on/off toggle row
     struct ToggleRow
     {
         QString cliKey;
-        ToggleSwitch* toggle = nullptr;
+        ToggleWithStatus* toggle = nullptr;
         // Value sent to the CLI (and expected when loading) for the ON state.
         // Most settings use "on"; kill-switch uses "standard".
         QString onValue = QStringLiteral("on");
@@ -51,38 +55,52 @@ private:
     QList<ComboRow> m_comboRows;
 
     // Custom DNS widgets
-    ToggleSwitch* m_dnsToggle = nullptr;
+    ToggleWithStatus* m_dnsToggle = nullptr;
     QLineEdit* m_dnsEdit = nullptr;
     QPushButton* m_dnsApplyBtn = nullptr;
 
     // Port forwarding toggle
-    ToggleSwitch* m_portForwardingToggle = nullptr;
+    ToggleWithStatus* m_portForwardingToggle = nullptr;
     QWidget* m_settingsPortRow = nullptr;
     QLabel*  m_settingsPortLabel = nullptr;
 
     // Kill switch toggle + collapsible radio-button sub-panel
-    ToggleSwitch* m_killSwitchToggle   = nullptr;
+    ToggleWithStatus* m_killSwitchToggle   = nullptr;
     QWidget*      m_killSwitchSubPanel = nullptr;
     // True while an applyConfigValueAndReconnect() sequence is in flight;
     // keeps the whole VPN card disabled through the Disconnected interim.
     bool m_sequencePending = false;
 
     // Auto-start (systemd user service)
-    ToggleSwitch* m_autoStartToggle = nullptr;
+    ToggleWithStatus* m_autoStartToggle = nullptr;
     QWidget* m_autoStartRow = nullptr;
 
     // Auto-connect on startup (shown only when auto-start is on)
-    ToggleSwitch* m_autoConnectToggle = nullptr;
+    ToggleWithStatus* m_autoConnectToggle = nullptr;
     QWidget* m_autoConnectRow = nullptr;
 
     // Desktop notifications
-    ToggleSwitch* m_notificationsToggle = nullptr;
+    ToggleWithStatus* m_notificationsToggle = nullptr;
+
+    // Theme selector combo box
+    QComboBox* m_themeCombo = nullptr;
 
     // Recent connections count (0 = disabled)
     class NumberSpinner* m_recentConnectionsSpinBox = nullptr;
 
     // "Clear history" row – shown only when history is non-empty
     QWidget* m_clearRecentRow = nullptr;
+
+    // "Clear favorites" row – shown only when favorites is non-empty
+    QWidget* m_clearFavoritesRow = nullptr;
+
+    // Clickable "About" row in the App tab (event filter handles the click)
+    QWidget* m_aboutRow = nullptr;
+
+    // "Show Favorites Dropdown" toggle in the Appearance tab – disabled when
+    // the Favorites system is turned off from the App tab.
+    QWidget*          m_showFavoritesDropdownRow    = nullptr;
+    ToggleWithStatus* m_showFavoritesDropdownToggle = nullptr;
 
     // Plus Members Only section (VPN tab)
     QWidget* m_plusSection  = nullptr;
@@ -105,6 +123,10 @@ private:
     int m_spinnerFrame = 0;
     bool m_loading = false;
 
+    // The VPN tab widget – watched via eventFilter to keep m_refreshBtn
+    // positioned as a floating overlay in its top-right corner.
+    QWidget* m_vpnTabWidget = nullptr;
+
     // Helpers
     QWidget* makeToggleRow(QWidget* parent, const QString& label, const QString& desc,
                            const QString& cliKey,
@@ -112,7 +134,7 @@ private:
                            bool requiresReconnect = false);
     QWidget* makeComboRow(QWidget* parent, const QString& label, const QString& desc,
                           const QString& cliKey, const QStringList& labels,
-                          const QStringList& cliValues);
+                          const QStringList& cliValues, bool requiresReconnect = false);
     // Shows the standard "Apply & Reconnect" dialog for any setting
     // that cannot be changed while the VPN is active.  onAccept is called if
     // the user clicks the primary button; nothing extra is called on dismiss.
@@ -132,4 +154,5 @@ private:
 
     void onSettingsReady(const QMap<QString, QString>& settings);
     void setLoading(bool loading);
+    bool eventFilter(QObject* obj, QEvent* event) override;
 };

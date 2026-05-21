@@ -35,22 +35,22 @@ public:
                  QLatin1String(kBorderColor),
                  QLatin1String(kColor)));
 
-        auto* layout = new QHBoxLayout(this);
+        QHBoxLayout* layout = new QHBoxLayout(this);
         layout->setContentsMargins(12, 8, 8, 8);
         layout->setSpacing(8);
 
-        auto* iconLabel = new QLabel(QStringLiteral("⚠"), this);
+        QLabel* iconLabel = new QLabel(QStringLiteral("⚠"), this);
         iconLabel->setStyleSheet(QStringLiteral("font-size: 16px; font-weight: bold;"));
         layout->addWidget(iconLabel, 0, Qt::AlignTop);
 
-        auto* msgLabel = new QLabel(htmlMessage, this);
+        QLabel* msgLabel = new QLabel(htmlMessage, this);
         msgLabel->setWordWrap(true);
         msgLabel->setTextFormat(Qt::RichText);
         msgLabel->setOpenExternalLinks(true);
         msgLabel->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
         layout->addWidget(msgLabel, 1);
 
-        auto* dismissBtn = new QPushButton(QStringLiteral("✕"), this);
+        QPushButton* dismissBtn = new QPushButton(QStringLiteral("✕"), this);
         dismissBtn->setFixedSize(22, 22);
         dismissBtn->setFlat(true);
         dismissBtn->setCursor(Qt::PointingHandCursor);
@@ -73,4 +73,3 @@ public slots:
         deleteLater();
     }
 };
-

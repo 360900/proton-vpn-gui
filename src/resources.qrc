@@ -2,6 +2,7 @@
 <RCC version="1.0">
     <qresource prefix="/assets">
         <file alias="proton-vpn-logo.svg">assets/proton-vpn-logo.svg</file>
+        <file alias="proton-vpn-logo-light.svg">assets/proton-vpn-logo-light.svg</file>
         <file alias="proton-vpn-sign.svg">assets/proton-vpn-sign.svg</file>
         <file alias="state-connected.svg">assets/state-connected.svg</file>
         <file alias="state-disconnected.svg">assets/state-disconnected.svg</file>
@@ -24,10 +25,17 @@
         <file alias="server-streaming.svg">assets/servers/streaming.svg</file>
         <file alias="server-tor.svg">assets/servers/tor.svg</file>
         <file alias="clipboard2-plus.svg">assets/clipboard2-plus.svg</file>
+        <file alias="bug.svg">assets/bug.svg</file>
+        <file alias="star.svg">assets/star.svg</file>
+        <file alias="star-fill.svg">assets/star-fill.svg</file>
+        <file alias="arrow-bar-right.svg">assets/arrow-bar-right.svg</file>
+        <file alias="arrow-bar-left.svg">assets/arrow-bar-left.svg</file>
+        <file alias="box-arrow-up-right.svg">assets/box-arrow-up-right.svg</file>
     </qresource>
     <qresource prefix="/">
         <file>version.json</file>
         <file>style.qss</file>
+        <file>style_light.qss</file>
     </qresource>
     <qresource prefix="/init">
         <file alias="systemd/proton-vpn-qt.service">init/systemd/proton-vpn-qt.service</file>

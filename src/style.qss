@@ -12,6 +12,7 @@ QLabel {
 QWidget#sidebar {
     background-color: #131320;
     border-right: 1px solid #3a3a55;
+    padding: 0;
 }
 
 QFrame#sidebarDivider {
@@ -181,6 +182,24 @@ QPushButton#secondaryButton {
 QPushButton#secondaryButton:hover {
     background-color: #2d2d4a;
     color: #eaeaea;
+}
+
+/* Floating overlay variant – same look as secondaryButton but with a solid
+   page-color background so content scrolling underneath is hidden. */
+QPushButton#refreshOverlayButton {
+    background-color: #1a1a2e;
+    color: #9999bb;
+    border: 1px solid #3a3a55;
+    border-radius: 6px;
+    padding: 4px 12px;
+}
+QPushButton#refreshOverlayButton:hover {
+    background-color: #2d2d4a;
+    color: #eaeaea;
+}
+QPushButton#refreshOverlayButton:disabled {
+    color: #666680;
+    border-color: #2d2d4a;
 }
 
 QPushButton#leaveVpnOnButton {
@@ -379,6 +398,25 @@ QFrame#plusDividerLine {
     color: #3a3a55;
 }
 
+/* ── App-tab section headers ── */
+QLabel#appSectionHeader {
+    color: #c0b8e8;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    background-color: transparent;
+}
+
+/* ── About nav row (clickable settings-style row) ── */
+QWidget#appNavRow:hover {
+    background-color: #2d2d4a;
+    border-radius: 8px;
+}
+/* Make child QWidgets transparent so the hover background shows through */
+QWidget#appNavRow QWidget {
+    background-color: transparent;
+}
+
 /* ── Forwarded-port button group ── */
 /* Left segment: port number label */
 QLabel#portValueLabel {
@@ -405,3 +443,26 @@ QPushButton#portCopyBtn:hover {
 QPushButton#portCopyBtn:pressed {
     background: rgba(255,255,255,40);
 }
+
+/* ── Picker Drawer ───────────────────────────────────────────────────────── */
+QFrame#pickerDrawer {
+    background-color: #14142a;
+    border-top: 1px solid #3a3a55;
+    border-right: 1px solid #3a3a55;
+    border-top-right-radius: 8px;
+}
+
+QFrame#drawerNotch {
+    background-color: #25253d;
+    border-top-right-radius: 8px;
+    border-bottom-right-radius: 8px;
+    border-top-left-radius: 0px;
+    border-bottom-left-radius: 0px;
+    border: 1px solid #3a3a55;
+    border-left: none;
+}
+
+QFrame#drawerNotch:hover {
+    background-color: #2d2d4a;
+}
+

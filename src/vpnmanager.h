@@ -52,7 +52,7 @@ public:
     // Parses `protonvpn cities list <countryCode>` and calls back with the
     // features string (e.g. "P2P, Tor") or an empty string if not found.
     void fetchCityFeatures(const QString& countryCode, const QString& city,
-                           std::function<void(const QString& features)> callback);
+                           const std::function<void(const QString& features)>& callback);
     void fetchCliVersion();
     void fetchAccountType();
 
@@ -96,7 +96,7 @@ private:
     StatusMonitor*  m_statusMonitor  = nullptr;
 
     void runCommand(const QStringList& args,
-                    std::function<void(int exitCode, const QString& output, const QString& errOutput)> callback);
+                    const std::function<void(int exitCode, const QString& output, const QString& errOutput)>& callback);
 
     // Background status monitor (long-lived subprocess, every 15 s while logged in).
     void startStatusMonitor();

@@ -107,8 +107,8 @@ private:
     void onCountriesReady(const QMap<QString, QString>& countries);
     void onCitiesReady(const QString& code, const QList<QPair<QString, QString>>& cities);
 
-    void onWideCountrySelected(QListWidgetItem* item);
-    void onWideCitySelected(QListWidgetItem* item);
+    void onWideCountrySelected(const QListWidgetItem* item);
+    void onWideCitySelected(const QListWidgetItem* item);
 
     void toggleAccordion(const QString& code);
     void ensureCities(const QString& code);
@@ -120,7 +120,7 @@ private:
     // Shows the "Disable Port Forwarding?" confirmation dialog.
     // bodyText is the message shown; onConfirm is called if the user confirms.
     void showDisablePortForwardingDialog(const QString& bodyText,
-                                         std::function<void()> onConfirm);
+                                         const std::function<void()>& onConfirm);
 
     static QString bubbleStyle(bool active);
 };

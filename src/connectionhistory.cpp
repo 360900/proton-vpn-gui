@@ -7,6 +7,7 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QStandardPaths>
+// ReSharper disable once CppUnusedIncludeDirective
 #include <ranges>
 
 static QString historyFilePath()
@@ -94,6 +95,27 @@ void ConnectionHistory::clear()
     m_entries.clear();
     save();
     emit changed();
+}
+
+void ConnectionHistory::trimToCount(const int newMax)
+{
+    if (newMax <= 0)
+    {
+        if (m_entries.isEmpty() == false)
+        {
+            m_entries.clear();
+            save();
+            emit changed();
+        }
+        return;
+    }
+
+    if (m_entries.size() > newMax)
+    {
+        m_entries = m_entries.sliced(0, newMax);
+        save();
+        emit changed();
+    }
 }
 
 void ConnectionHistory::load()

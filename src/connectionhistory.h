@@ -40,6 +40,10 @@ public:
     // Erase all history entries and persist the empty list.
     void clear();
 
+    // Trim stored entries to newMax and emit changed() if any were removed.
+    // Call this when the user lowers the "Recent Connections" count setting.
+    void trimToCount(int newMax);
+
 signals:
     // Emitted after entries are added via record() or removed via clear().
     void changed();

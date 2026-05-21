@@ -29,11 +29,11 @@ LoginPage::LoginPage(QWidget* parent)
     m_outerLayout = new QVBoxLayout(this);
     m_outerLayout->setAlignment(Qt::AlignCenter);
 
-    auto* card = new QWidget(this);
+    QWidget* card = new QWidget(this);
     card->setObjectName(QStringLiteral("loginCard"));
     card->setFixedWidth(360);
 
-    auto* cardLayout = new QVBoxLayout(card);
+    QVBoxLayout* cardLayout = new QVBoxLayout(card);
     cardLayout->setSpacing(0);
     cardLayout->setContentsMargins(0, 0, 0, 0);
 
@@ -50,7 +50,7 @@ LoginPage::LoginPage(QWidget* parent)
     // Shared error section below the stack
     m_errorContainer = new QWidget(card);
     m_errorContainer->setVisible(false);
-    auto* errorContainerLayout = new QVBoxLayout(m_errorContainer);
+    QVBoxLayout* errorContainerLayout = new QVBoxLayout(m_errorContainer);
     errorContainerLayout->setSpacing(6);
     errorContainerLayout->setContentsMargins(32, 0, 32, 16);
 
@@ -71,11 +71,11 @@ LoginPage::LoginPage(QWidget* parent)
     errorContainerLayout->addWidget(m_errorScrollArea);
 
     // "View Details" button
-    m_errorDetailsBtn = new QPushButton(QStringLiteral("View Details"), m_errorContainer);
+    m_errorDetailsBtn = new QPushButton(tr("View Details"), m_errorContainer);
     m_errorDetailsBtn->setFixedWidth(140);
     connect(m_errorDetailsBtn, &QPushButton::clicked, this, [this]()
     {
-        auto* dlg = new ErrorDetailsDialog(m_rawError, this);
+        ErrorDetailsDialog* dlg = new ErrorDetailsDialog(m_rawError, this);
         dlg->exec();
     });
     errorContainerLayout->addWidget(m_errorDetailsBtn, 0, Qt::AlignCenter);
@@ -92,17 +92,18 @@ LoginPage::LoginPage(QWidget* parent)
 void LoginPage::buildCredsWidget()
 {
     m_credsWidget = new QWidget();
-    auto* layout = new QVBoxLayout(m_credsWidget);
+    QVBoxLayout* layout = new QVBoxLayout(m_credsWidget);
     layout->setSpacing(16);
     layout->setContentsMargins(32, 32, 32, 24);
 
     // Logo
-    auto* logo = new SvgBanner(QStringLiteral(":/assets/proton-vpn-logo.svg"), 4.0, m_credsWidget);
+    SvgBanner* logo = new SvgBanner(QStringLiteral(":/assets/proton-vpn-logo.svg"), 4.0, m_credsWidget);
+    logo->setLightResource(QStringLiteral(":/assets/proton-vpn-logo-light.svg"));
     layout->addWidget(logo, 0, Qt::AlignCenter);
 
     layout->addSpacing(8);
 
-    auto* titleLabel = new QLabel(QStringLiteral("Sign in to Proton VPN"), m_credsWidget);
+    QLabel* titleLabel = new QLabel(tr("Sign in to Proton VPN"), m_credsWidget);
     titleLabel->setObjectName(QStringLiteral("sectionTitle"));
     titleLabel->setAlignment(Qt::AlignCenter);
     layout->addWidget(titleLabel);
@@ -110,24 +111,24 @@ void LoginPage::buildCredsWidget()
     layout->addSpacing(4);
 
     // Username
-    auto* usernameLabel = new QLabel(QStringLiteral("Username"), m_credsWidget);
+    QLabel* usernameLabel = new QLabel(tr("Username"), m_credsWidget);
     usernameLabel->setObjectName(QStringLiteral("fieldLabel"));
     layout->addWidget(usernameLabel);
 
     m_usernameEdit = new QLineEdit(m_credsWidget);
     m_usernameEdit->setObjectName(QStringLiteral("inputField"));
-    m_usernameEdit->setPlaceholderText(QStringLiteral("Enter your username"));
+    m_usernameEdit->setPlaceholderText(tr("Enter your username"));
     layout->addWidget(m_usernameEdit);
 
     // Password
-    auto* passwordLabel = new QLabel(QStringLiteral("Password"), m_credsWidget);
+    QLabel* passwordLabel = new QLabel(tr("Password"), m_credsWidget);
     passwordLabel->setObjectName(QStringLiteral("fieldLabel"));
     layout->addWidget(passwordLabel);
 
-    auto* passwordRow = new QHBoxLayout();
+    QHBoxLayout* passwordRow = new QHBoxLayout();
     m_passwordEdit = new QLineEdit(m_credsWidget);
     m_passwordEdit->setObjectName(QStringLiteral("inputField"));
-    m_passwordEdit->setPlaceholderText(QStringLiteral("Enter your password"));
+    m_passwordEdit->setPlaceholderText(tr("Enter your password"));
     m_passwordEdit->setEchoMode(QLineEdit::Password);
     passwordRow->addWidget(m_passwordEdit);
 
@@ -137,7 +138,7 @@ void LoginPage::buildCredsWidget()
     m_togglePasswordBtn->setIconSize({20, 20});
     m_togglePasswordBtn->setFixedSize(36, 36);
     m_togglePasswordBtn->setCheckable(true);
-    m_togglePasswordBtn->setToolTip(QStringLiteral("Show/hide password"));
+    m_togglePasswordBtn->setToolTip(tr("Show/hide password"));
     m_togglePasswordBtn->setCursor(Qt::PointingHandCursor);
     connect(m_togglePasswordBtn, &QPushButton::toggled, this, [this](bool checked)
     {
@@ -148,7 +149,7 @@ void LoginPage::buildCredsWidget()
     layout->addLayout(passwordRow);
 
     // Sign In button
-    m_loginBtn = new QPushButton(QStringLiteral("Sign In"), m_credsWidget);
+    m_loginBtn = new QPushButton(tr("Sign In"), m_credsWidget);
     m_loginBtn->setObjectName(QStringLiteral("primaryButton"));
     m_loginBtn->setCursor(Qt::PointingHandCursor);
     connect(m_loginBtn, &QPushButton::clicked, this, [this]()
@@ -164,23 +165,24 @@ void LoginPage::buildCredsWidget()
 void LoginPage::buildTFAWidget()
 {
     m_tfaWidget = new QWidget();
-    auto* layout = new QVBoxLayout(m_tfaWidget);
+    QVBoxLayout* layout = new QVBoxLayout(m_tfaWidget);
     layout->setSpacing(16);
     layout->setContentsMargins(32, 32, 32, 24);
 
     // Logo
-    auto* logo = new SvgBanner(QStringLiteral(":/assets/proton-vpn-logo.svg"), 4.0, m_tfaWidget);
+    SvgBanner* logo = new SvgBanner(QStringLiteral(":/assets/proton-vpn-logo.svg"), 4.0, m_tfaWidget);
+    logo->setLightResource(QStringLiteral(":/assets/proton-vpn-logo-light.svg"));
     layout->addWidget(logo, 0, Qt::AlignCenter);
 
     layout->addSpacing(8);
 
-    auto* titleLabel = new QLabel(QStringLiteral("Two-Factor Authentication"), m_tfaWidget);
+    QLabel* titleLabel = new QLabel(tr("Two-Factor Authentication"), m_tfaWidget);
     titleLabel->setObjectName(QStringLiteral("sectionTitle"));
     titleLabel->setAlignment(Qt::AlignCenter);
     layout->addWidget(titleLabel);
 
-    auto* descLabel = new QLabel(
-        QStringLiteral("Enter the 6-digit code from your authenticator app."),
+    QLabel* descLabel = new QLabel(
+        tr("Enter the 6-digit code from your authenticator app."),
         m_tfaWidget);
     descLabel->setObjectName(QStringLiteral("fieldLabel"));
     descLabel->setWordWrap(true);
@@ -189,17 +191,17 @@ void LoginPage::buildTFAWidget()
 
     layout->addSpacing(4);
 
-    auto* tfaLabel = new QLabel(QStringLiteral("2FA Token"), m_tfaWidget);
+    QLabel* tfaLabel = new QLabel(tr("2FA Token"), m_tfaWidget);
     tfaLabel->setObjectName(QStringLiteral("fieldLabel"));
     layout->addWidget(tfaLabel);
 
     m_tfaEdit = new QLineEdit(m_tfaWidget);
     m_tfaEdit->setObjectName(QStringLiteral("inputField"));
-    m_tfaEdit->setPlaceholderText(QStringLiteral("e.g. 123456"));
+    m_tfaEdit->setPlaceholderText(tr("e.g. 123456"));
     m_tfaEdit->setMaxLength(8); // TOTP codes are 6 digits; allow 8 for recovery codes
     layout->addWidget(m_tfaEdit);
 
-    m_tfaSubmitBtn = new QPushButton(QStringLiteral("Verify"), m_tfaWidget);
+    m_tfaSubmitBtn = new QPushButton(tr("Verify"), m_tfaWidget);
     m_tfaSubmitBtn->setObjectName(QStringLiteral("primaryButton"));
     m_tfaSubmitBtn->setCursor(Qt::PointingHandCursor);
     connect(m_tfaSubmitBtn, &QPushButton::clicked, this, [this]()
@@ -209,7 +211,7 @@ void LoginPage::buildTFAWidget()
     connect(m_tfaEdit, &QLineEdit::returnPressed, m_tfaSubmitBtn, &QPushButton::click);
     layout->addWidget(m_tfaSubmitBtn);
 
-    m_tfaCancelBtn = new QPushButton(QStringLiteral("Go Back"), m_tfaWidget);
+    m_tfaCancelBtn = new QPushButton(tr("Go Back"), m_tfaWidget);
     m_tfaCancelBtn->setCursor(Qt::PointingHandCursor);
     connect(m_tfaCancelBtn, &QPushButton::clicked, this, [this]()
     {
@@ -223,7 +225,7 @@ void LoginPage::show2FAPrompt() const
     setError(QString());
     m_tfaEdit->clear();
     m_tfaSubmitBtn->setEnabled(true);
-    m_tfaSubmitBtn->setText(QStringLiteral("Verify"));
+    m_tfaSubmitBtn->setText(tr("Verify"));
     m_tfaEdit->setEnabled(true);
     m_stack->setCurrentIndex(1);
     m_tfaEdit->setFocus();
@@ -236,7 +238,7 @@ void LoginPage::reset() const
     m_passwordEdit->clear();
     m_tfaEdit->clear();
     m_loginBtn->setEnabled(true);
-    m_loginBtn->setText(QStringLiteral("Sign In"));
+    m_loginBtn->setText(tr("Sign In"));
     m_usernameEdit->setEnabled(true);
     m_passwordEdit->setEnabled(true);
     m_togglePasswordBtn->setEnabled(true);
@@ -264,7 +266,7 @@ void LoginPage::setLoading(const bool loading) const
     if (m_stack->currentIndex() == 0)
     {
         m_loginBtn->setEnabled(!loading);
-        m_loginBtn->setText(loading ? QStringLiteral("Signing in…") : QStringLiteral("Sign In"));
+        m_loginBtn->setText(loading ? tr("Signing in\u2026") : tr("Sign In"));
         m_usernameEdit->setEnabled(!loading);
         m_passwordEdit->setEnabled(!loading);
         m_togglePasswordBtn->setEnabled(!loading);
@@ -272,7 +274,7 @@ void LoginPage::setLoading(const bool loading) const
     else
     {
         m_tfaSubmitBtn->setEnabled(!loading);
-        m_tfaSubmitBtn->setText(loading ? QStringLiteral("Verifying…") : QStringLiteral("Verify"));
+        m_tfaSubmitBtn->setText(loading ? tr("Verifying\u2026") : tr("Verify"));
         m_tfaEdit->setEnabled(!loading);
         m_tfaCancelBtn->setEnabled(!loading);
     }
@@ -295,7 +297,7 @@ void LoginPage::togglePasswordVisibility() const
 void LoginPage::checkPrereleaseBanner()
 {
     QFile vf(QStringLiteral(":/version.json"));
-    if (!vf.open(QIODevice::ReadOnly)) return;
+    if (vf.open(QIODevice::ReadOnly) == false) return;
 
     const QJsonObject obj = QJsonDocument::fromJson(vf.readAll()).object();
     vf.close();
@@ -303,7 +305,7 @@ void LoginPage::checkPrereleaseBanner()
     if (!obj.value(QStringLiteral("prerelease")).toBool(false)) return;
 
     const QString appVersion = obj.value(QStringLiteral("app_version")).toString();
-    const QString msg = QStringLiteral(
+    const QString msg = tr(
         "You are running a <b>pre-release</b> version of this app (<b>v%1</b>). "
         "It may contain bugs or incomplete features. Use with caution.")
         .arg(appVersion.toHtmlEscaped());
@@ -318,8 +320,9 @@ void LoginPage::checkPrereleaseBanner()
 void LoginPage::checkFlatpakBetaBanner()
 {
     m_flatpakBetaBanner = FlatpakBetaBanner::createIfFlatpak(this);
-    if (!m_flatpakBetaBanner) return;
-    connect(m_flatpakBetaBanner, &FlatpakBetaBanner::dismissed, this, [this]() {
+    if (m_flatpakBetaBanner == nullptr) return;
+    connect(m_flatpakBetaBanner, &FlatpakBetaBanner::dismissed, this, [this]()
+    {
         m_flatpakBetaBanner = nullptr;
     });
     m_outerLayout->addWidget(m_flatpakBetaBanner);
@@ -342,20 +345,18 @@ void LoginPage::onCliVersionReady(const QString& version)
     const QVersionNumber tested    = QVersionNumber::fromString(testedVersionStr);
     if (installed == tested) return;
 
-    static const QString kWorkaround = QStringLiteral(
+    static const QString kWorkaround = tr(
         " If you cannot log in due to this incompatibility, open a terminal and run "
         "<code>protonvpn connect</code> as a workaround until an update is released.");
 
     const QString msg = (installed > tested)
-        ? QStringLiteral(
-              "Your Proton VPN CLI (<b>v%1</b>) is newer than the version this app was "
-              "tested against (<b>v%2</b>). Things may work fine, but you could encounter "
-              "unexpected behavior.%3")
+        ? tr("Your Proton VPN CLI (<b>v%1</b>) is newer than the version this app was "
+             "tested against (<b>v%2</b>). Things may work fine, but you could encounter "
+             "unexpected behavior.%3")
               .arg(version, testedVersionStr, kWorkaround)
-        : QStringLiteral(
-              "Your Proton VPN CLI (<b>v%1</b>) is older than the version this app was "
-              "tested against (<b>v%2</b>). Some features may not work correctly. "
-              "Consider upgrading the CLI.%3")
+        : tr("Your Proton VPN CLI (<b>v%1</b>) is older than the version this app was "
+             "tested against (<b>v%2</b>). Some features may not work correctly. "
+             "Consider upgrading the CLI.%3")
               .arg(version, testedVersionStr, kWorkaround);
 
     m_versionBanner = new InfoBanner(msg, this);

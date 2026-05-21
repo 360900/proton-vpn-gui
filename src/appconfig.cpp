@@ -47,12 +47,32 @@ void AppConfig::load()
     m_notifications = obj.value(QStringLiteral("notifications")).toBool(true);
     m_recentConnectionsCount = obj.value(QStringLiteral("recent_connections_count")).toInt(5);
     m_startHidden = obj.value(QStringLiteral("start_hidden")).toBool(false);
+    m_showLocationPicker = obj.value(QStringLiteral("show_location_picker")).toBool(true);
+    m_showFavoritesDropdown = obj.value(QStringLiteral("show_favorites_dropdown")).toBool(true);
+    m_favoritesEnabled = obj.value(QStringLiteral("favorites_enabled")).toBool(true);
+    m_lastSeenVersion = obj.value(QStringLiteral("last_seen_version")).toString();
+
+    const QString themeStr = obj.value(QStringLiteral("theme")).toString(QStringLiteral("system"));
+    if (themeStr == QStringLiteral("dark"))
+    {
+        m_theme = Theme::Dark;
+    }
+    else if (themeStr == QStringLiteral("light"))
+    {
+        m_theme = Theme::Light;
+    }
+    else
+    {
+        m_theme = Theme::System;
+    }
 
     DBG_SETTINGS(QStringLiteral("Config loaded from: ") + configFile());
     DBG_SETTINGS(QStringLiteral("  auto_connect             = ") + (m_autoConnect ? QStringLiteral("true") : QStringLiteral("false")));
     DBG_SETTINGS(QStringLiteral("  notifications            = ") + (m_notifications ? QStringLiteral("true") : QStringLiteral("false")));
     DBG_SETTINGS(QStringLiteral("  recent_connections_count = ") + QString::number(m_recentConnectionsCount));
     DBG_SETTINGS(QStringLiteral("  start_hidden             = ") + (m_startHidden ? QStringLiteral("true") : QStringLiteral("false")));
+    DBG_SETTINGS(QStringLiteral("  show_location_picker     = ") + (m_showLocationPicker ? QStringLiteral("true") : QStringLiteral("false")));
+    DBG_SETTINGS(QStringLiteral("  theme                    = ") + themeStr);
 }
 
 bool AppConfig::save() const
@@ -66,6 +86,28 @@ bool AppConfig::save() const
     obj[QStringLiteral("notifications")] = m_notifications;
     obj[QStringLiteral("recent_connections_count")] = m_recentConnectionsCount;
     obj[QStringLiteral("start_hidden")] = m_startHidden;
+    obj[QStringLiteral("show_location_picker")] = m_showLocationPicker;
+    obj[QStringLiteral("show_favorites_dropdown")] = m_showFavoritesDropdown;
+    obj[QStringLiteral("favorites_enabled")] = m_favoritesEnabled;
+    if (m_lastSeenVersion.isEmpty() == false)
+    {
+        obj[QStringLiteral("last_seen_version")] = m_lastSeenVersion;
+    }
+
+    QString themeStr;
+    switch (m_theme)
+    {
+    case Theme::Dark:
+        themeStr = QStringLiteral("dark");
+        break;
+    case Theme::Light:
+        themeStr = QStringLiteral("light");
+        break;
+    default:
+        themeStr = QStringLiteral("system");
+        break;
+    }
+    obj[QStringLiteral("theme")] = themeStr;
 
     QFile f(configFile());
     if (!f.open(QIODevice::WriteOnly | QIODevice::Text))
@@ -114,3 +156,72 @@ void AppConfig::setStartHidden(const bool value)
     m_startHidden = value;
     (void)save();
 }
+
+AppConfig::Theme AppConfig::theme() const { return m_theme; }
+
+void AppConfig::setTheme(const Theme value)
+{
+    if (m_theme == value) return;
+    m_theme = value;
+    (void)save();
+}
+
+bool AppConfig::showLocationPicker() const { return m_showLocationPicker; }
+
+void AppConfig::setShowLocationPicker(const bool value)
+{
+    if (m_showLocationPicker == value) return;
+    DBG_SETTINGS(QStringLiteral("Setting changed: show_location_picker = ") + (value ? QStringLiteral("true") : QStringLiteral("false")));
+    m_showLocationPicker = value;
+    (void)save();
+}
+
+bool AppConfig::showFavoritesDropdown() const { return m_showFavoritesDropdown; }
+
+void AppConfig::setShowFavoritesDropdown(const bool value)
+{
+    if (m_showFavoritesDropdown == value) return;
+    DBG_SETTINGS(QStringLiteral("Setting changed: show_favorites_dropdown = ") + (value ? QStringLiteral("true") : QStringLiteral("false")));
+    m_showFavoritesDropdown = value;
+    (void)save();
+}
+
+bool AppConfig::favoritesEnabled() const { return m_favoritesEnabled; }
+
+void AppConfig::setFavoritesEnabled(const bool value)
+{
+    if (m_favoritesEnabled == value) return;
+    DBG_SETTINGS(QStringLiteral("Setting changed: favorites_enabled = ") + (value ? QStringLiteral("true") : QStringLiteral("false")));
+    m_favoritesEnabled = value;
+    (void)save();
+}
+
+QString AppConfig::lastSeenVersion() const { return m_lastSeenVersion; }
+
+void AppConfig::setLastSeenVersion(const QString& value)
+{
+    if (m_lastSeenVersion == value) return;
+    DBG_SETTINGS(QStringLiteral("Setting changed: last_seen_version = ") + value);
+    m_lastSeenVersion = value;
+    (void)save();
+}
+
+void AppConfig::resetToDefaults()
+{
+    DBG_SETTINGS(QStringLiteral("AppConfig::resetToDefaults() — deleting config file and resetting all values"));
+
+    // Delete the persisted file first so no stale data remains on disk.
+    QFile::remove(configFile());
+
+    // Reset every member to its compile-time default.
+    m_autoConnect            = false;
+    m_notifications          = true;
+    m_recentConnectionsCount = 5;
+    m_startHidden            = false;
+    m_theme                  = Theme::System;
+    m_showLocationPicker     = true;
+    m_showFavoritesDropdown  = true;
+    m_favoritesEnabled       = true;
+    m_lastSeenVersion        = QString();
+}
+

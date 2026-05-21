@@ -8,6 +8,11 @@
 #include <QToolButton>
 #include <QButtonGroup>
 #include <QFrame>
+#include <QTimer>
+#include <QFile>
+// ReSharper disable once CppUnusedIncludeDirective
+#include <QJsonDocument> // Ignore unused include warning; we do use QJsonDocument
+#include <QJsonObject>
 #include <utility>
 
 #include "pages/notinstalledpage.h"
@@ -19,8 +24,17 @@
 #include "appconfig.h"
 #include "connectionhistory.h"
 #include "geoutils.h"
+#include "dialogs/whatsnewdialog.h"
+#ifdef QT_DEBUG
+#include "pages/debugpage.h"
+#endif
 
-static QIcon svgNavIcon(const QString& path, const QSize& size = {24, 24}, bool tintInDarkMode = true)
+// Renders the SVG at `path` into a QIcon of `size`.
+// When `tintForTheme` is true (used for monochrome utility icons), the result
+// is tinted white on dark backgrounds and dark navy on light backgrounds so
+// the icon is always legible.  Pass false for branded/colored logos that
+// should be rendered with their own SVG colors unchanged.
+static QIcon svgNavIcon(const QString& path, const QSize& size = {24, 24}, bool tintForTheme = true)
 {
     QPixmap pix(size);
     pix.fill(Qt::transparent);
@@ -28,16 +42,14 @@ static QIcon svgNavIcon(const QString& path, const QSize& size = {24, 24}, bool 
     QSvgRenderer renderer(path);
     renderer.render(&p);
 
-    // Tint white in dark mode so monochrome icons are visible on the dark sidebar.
-    // Pass tintInDarkMode=false for logos/icons that carry their own colors.
-    if (tintInDarkMode)
+    if (tintForTheme)
     {
         const QColor windowColor = QApplication::palette().color(QPalette::Window);
-        if (windowColor.lightness() < 128)
-        {
-            p.setCompositionMode(QPainter::CompositionMode_SourceIn);
-            p.fillRect(pix.rect(), Qt::white);
-        }
+        const QColor tintColor = (windowColor.lightness() < 128)
+                                     ? Qt::white
+                                     : QColor(0x1a, 0x1a, 0x2e);
+        p.setCompositionMode(QPainter::CompositionMode_SourceIn);
+        p.fillRect(pix.rect(), tintColor);
     }
 
     p.end();
@@ -70,6 +82,7 @@ MainWindow::MainWindow(QWidget* parent)
     // Vertical divider
     auto* divider = new QFrame(this);
     divider->setFrameShape(QFrame::VLine);
+    divider->setFixedWidth(1);
     divider->setObjectName(QStringLiteral("sidebarDivider"));
     rootLayout->addWidget(divider);
 
@@ -81,7 +94,7 @@ MainWindow::MainWindow(QWidget* parent)
     auto* loadingPage = new QWidget();
     auto* loadingLayout = new QVBoxLayout(loadingPage);
     loadingLayout->setAlignment(Qt::AlignCenter);
-    auto* loadingLabel = new QLabel(QStringLiteral("Starting…"), loadingPage);
+    auto* loadingLabel = new QLabel(tr("Starting\u2026"), loadingPage);
     loadingLabel->setAlignment(Qt::AlignCenter);
     loadingLayout->addWidget(loadingLabel);
     m_stack->addWidget(loadingPage); // index 0 = Loading
@@ -163,6 +176,24 @@ MainWindow::MainWindow(QWidget* parent)
     m_stack->addWidget(m_settingsPage); // index 6
     connect(m_settingsPage, &SettingsPage::recentConnectionsCleared,
             m_vpnPage, &VpnPage::refreshRecentPicker);
+    connect(m_settingsPage, &SettingsPage::locationPickerVisibilityChanged,
+            m_vpnPage, &VpnPage::setLocationPickerVisible);
+    connect(m_settingsPage, &SettingsPage::favoritesDropdownVisibilityChanged,
+            m_vpnPage, &VpnPage::setFavoritesDropdownVisible);
+    connect(m_settingsPage, &SettingsPage::favoritesEnabledChanged,
+            m_vpnPage, &VpnPage::setFavoritesEnabled);
+    connect(m_settingsPage, &SettingsPage::favoritesCleared,
+            m_vpnPage, &VpnPage::refreshFavoritesPicker);
+
+#ifdef QT_DEBUG
+    // Debug page (index 7) – only present in debug builds
+    m_debugPage = new DebugPage();
+    m_stack->addWidget(m_debugPage); // index 7
+#endif
+
+    // Keep the recent picker in sync with any history change (record, clear, trim).
+    connect(&ConnectionHistory::instance(), &ConnectionHistory::changed,
+            m_vpnPage, &VpnPage::refreshRecentPicker);
 
     // VpnManager signals
     connect(m_manager, &VpnManager::connectionCityKnown,
@@ -202,6 +233,8 @@ MainWindow::MainWindow(QWidget* parent)
             m_sidebar->setEnabled(false);
             showPage(Page::Login);
         }
+        // Delay slightly so the page transition is visible before the dialog pops.
+        QTimer::singleShot(400, this, &MainWindow::maybeShowWhatsNew);
     });
 
     connect(m_manager, &VpnManager::twoFactorRequired, this, [this]()
@@ -223,7 +256,7 @@ MainWindow::MainWindow(QWidget* parent)
         else
         {
             m_loginPage->setError(error.isEmpty()
-                                      ? QStringLiteral("Login failed. Please check your credentials.")
+                                      ? tr("Login failed. Please check your credentials.")
                                       : error);
         }
     });
@@ -270,14 +303,14 @@ MainWindow::MainWindow(QWidget* parent)
     // System tray icon
     m_trayIcon = new QSystemTrayIcon(this);
     auto* trayMenu = new QMenu(this);
-    trayMenu->addAction(QStringLiteral("Show"), this, [this]()
+    trayMenu->addAction(tr("Show"), this, [this]()
     {
         showNormal();
         raise();
         activateWindow();
     });
     trayMenu->addSeparator();
-    m_trayConnectAction = trayMenu->addAction(QStringLiteral("Connect"), this, [this]()
+    m_trayConnectAction = trayMenu->addAction(tr("Connect"), this, [this]()
     {
         const VpnState state = m_manager->currentState();
         if (state == VpnState::Connected)
@@ -286,7 +319,7 @@ MainWindow::MainWindow(QWidget* parent)
             m_manager->connectVpn();
     });
     trayMenu->addSeparator();
-    trayMenu->addAction(QStringLiteral("Quit"), this, [this]()
+    trayMenu->addAction(tr("Quit"), this, [this]()
     {
         // Only prompt when the VPN is active
         if (m_manager->currentState() != VpnState::Connected &&
@@ -297,7 +330,7 @@ MainWindow::MainWindow(QWidget* parent)
         }
 
         auto* dlg = new QDialog(this);
-        dlg->setWindowTitle(QStringLiteral("Quit ProtonVPN"));
+        dlg->setWindowTitle(tr("Quit ProtonVPN"));
         dlg->setAttribute(Qt::WA_DeleteOnClose);
         dlg->setModal(true);
         dlg->setMinimumWidth(440);
@@ -307,8 +340,10 @@ MainWindow::MainWindow(QWidget* parent)
         layout->setContentsMargins(24, 24, 24, 20);
 
         auto* msgLabel = new QLabel(
-            QStringLiteral("The VPN is currently active.<br>"
-                           "What would you like to do before quitting?"), dlg);
+            QStringLiteral("%1<br>%2").arg(
+                tr("The VPN is currently active.").toHtmlEscaped(),
+                tr("What would you like to do before quitting?").toHtmlEscaped()),
+            dlg);
         msgLabel->setWordWrap(true);
         msgLabel->setTextFormat(Qt::RichText);
         layout->addWidget(msgLabel);
@@ -316,8 +351,10 @@ MainWindow::MainWindow(QWidget* parent)
         if (m_vpnPage->isPortForwardingActive())
         {
             auto* pfLabel = new QLabel(
-                QStringLiteral("<i>Note: the forwarded port lease will lapse shortly after "
-                               "the app closes, as the keep-alive loop will no longer be running.</i>"),
+                QStringLiteral("<i>%1</i>").arg(
+                    tr("Note: the forwarded port lease will lapse shortly after "
+                       "the app closes, as the keep-alive loop will no longer be running.")
+                    .toHtmlEscaped()),
                 dlg);
             pfLabel->setWordWrap(true);
             pfLabel->setTextFormat(Qt::RichText);
@@ -327,14 +364,14 @@ MainWindow::MainWindow(QWidget* parent)
         auto* btnRow = new QHBoxLayout();
         btnRow->setSpacing(8);
 
-        auto* cancelBtn = new QPushButton(QStringLiteral("Cancel"), dlg);
+        auto* cancelBtn = new QPushButton(tr("Cancel"), dlg);
         cancelBtn->setObjectName(QStringLiteral("secondaryButton"));
 
-        auto* leaveOnBtn = new QPushButton(QStringLiteral("Leave VPN on"), dlg);
+        auto* leaveOnBtn = new QPushButton(tr("Leave VPN on"), dlg);
         leaveOnBtn->setObjectName(QStringLiteral("leaveVpnOnButton"));
         leaveOnBtn->setDefault(true);
 
-        auto* disconnectBtn = new QPushButton(QStringLiteral("Disconnect VPN"), dlg);
+        auto* disconnectBtn = new QPushButton(tr("Disconnect VPN"), dlg);
         disconnectBtn->setObjectName(QStringLiteral("dangerButton"));
 
         // Uniform size: same height, equal width via stretch, reduced horizontal
@@ -397,6 +434,7 @@ void MainWindow::setupSidebar()
     auto* layout = new QVBoxLayout(m_sidebar);
     layout->setContentsMargins(0, 8, 0, 8);
     layout->setSpacing(4);
+    layout->setAlignment(Qt::AlignHCenter);
 
     auto* btnGroup = new QButtonGroup(m_sidebar);
     btnGroup->setExclusive(true);
@@ -407,7 +445,7 @@ void MainWindow::setupSidebar()
     m_logoBtn->setIcon(svgNavIcon(QStringLiteral(":/assets/proton-vpn-sign.svg"), {40, 40}, false));
     m_logoBtn->setIconSize({40, 40});
     m_logoBtn->setFixedSize(56, 56);
-    m_logoBtn->setToolTip(QStringLiteral("VPN"));
+    m_logoBtn->setToolTip(tr("VPN"));
     m_logoBtn->setCursor(Qt::PointingHandCursor);
     m_logoBtn->setObjectName(QStringLiteral("logoButton"));
     m_logoBtn->setCheckable(true);
@@ -419,7 +457,7 @@ void MainWindow::setupSidebar()
 
     auto makeNavBtn = [&](const QString& tooltip, const QString& iconPath) -> QToolButton*
     {
-        auto* btn = new QToolButton(m_sidebar);
+        QToolButton* btn = new QToolButton(m_sidebar);
         btn->setToolTip(tooltip);
         btn->setIcon(svgNavIcon(iconPath, {24, 24}));
         btn->setIconSize({24, 24});
@@ -432,8 +470,8 @@ void MainWindow::setupSidebar()
         return btn;
     };
 
-    m_countriesNavBtn = makeNavBtn(QStringLiteral("Countries"), QStringLiteral(":/assets/server-smart-routing.svg"));
-    m_accountNavBtn = makeNavBtn(QStringLiteral("Account"), QStringLiteral(":/assets/person-lines-fill.svg"));
+    m_countriesNavBtn = makeNavBtn(tr("Countries"), QStringLiteral(":/assets/server-smart-routing.svg"));
+    m_accountNavBtn = makeNavBtn(tr("Account"), QStringLiteral(":/assets/person-lines-fill.svg"));
 
     connect(m_countriesNavBtn, &QToolButton::clicked, this, [this]() { showPage(Page::Countries); });
     connect(m_accountNavBtn, &QToolButton::clicked, this, [this]()
@@ -445,12 +483,21 @@ void MainWindow::setupSidebar()
     layout->addStretch();
 
     // Settings button pinned to the bottom of the sidebar
-    m_settingsNavBtn = makeNavBtn(QStringLiteral("Settings"), QStringLiteral(":/assets/gear.svg"));
+    m_settingsNavBtn = makeNavBtn(tr("Settings"), QStringLiteral(":/assets/gear.svg"));
     connect(m_settingsNavBtn, &QToolButton::clicked, this, [this]()
     {
         showPage(Page::Settings);
         m_settingsPage->refresh();
     });
+
+#ifdef QT_DEBUG
+    // Debug button – visible by default in debug builds, toggled with F11
+    m_debugNavBtn = makeNavBtn(tr("Debug"), QStringLiteral(":/assets/bug.svg"));
+    connect(m_debugNavBtn, &QToolButton::clicked, this, [this]()
+    {
+        showPage(Page::Debug);
+    });
+#endif
 }
 
 void MainWindow::showPage(Page page) const
@@ -461,17 +508,77 @@ void MainWindow::showPage(Page page) const
     m_countriesNavBtn->setChecked(page == Page::Countries);
     m_accountNavBtn->setChecked(page == Page::Account);
     m_settingsNavBtn->setChecked(page == Page::Settings);
+#ifdef QT_DEBUG
+    if (m_debugNavBtn != nullptr)
+    {
+        m_debugNavBtn->setChecked(page == Page::Debug);
+    }
+#endif
 }
 
-void MainWindow::setNavActive(QToolButton* btn)
+void MainWindow::setNavActive(const QToolButton* btn)
 {
-    for (auto* b : {m_logoBtn, m_countriesNavBtn, m_accountNavBtn, m_settingsNavBtn})
+    for (QToolButton* b : {m_logoBtn, m_countriesNavBtn, m_accountNavBtn, m_settingsNavBtn})
+    {
         b->setChecked(b == btn);
+    }
+#ifdef QT_DEBUG
+    if (m_debugNavBtn != nullptr)
+    {
+        m_debugNavBtn->setChecked(m_debugNavBtn == btn);
+    }
+#endif
 }
 
 void MainWindow::startupCheck() const
 {
     m_manager->checkInstalled();
+}
+
+void MainWindow::refreshIcons()
+{
+    // Logo button: render with original SVG colors (no tinting) — it's a branded icon.
+    setWindowIcon(svgNavIcon(QStringLiteral(":/assets/proton-vpn-sign.svg"), {64, 64}, false));
+    m_logoBtn->setIcon(svgNavIcon(QStringLiteral(":/assets/proton-vpn-sign.svg"), {40, 40}, false));
+    // Nav icons: monochrome utility icons — tint for legibility.
+    m_countriesNavBtn->setIcon(svgNavIcon(QStringLiteral(":/assets/server-smart-routing.svg"), {24, 24}));
+    m_accountNavBtn->setIcon(svgNavIcon(QStringLiteral(":/assets/person-lines-fill.svg"), {24, 24}));
+    m_settingsNavBtn->setIcon(svgNavIcon(QStringLiteral(":/assets/gear.svg"), {24, 24}));
+#ifdef QT_DEBUG
+    if (m_debugNavBtn != nullptr)
+    {
+        m_debugNavBtn->setIcon(svgNavIcon(QStringLiteral(":/assets/bug.svg"), {24, 24}));
+    }
+#endif
+}
+
+void MainWindow::changeEvent(QEvent* event)
+{
+    QWidget::changeEvent(event);
+    if (event->type() == QEvent::PaletteChange)
+    {
+        refreshIcons();
+    }
+}
+
+void MainWindow::keyPressEvent(QKeyEvent* event)
+{
+#ifdef QT_DEBUG
+    if (event->key() == Qt::Key_F11 && m_debugNavBtn != nullptr)
+    {
+        m_debugNavBtn->setVisible(m_debugNavBtn->isVisible() == false);
+        // If the debug page is currently shown and we just hid the button,
+        // navigate away to avoid being stuck on a visually orphaned page.
+        if (m_debugNavBtn->isVisible() == false &&
+            m_stack->currentIndex() == std::to_underlying(Page::Debug))
+        {
+            showPage(Page::Vpn);
+        }
+        event->accept();
+        return;
+    }
+#endif
+    QWidget::keyPressEvent(event);
 }
 
 void MainWindow::sendNotification(const QString& title, const QString& message) const
@@ -491,8 +598,7 @@ void MainWindow::sendNotification(const QString& title, const QString& message) 
 }
 
 void MainWindow::updateTrayIcon(VpnState state)
-{
-    // Choose asset based on state
+{    // Choose asset based on state
     QString asset;
     switch (state)
     {
@@ -527,33 +633,33 @@ void MainWindow::updateTrayIcon(VpnState state)
     switch (state)
     {
     case VpnState::Connected:
-        m_trayIcon->setToolTip(QStringLiteral("ProtonVPN – Connected"));
-        m_trayConnectAction->setText(QStringLiteral("Disconnect"));
+        m_trayIcon->setToolTip(tr("ProtonVPN \u2013 Connected"));
+        m_trayConnectAction->setText(tr("Disconnect"));
         m_trayConnectAction->setEnabled(true);
         break;
     case VpnState::Connecting:
-        m_trayIcon->setToolTip(QStringLiteral("ProtonVPN – Connecting…"));
-        m_trayConnectAction->setText(QStringLiteral("Connecting…"));
+        m_trayIcon->setToolTip(tr("ProtonVPN \u2013 Connecting\u2026"));
+        m_trayConnectAction->setText(tr("Connecting\u2026"));
         m_trayConnectAction->setEnabled(false);
         break;
     case VpnState::Disconnecting:
-        m_trayIcon->setToolTip(QStringLiteral("ProtonVPN – Disconnecting…"));
-        m_trayConnectAction->setText(QStringLiteral("Disconnecting…"));
+        m_trayIcon->setToolTip(tr("ProtonVPN \u2013 Disconnecting\u2026"));
+        m_trayConnectAction->setText(tr("Disconnecting\u2026"));
         m_trayConnectAction->setEnabled(false);
         break;
     case VpnState::Error:
-        m_trayIcon->setToolTip(QStringLiteral("ProtonVPN – Error"));
-        m_trayConnectAction->setText(QStringLiteral("Connect"));
+        m_trayIcon->setToolTip(tr("ProtonVPN \u2013 Error"));
+        m_trayConnectAction->setText(tr("Connect"));
         m_trayConnectAction->setEnabled(true);
         break;
     case VpnState::Disconnected:
-        m_trayIcon->setToolTip(QStringLiteral("ProtonVPN – Disconnected"));
-        m_trayConnectAction->setText(QStringLiteral("Connect"));
+        m_trayIcon->setToolTip(tr("ProtonVPN \u2013 Disconnected"));
+        m_trayConnectAction->setText(tr("Connect"));
         m_trayConnectAction->setEnabled(true);
         break;
     default: // Unknown — still checking
-        m_trayIcon->setToolTip(QStringLiteral("ProtonVPN – Checking…"));
-        m_trayConnectAction->setText(QStringLiteral("Connect"));
+        m_trayIcon->setToolTip(tr("ProtonVPN \u2013 Checking\u2026"));
+        m_trayConnectAction->setText(tr("Connect"));
         m_trayConnectAction->setEnabled(false);
         break;
     }
@@ -564,24 +670,24 @@ void MainWindow::updateTrayIcon(VpnState state)
         switch (state)
         {
         case VpnState::Connecting:
-            sendNotification(QStringLiteral("ProtonVPN – Connecting"),
-                             QStringLiteral("Establishing a secure VPN connection…"));
+            sendNotification(tr("ProtonVPN \u2013 Connecting"),
+                             tr("Establishing a secure VPN connection\u2026"));
             break;
         case VpnState::Disconnecting:
-            sendNotification(QStringLiteral("ProtonVPN – Disconnecting"),
-                             QStringLiteral("Closing the VPN connection…"));
+            sendNotification(tr("ProtonVPN \u2013 Disconnecting"),
+                             tr("Closing the VPN connection\u2026"));
             break;
         case VpnState::Connected:
-            sendNotification(QStringLiteral("ProtonVPN – Connected"),
-                             QStringLiteral("You are now protected by ProtonVPN."));
+            sendNotification(tr("ProtonVPN \u2013 Connected"),
+                             tr("You are now protected by ProtonVPN."));
             break;
         case VpnState::Disconnected:
             // Only notify on disconnect if we were previously connected/connecting
             if (m_lastNotifiedState == VpnState::Connected ||
                 m_lastNotifiedState == VpnState::Disconnecting)
             {
-                sendNotification(QStringLiteral("ProtonVPN – Disconnected"),
-                                 QStringLiteral("The VPN connection has been closed."));
+                sendNotification(tr("ProtonVPN \u2013 Disconnected"),
+                                 tr("The VPN connection has been closed."));
             }
             break;
         default:
@@ -591,3 +697,37 @@ void MainWindow::updateTrayIcon(VpnState state)
     }
 }
 
+void MainWindow::maybeShowWhatsNew()
+{
+    if (m_whatsNewShown)
+        return;
+
+    m_whatsNewShown = true;
+
+    // Read the current app version from the embedded version.json resource.
+    QString currentVersion;
+    QFile vf(QStringLiteral(":/version.json"));
+    if (vf.open(QIODevice::ReadOnly))
+    {
+        const QJsonObject obj = QJsonDocument::fromJson(vf.readAll()).object();
+        vf.close();
+        currentVersion = obj.value(QStringLiteral("app_version")).toString();
+    }
+
+    if (currentVersion.isEmpty())
+        return;
+
+    const QString lastSeen = AppConfig::instance().lastSeenVersion();
+
+    // Show the dialog if this is the first launch or a version change was detected.
+    if (lastSeen != currentVersion)
+    {
+        // Update the stored version immediately so repeated crashes don't keep
+        // showing the dialog on every launch.
+        AppConfig::instance().setLastSeenVersion(currentVersion);
+
+        auto* dlg = new WhatsNewDialog(currentVersion, this);
+        dlg->setModal(true);
+        dlg->show();
+    }
+}
