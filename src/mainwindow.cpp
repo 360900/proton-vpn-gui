@@ -297,7 +297,18 @@ MainWindow::MainWindow(QWidget* parent)
                 if (m_startupAutoConnectPending && state == VpnState::Disconnected)
                 {
                     m_startupAutoConnectPending = false;
-                    m_manager->connectVpn();
+                    const QString serverKey = AppConfig::instance().autoConnectServer();
+                    if (serverKey.isEmpty())
+                    {
+                        m_manager->connectVpn();
+                    }
+                    else
+                    {
+                        const int sep = serverKey.indexOf(QLatin1Char('|'));
+                        const QString country = (sep >= 0) ? serverKey.left(sep) : serverKey;
+                        const QString city    = (sep >= 0) ? serverKey.mid(sep + 1) : QString();
+                        m_manager->connectVpn(country, city);
+                    }
                 }
             });
 

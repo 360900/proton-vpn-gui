@@ -470,3 +470,16 @@ QFrame#drawerNotch {
 QFrame#drawerNotch:hover {
     background-color: #d0d0e8;
 }
+
+QComboBox:disabled {
+    color: #aaaabb;
+    background-color: #e0e0ea;
+    border-color: #c0c0d0;
+}
+QComboBox::drop-down:disabled {
+    border-color: #c0c0d0;
+}
+QComboBox::down-arrow:disabled {
+    opacity: 0.3;
+}
+

@@ -473,3 +473,15 @@ QFrame#drawerNotch:hover {
     background-color: #2d2d4a;
 }
 
+QComboBox:disabled {
+    color: #555570;
+    background-color: #1e1e32;
+    border-color: #2a2a40;
+}
+QComboBox::drop-down:disabled {
+    border-color: #2a2a40;
+}
+QComboBox::down-arrow:disabled {
+    opacity: 0.3;
+}
+
