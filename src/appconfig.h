@@ -15,6 +15,9 @@ public:
     static AppConfig &instance();
 
     bool autoConnect() const;
+    // Empty string means "Fastest Server"; "CC" means fastest in country;
+    // "CC|city" means a specific city.  Stored as-is.
+    QString autoConnectServer() const;
     bool notifications() const;
     int  recentConnectionsCount() const;
     bool startHidden() const;
@@ -25,6 +28,7 @@ public:
     QString lastSeenVersion() const;
 
     void setAutoConnect(bool value);
+    void setAutoConnectServer(const QString& value);
     void setNotifications(bool value);
     void setRecentConnectionsCount(int value);
     void setStartHidden(bool value);
@@ -45,6 +49,7 @@ private:
     bool save() const;
 
     bool m_autoConnect    = false;
+    QString m_autoConnectServer;
     bool m_notifications  = true;
     int  m_recentConnectionsCount = 5;
     bool m_startHidden = false;

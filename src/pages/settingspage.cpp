@@ -347,9 +347,19 @@ bool SettingsPage::setAutoStart(const bool enable, QString& errorOut)
         // When running as a Flatpak the launcher must be `flatpak run <app-id>`
         // rather than the sandbox-internal binary path, so the service works
         // even when the app is not running from within the sandbox at login.
-        const QString exe = isRunningAsFlatpak()
-            ? QStringLiteral("flatpak run io.github.wheat32.ProtonVPNQt")
-            : QCoreApplication::applicationFilePath();
+        // systemd requires an absolute path in ExecStart, so we resolve the
+        // full path to the flatpak binary (typically /usr/bin/flatpak).
+        QString exe;
+        if (isRunningAsFlatpak())
+        {
+            const QString flatpakBin = QStandardPaths::findExecutable(QStringLiteral("flatpak"));
+            exe = (flatpakBin.isEmpty() ? QStringLiteral("/usr/bin/flatpak") : flatpakBin)
+                  + QStringLiteral(" run io.github.wheat32.ProtonVPNQt");
+        }
+        else
+        {
+            exe = QCoreApplication::applicationFilePath();
+        }
 
         // Create the systemd user service directory if it doesn't exist.
         if (QDir().mkpath(kSystemdUserServiceDir) == false)
@@ -427,6 +437,71 @@ void SettingsPage::updateAutoConnectRowVisibility() const
         m_autoConnectToggle->setOn(false, false);
         AppConfig::instance().setAutoConnect(false);
     }
+    updateAutoConnectServerRow();
+}
+
+void SettingsPage::populateAutoConnectServerCombo() const
+{
+    if (m_autoConnectServerCombo == nullptr) return;
+
+    const QString saved = AppConfig::instance().autoConnectServer();
+
+    // Block signals while rebuilding to avoid spurious saves.
+    QSignalBlocker blocker(m_autoConnectServerCombo);
+    m_autoConnectServerCombo->clear();
+    m_autoConnectServerCombo->addItem(tr("Fastest Server"), QString());
+
+    const QList<FavoriteEntry> favs = FavoritesManager::instance().entries();
+    for (const FavoriteEntry& e : favs)
+    {
+        const QString key = e.city.isEmpty()
+            ? e.countryCode
+            : e.countryCode + QStringLiteral("|") + e.city;
+        const QString display = e.city.isEmpty()
+            ? tr("%1 — Fastest").arg(e.countryName)
+            : tr("%1 — %2").arg(e.countryName, e.city);
+        m_autoConnectServerCombo->addItem(display, key);
+    }
+
+    // Restore saved selection (or stay on index 0 if not found).
+    int idx = 0;
+    for (int i = 1; i < m_autoConnectServerCombo->count(); ++i)
+    {
+        if (m_autoConnectServerCombo->itemData(i).toString() == saved)
+        {
+            idx = i;
+            break;
+        }
+    }
+    m_autoConnectServerCombo->setCurrentIndex(idx);
+}
+
+void SettingsPage::updateAutoConnectServerRow() const
+{
+    if (m_autoConnectServerRow == nullptr) return;
+
+    const bool autoConnectOn = m_autoConnectToggle != nullptr && m_autoConnectToggle->isOn();
+    const bool autoStartOn   = m_autoStartToggle   != nullptr && m_autoStartToggle->isOn();
+    const bool show          = autoStartOn && autoConnectOn;
+    m_autoConnectServerRow->setVisible(show);
+
+    if (m_autoConnectServerCombo == nullptr) return;
+
+    const bool hasFavorites = FavoritesManager::instance().hasAnyEntries();
+    // Disable the whole row (grays out the label too) but keep the tooltip
+    // on the row itself so it shows even when the row is disabled.
+    m_autoConnectServerRow->setEnabled(hasFavorites);
+    if (!hasFavorites)
+    {
+        const QString tip = tr("Add favorite servers to choose a specific server for auto-connect.");
+        m_autoConnectServerRow->setToolTip(tip);
+        m_autoConnectServerCombo->setToolTip(tip);
+    }
+    else
+    {
+        m_autoConnectServerRow->setToolTip(QString());
+        m_autoConnectServerCombo->setToolTip(QString());
+    }
 }
 
 SettingsPage::SettingsPage(VpnManager* manager, NatPmpManager* natPmpManager, QWidget* parent)
@@ -488,12 +563,21 @@ SettingsPage::SettingsPage(VpnManager* manager, NatPmpManager* natPmpManager, QW
         appContentLayout->setSpacing(8);
         scroll->setWidget(appContent);
 
-        // Helper: add a section header label (uppercase, muted)
+        // Helper: add a section header label with an optional top separator
+        bool appFirstSection = true;
         auto addHeader = [&](const QString& title)
         {
+            if (!appFirstSection) {
+                auto* sep = new QFrame(appContent);
+                sep->setFrameShape(QFrame::HLine);
+                sep->setObjectName(QStringLiteral("appSectionDivider"));
+                appContentLayout->addWidget(sep);
+            }
+            appFirstSection = false;
+
             auto* w = new QWidget(appContent);
             auto* hl = new QHBoxLayout(w);
-            hl->setContentsMargins(4, 8, 4, 2);
+            hl->setContentsMargins(4, 16, 4, 4);
             auto* lbl = new QLabel(title.toUpper(), w);
             lbl->setObjectName(QStringLiteral("appSectionHeader"));
             hl->addWidget(lbl);
@@ -585,6 +669,37 @@ SettingsPage::SettingsPage(VpnManager* manager, NatPmpManager* natPmpManager, QW
             acRl->addWidget(m_autoConnectToggle);
             startupLayout->addWidget(m_autoConnectRow); // direct add – no divider above it
             updateAutoConnectRowVisibility();
+
+            // Sub-sub-row: indented server dropdown (no divider – belongs to auto-connect)
+            m_autoConnectServerRow = new QWidget(startupCard);
+            auto* srvRl = new QHBoxLayout(m_autoConnectServerRow);
+            srvRl->setContentsMargins(48, 4, 16, 12);
+            srvRl->setSpacing(16);
+            srvRl->addWidget(makeTextCol(m_autoConnectServerRow,
+                                         tr("Server"),
+                                         tr("Choose which server to connect to on startup.")), 1);
+            m_autoConnectServerCombo = new QComboBox(m_autoConnectServerRow);
+            m_autoConnectServerCombo->setMinimumWidth(180);
+            populateAutoConnectServerCombo();
+            connect(m_autoConnectServerCombo, &QComboBox::currentIndexChanged, this, [this](int idx)
+            {
+                const QString val = m_autoConnectServerCombo->itemData(idx).toString();
+                AppConfig::instance().setAutoConnectServer(val);
+            });
+            // Keep the combo up-to-date when favorites change.
+            connect(&FavoritesManager::instance(), &FavoritesManager::changed, this, [this]()
+            {
+                populateAutoConnectServerCombo();
+                updateAutoConnectServerRow();
+            });
+            // Show/hide when auto-connect toggle changes.
+            connect(m_autoConnectToggle, &ToggleWithStatus::toggled, this, [this](bool)
+            {
+                updateAutoConnectServerRow();
+            });
+            srvRl->addWidget(m_autoConnectServerCombo);
+            startupLayout->addWidget(m_autoConnectServerRow); // direct add – no divider above it
+            updateAutoConnectServerRow();
         }
 
         // Start Hidden
@@ -645,11 +760,20 @@ SettingsPage::SettingsPage(VpnManager* manager, NatPmpManager* natPmpManager, QW
         appContentLayout->addWidget(m_appPlusSection);
 
         // Section header helper that targets m_appPlusSection
+        bool plusFirstSection = true;
         auto addPlusHeader = [&](const QString& title)
         {
+            if (!plusFirstSection) {
+                auto* sep = new QFrame(m_appPlusSection);
+                sep->setFrameShape(QFrame::HLine);
+                sep->setObjectName(QStringLiteral("appSectionDivider"));
+                appPlusSectionLayout->addWidget(sep);
+            }
+            plusFirstSection = false;
+
             auto* w = new QWidget(m_appPlusSection);
             auto* hl = new QHBoxLayout(w);
-            hl->setContentsMargins(4, 4, 4, 2);
+            hl->setContentsMargins(4, 16, 4, 4);
             auto* lbl = new QLabel(title.toUpper(), w);
             lbl->setObjectName(QStringLiteral("appSectionHeader"));
             hl->addWidget(lbl);

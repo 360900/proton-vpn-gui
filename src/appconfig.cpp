@@ -44,6 +44,7 @@ void AppConfig::load()
     f.close();
 
     m_autoConnect = obj.value(QStringLiteral("auto_connect")).toBool(false);
+    m_autoConnectServer = obj.value(QStringLiteral("auto_connect_server")).toString();
     m_notifications = obj.value(QStringLiteral("notifications")).toBool(true);
     m_recentConnectionsCount = obj.value(QStringLiteral("recent_connections_count")).toInt(5);
     m_startHidden = obj.value(QStringLiteral("start_hidden")).toBool(false);
@@ -83,6 +84,8 @@ bool AppConfig::save() const
 
     QJsonObject obj;
     obj[QStringLiteral("auto_connect")] = m_autoConnect;
+    if (!m_autoConnectServer.isEmpty())
+        obj[QStringLiteral("auto_connect_server")] = m_autoConnectServer;
     obj[QStringLiteral("notifications")] = m_notifications;
     obj[QStringLiteral("recent_connections_count")] = m_recentConnectionsCount;
     obj[QStringLiteral("start_hidden")] = m_startHidden;
@@ -119,11 +122,21 @@ bool AppConfig::save() const
 
 bool AppConfig::autoConnect() const { return m_autoConnect; }
 
+QString AppConfig::autoConnectServer() const { return m_autoConnectServer; }
+
 void AppConfig::setAutoConnect(bool value)
 {
     if (m_autoConnect == value) return;
     DBG_SETTINGS(QStringLiteral("Setting changed: auto_connect = ") + (value ? QStringLiteral("true") : QStringLiteral("false")));
     m_autoConnect = value;
+    (void)save();
+}
+
+void AppConfig::setAutoConnectServer(const QString& value)
+{
+    if (m_autoConnectServer == value) return;
+    DBG_SETTINGS(QStringLiteral("Setting changed: auto_connect_server = ") + value);
+    m_autoConnectServer = value;
     (void)save();
 }
 
@@ -215,6 +228,7 @@ void AppConfig::resetToDefaults()
 
     // Reset every member to its compile-time default.
     m_autoConnect            = false;
+    m_autoConnectServer      = QString();
     m_notifications          = true;
     m_recentConnectionsCount = 5;
     m_startHidden            = false;

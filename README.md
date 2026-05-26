@@ -136,6 +136,57 @@ tar -xzf proton-vpn-qt-app-linux-x86_64.tar.gz
 
 ---
 
+## D-Bus Interface
+
+While running, the app registers a D-Bus service on the **session bus** that any other application or script can query.
+
+| | Value |
+|---|---|
+| **Service** | `com.protonvpn.app` |
+| **Object path** | `/com/protonvpn/app` |
+| **Interface** | `com.protonvpn.app.Status` |
+
+### Properties (read-only)
+
+| Property | Type | Description |
+|---|---|---|
+| `Status` | `string` | Current VPN state: `connected`, `connecting`, `disconnected`, `disconnecting`, `error`, or `unknown` |
+| `ConnectedServer` | `string` | Active server name (e.g. `US-NJ#189`) while connected; empty otherwise |
+
+### Signals
+
+| Signal | Arguments | Description |
+|---|---|---|
+| `StatusChanged` | `status: string` | Emitted on every VPN state transition |
+
+### Example usage
+
+```bash
+# Read current status
+gdbus call --session \
+  --dest com.protonvpn.app \
+  --object-path /com/protonvpn/app \
+  --method org.freedesktop.DBus.Properties.Get \
+  com.protonvpn.app.Status Status
+
+# Read all properties at once
+gdbus call --session \
+  --dest com.protonvpn.app \
+  --object-path /com/protonvpn/app \
+  --method org.freedesktop.DBus.Properties.GetAll \
+  com.protonvpn.app.Status
+
+# Monitor live state change signals
+gdbus monitor --session --dest com.protonvpn.app
+
+# Introspect the full interface
+gdbus introspect --session \
+  --dest com.protonvpn.app \
+  --object-path /com/protonvpn/app
+```
+
+---
+
 ## Author & Credits
 
 - **Nicholas Page** ([wheat32](https://github.com/wheat32)) — author

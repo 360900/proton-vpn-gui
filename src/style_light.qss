@@ -401,10 +401,17 @@ QFrame#plusDividerLine {
 /* ── App-tab section headers ── */
 QLabel#appSectionHeader {
     color: #4a3a9a;
-    font-size: 12px;
+    font-size: 13px;
     font-weight: 700;
-    letter-spacing: 1px;
+    letter-spacing: 1.5px;
     background-color: transparent;
+}
+QFrame#appSectionDivider {
+    color: #c8c8dc;
+    background-color: #c8c8dc;
+    max-height: 1px;
+    border: none;
+    margin: 8px 0px 0px 0px;
 }
 
 /* ── About nav row (clickable settings-style row) ── */
@@ -463,3 +470,16 @@ QFrame#drawerNotch {
 QFrame#drawerNotch:hover {
     background-color: #d0d0e8;
 }
+
+QComboBox:disabled {
+    color: #aaaabb;
+    background-color: #e0e0ea;
+    border-color: #c0c0d0;
+}
+QComboBox::drop-down:disabled {
+    border-color: #c0c0d0;
+}
+QComboBox::down-arrow:disabled {
+    opacity: 0.3;
+}
+

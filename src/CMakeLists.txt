@@ -16,6 +16,7 @@ find_package(Qt6 COMPONENTS
         Widgets
         Svg
         SvgWidgets
+        DBus
         REQUIRED)
 
 find_package(Qt6 COMPONENTS LinguistTools QUIET)
@@ -35,6 +36,8 @@ set(SOURCES
         uihelpers.h
         vpnmanager.h
         vpnmanager.cpp
+        dbus/vpnstatusadaptor.h
+        dbus/vpnstatusadaptor.cpp
         cli/protonvpncli.cpp
         cli/natpmpmanager.h
         cli/natpmpmanager.cpp
@@ -98,6 +101,7 @@ target_link_libraries(proton_vpn_qt
         Qt6::Widgets
         Qt6::Svg
         Qt6::SvgWidgets
+        Qt6::DBus
 )
 
 install(TARGETS proton_vpn_qt
