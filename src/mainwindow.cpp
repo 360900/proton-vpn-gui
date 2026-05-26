@@ -66,6 +66,7 @@ MainWindow::MainWindow(QWidget* parent)
 
     m_manager = new VpnManager(this);
 
+
     // Root layout: sidebar + content
     auto* rootLayout = new QHBoxLayout(this);
     rootLayout->setContentsMargins(0, 0, 0, 0);

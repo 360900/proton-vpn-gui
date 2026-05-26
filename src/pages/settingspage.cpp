@@ -347,9 +347,19 @@ bool SettingsPage::setAutoStart(const bool enable, QString& errorOut)
         // When running as a Flatpak the launcher must be `flatpak run <app-id>`
         // rather than the sandbox-internal binary path, so the service works
         // even when the app is not running from within the sandbox at login.
-        const QString exe = isRunningAsFlatpak()
-            ? QStringLiteral("flatpak run io.github.wheat32.ProtonVPNQt")
-            : QCoreApplication::applicationFilePath();
+        // systemd requires an absolute path in ExecStart, so we resolve the
+        // full path to the flatpak binary (typically /usr/bin/flatpak).
+        QString exe;
+        if (isRunningAsFlatpak())
+        {
+            const QString flatpakBin = QStandardPaths::findExecutable(QStringLiteral("flatpak"));
+            exe = (flatpakBin.isEmpty() ? QStringLiteral("/usr/bin/flatpak") : flatpakBin)
+                  + QStringLiteral(" run io.github.wheat32.ProtonVPNQt");
+        }
+        else
+        {
+            exe = QCoreApplication::applicationFilePath();
+        }
 
         // Create the systemd user service directory if it doesn't exist.
         if (QDir().mkpath(kSystemdUserServiceDir) == false)
@@ -488,12 +498,21 @@ SettingsPage::SettingsPage(VpnManager* manager, NatPmpManager* natPmpManager, QW
         appContentLayout->setSpacing(8);
         scroll->setWidget(appContent);
 
-        // Helper: add a section header label (uppercase, muted)
+        // Helper: add a section header label with an optional top separator
+        bool appFirstSection = true;
         auto addHeader = [&](const QString& title)
         {
+            if (!appFirstSection) {
+                auto* sep = new QFrame(appContent);
+                sep->setFrameShape(QFrame::HLine);
+                sep->setObjectName(QStringLiteral("appSectionDivider"));
+                appContentLayout->addWidget(sep);
+            }
+            appFirstSection = false;
+
             auto* w = new QWidget(appContent);
             auto* hl = new QHBoxLayout(w);
-            hl->setContentsMargins(4, 8, 4, 2);
+            hl->setContentsMargins(4, 16, 4, 4);
             auto* lbl = new QLabel(title.toUpper(), w);
             lbl->setObjectName(QStringLiteral("appSectionHeader"));
             hl->addWidget(lbl);
@@ -645,11 +664,20 @@ SettingsPage::SettingsPage(VpnManager* manager, NatPmpManager* natPmpManager, QW
         appContentLayout->addWidget(m_appPlusSection);
 
         // Section header helper that targets m_appPlusSection
+        bool plusFirstSection = true;
         auto addPlusHeader = [&](const QString& title)
         {
+            if (!plusFirstSection) {
+                auto* sep = new QFrame(m_appPlusSection);
+                sep->setFrameShape(QFrame::HLine);
+                sep->setObjectName(QStringLiteral("appSectionDivider"));
+                appPlusSectionLayout->addWidget(sep);
+            }
+            plusFirstSection = false;
+
             auto* w = new QWidget(m_appPlusSection);
             auto* hl = new QHBoxLayout(w);
-            hl->setContentsMargins(4, 4, 4, 2);
+            hl->setContentsMargins(4, 16, 4, 4);
             auto* lbl = new QLabel(title.toUpper(), w);
             lbl->setObjectName(QStringLiteral("appSectionHeader"));
             hl->addWidget(lbl);

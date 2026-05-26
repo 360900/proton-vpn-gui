@@ -401,10 +401,17 @@ QFrame#plusDividerLine {
 /* ── App-tab section headers ── */
 QLabel#appSectionHeader {
     color: #c0b8e8;
-    font-size: 12px;
+    font-size: 13px;
     font-weight: 700;
-    letter-spacing: 1px;
+    letter-spacing: 1.5px;
     background-color: transparent;
+}
+QFrame#appSectionDivider {
+    color: #3a3a55;
+    background-color: #3a3a55;
+    max-height: 1px;
+    border: none;
+    margin: 8px 0px 0px 0px;
 }
 
 /* ── About nav row (clickable settings-style row) ── */

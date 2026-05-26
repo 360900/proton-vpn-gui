@@ -25,6 +25,8 @@ class MainWindow : public QWidget
 public:
     explicit MainWindow(QWidget* parent = nullptr);
 
+    VpnManager* manager() const { return m_manager; }
+
 private:
     enum class Page
     {

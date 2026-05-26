@@ -61,6 +61,8 @@ public:
     // Last country / city passed to connectVpn() — empty if connected via CLI.
     QString     lastConnectCountry() const { return m_lastConnectCountry; }
     QString     lastConnectCity()    const { return m_lastConnectCity; }
+    // Last server string seen while Connected (e.g. "US-NJ#189") — empty otherwise.
+    QString     connectedServer()    const { return m_connectedServer; }
     // Reads the port-forwarding setting directly from the settings JSON file.
     bool        portForwardingEnabled() const;
 

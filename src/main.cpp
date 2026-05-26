@@ -11,10 +11,13 @@
 #include "thememanager.h"
 #include "debug.h"
 #include "cli/flatpakutils.h"
+#include "dbus/vpnstatusadaptor.h"
 #include <QSysInfo>
 #include <QLocale>
 #include <QStandardPaths>
 #include <QTranslator>
+#include <QDBusConnection>
+#include <QDBusError>
 
 int main(int argc, char* argv[])
 {
@@ -93,6 +96,31 @@ int main(int argc, char* argv[])
     ThemeManager::apply(AppConfig::instance().theme());
 
     MainWindow w;
+
+    // Expose VPN status on the D-Bus session bus so any other app can query it.
+    // The adaptor must be parented to the adapted object (VpnManager), and the
+    // service/object registration is done here in main so the lifetime is clear.
+    VpnStatusAdaptor* dbusAdaptor = new VpnStatusAdaptor(w.manager());
+    Q_UNUSED(dbusAdaptor)
+    QDBusConnection sessionBus = QDBusConnection::sessionBus();
+    if (sessionBus.isConnected())
+    {
+        sessionBus.registerObject(QStringLiteral("/com/protonvpn/app"), w.manager());
+        if (sessionBus.registerService(QStringLiteral("com.protonvpn.app")) == false)
+        {
+            DBG_APP(QStringLiteral("D-Bus: failed to register service com.protonvpn.app: ") +
+                    sessionBus.lastError().message());
+        }
+        else
+        {
+            DBG_APP(QStringLiteral("D-Bus: service com.protonvpn.app registered on session bus"));
+        }
+    }
+    else
+    {
+        DBG_APP(QStringLiteral("D-Bus: cannot connect to session bus — VPN status will not be exposed"));
+    }
+
     if (AppConfig::instance().startHidden())
         w.hide();
     else
