@@ -1060,7 +1060,7 @@ VpnPage::VpnPage(VpnManager* manager, QWidget* parent)
     m_scrollOffsetWidget = new QWidget(m_narrowContent);
     m_scrollOffsetWidget->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
     m_scrollOffsetLayout = new QVBoxLayout(m_scrollOffsetWidget);
-    m_scrollOffsetLayout->setContentsMargins(PickerDrawer::kCollapsedW, 0, 0, 0);
+    m_scrollOffsetLayout->setContentsMargins(PickerDrawer::kCollapsedW, 0, PickerDrawer::kCollapsedW, 0);
     m_scrollOffsetLayout->setSpacing(0);
     m_scrollOffsetLayout->addWidget(m_scrollArea, 1);
 
@@ -1317,7 +1317,7 @@ VpnPage::VpnPage(VpnManager* manager, QWidget* parent)
             m_drawerNotch->setVisible(hasAny);
             // Only offset the scroll area; logo/power rows stay full-width.
             const int leftMargin = hasAny ? PickerDrawer::kCollapsedW : 0;
-            m_scrollOffsetLayout->setContentsMargins(leftMargin, 0, 0, 0);
+            m_scrollOffsetLayout->setContentsMargins(leftMargin, 0, leftMargin, 0);
             repositionDrawer();
         }
     });
@@ -1493,7 +1493,7 @@ void VpnPage::applyWideMode(bool wide)
         m_scrollOffsetLayout->addWidget(m_scrollArea, 1);
         // Restore the scroll offset: only push right when the drawer is present.
         const int leftMargin = m_drawer->hasAnyVisiblePicker() ? PickerDrawer::kCollapsedW : 0;
-        m_scrollOffsetLayout->setContentsMargins(leftMargin, 0, 0, 0);
+        m_scrollOffsetLayout->setContentsMargins(leftMargin, 0, leftMargin, 0);
 
         // 3. Swap visible containers.
         m_wideContent->setVisible(false);
