@@ -17,8 +17,9 @@ AboutDialog::AboutDialog(const QString& installedCliVersion, QWidget* parent)
     : QDialog(parent)
 {
     // Load versions from the embedded version.json resource
-    QString appVersion       = QStringLiteral("unknown");
-    QString testedVersionStr = QStringLiteral("unknown");
+    QString appVersion      = QStringLiteral("unknown");
+    QString cliVersionMin;
+    QString cliVersionMax;
     QFile vf(QStringLiteral(":/version.json"));
     if (vf.open(QIODevice::ReadOnly))
     {
@@ -28,10 +29,27 @@ AboutDialog::AboutDialog(const QString& installedCliVersion, QWidget* parent)
         {
             appVersion = obj[QStringLiteral("app_version")].toString();
         }
-        if (obj.contains(QStringLiteral("cli_version_tested")))
-        {
-            testedVersionStr = obj[QStringLiteral("cli_version_tested")].toString();
-        }
+        cliVersionMin = obj.value(QStringLiteral("cli_version_tested_min")).toString();
+        cliVersionMax = obj.value(QStringLiteral("cli_version_tested_max")).toString();
+    }
+
+    // Build the "min-max" display string, e.g. "1.0.0-1.0.1"
+    QString testedVersionStr;
+    if (cliVersionMin.isEmpty() == false && cliVersionMax.isEmpty() == false)
+    {
+        testedVersionStr = cliVersionMin + QStringLiteral("-") + cliVersionMax;
+    }
+    else if (cliVersionMin.isEmpty() == false)
+    {
+        testedVersionStr = cliVersionMin;
+    }
+    else if (cliVersionMax.isEmpty() == false)
+    {
+        testedVersionStr = cliVersionMax;
+    }
+    else
+    {
+        testedVersionStr = QStringLiteral("unknown");
     }
 
     setWindowTitle(tr("About ProtonVPN Qt App"));
@@ -83,27 +101,28 @@ AboutDialog::AboutDialog(const QString& installedCliVersion, QWidget* parent)
     versionGrid->addWidget(makeKey(tr("Package:")),            3, 0);
     versionGrid->addWidget(new QLabel(isFlatpak ? tr("Flatpak") : tr("System"), versionWidget), 3, 1);
 
-    // Installed CLI version – highlighted only when it differs from tested
+    // Installed CLI version – highlighted only when outside the tested range
     if (installedCliVersion.isEmpty() == false)
     {
         const QVersionNumber installed = QVersionNumber::fromString(installedCliVersion);
-        const QVersionNumber tested    = QVersionNumber::fromString(testedVersionStr);
+        const QVersionNumber verMin    = QVersionNumber::fromString(cliVersionMin);
+        const QVersionNumber verMax    = QVersionNumber::fromString(cliVersionMax);
 
-        if (installed.isNull() == false
-            && tested.isNull() == false
-            && installed != tested)
+        const bool tooOld  = installed.isNull() == false && verMin.isNull() == false
+                             && installed < verMin;
+        const bool tooNew  = installed.isNull() == false && verMax.isNull() == false
+                             && installed > verMax;
+
+        if (tooOld || tooNew)
         {
-            const bool newer  = installed > tested;
-            const QString arrow   = newer ? QStringLiteral(" \u25b2") : QStringLiteral(" \u25bc");
-            const QString color   = newer ? QStringLiteral("#f59e0b") : QStringLiteral("#ef4444");
-            const QString tooltip = newer
-                ? tr("Your installed CLI (v%1) is newer than the version this app was "
-                     "tested against (v%2). Things may work fine, but you could "
-                     "encounter unexpected behavior.")
+            const QString arrow   = tooNew ? QStringLiteral(" \u25b2") : QStringLiteral(" \u25bc");
+            const QString color   = tooNew ? QStringLiteral("#f59e0b") : QStringLiteral("#ef4444");
+            const QString tooltip = tooNew
+                ? tr("Your installed CLI (v%1) is newer than the tested range (%2). "
+                     "Things may work fine, but you could encounter unexpected behavior.")
                       .arg(installedCliVersion, testedVersionStr)
-                : tr("Your installed CLI (v%1) is older than the version this app was "
-                     "tested against (v%2). Some features may not work correctly. "
-                     "Consider upgrading the CLI.")
+                : tr("Your installed CLI (v%1) is older than the tested range (%2). "
+                     "Some features may not work correctly. Consider upgrading the CLI.")
                       .arg(installedCliVersion, testedVersionStr);
 
             QLabel* valLabel = new QLabel(installedCliVersion + arrow, versionWidget);

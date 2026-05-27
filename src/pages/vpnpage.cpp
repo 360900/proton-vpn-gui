@@ -1614,30 +1614,41 @@ void VpnPage::checkFlatpakBetaBanner()
 
 void VpnPage::onCliVersionReady(const QString& version)
 {
-    QString testedVersionStr;
+    QString cliVersionMin;
+    QString cliVersionMax;
     QFile vf(QStringLiteral(":/version.json"));
     if (vf.open(QIODevice::ReadOnly))
     {
         const QJsonObject obj = QJsonDocument::fromJson(vf.readAll()).object();
         vf.close();
-        testedVersionStr = obj.value(QStringLiteral("cli_version_tested")).toString();
+        cliVersionMin = obj.value(QStringLiteral("cli_version_tested_min")).toString();
+        cliVersionMax = obj.value(QStringLiteral("cli_version_tested_max")).toString();
     }
 
-    if (version.isEmpty() || testedVersionStr.isEmpty()) return;
+    if (version.isEmpty() || (cliVersionMin.isEmpty() && cliVersionMax.isEmpty())) return;
 
     const QVersionNumber installed = QVersionNumber::fromString(version);
-    const QVersionNumber tested    = QVersionNumber::fromString(testedVersionStr);
-    if (installed == tested) return;
+    const QVersionNumber verMin    = QVersionNumber::fromString(cliVersionMin);
+    const QVersionNumber verMax    = QVersionNumber::fromString(cliVersionMax);
 
-    const QString msg = (installed > tested)
-        ? tr("Your Proton VPN CLI (<b>v%1</b>) is newer than the version this app was "
-             "tested against (<b>v%2</b>). Things may work fine, but you could encounter "
-             "unexpected behavior.")
-              .arg(version, testedVersionStr)
-        : tr("Your Proton VPN CLI (<b>v%1</b>) is older than the version this app was "
-             "tested against (<b>v%2</b>). Some features may not work correctly. "
-             "Consider upgrading the CLI.")
-              .arg(version, testedVersionStr);
+    const bool tooOld = installed.isNull() == false && verMin.isNull() == false
+                        && installed < verMin;
+    const bool tooNew = installed.isNull() == false && verMax.isNull() == false
+                        && installed > verMax;
+
+    if (tooOld == false && tooNew == false) return;
+
+    const QString rangeStr = (cliVersionMin.isEmpty() == false && cliVersionMax.isEmpty() == false)
+        ? (cliVersionMin + QStringLiteral("-") + cliVersionMax)
+        : (cliVersionMin.isEmpty() ? cliVersionMax : cliVersionMin);
+
+    const QString msg = tooNew
+        ? tr("Your Proton VPN CLI (<b>v%1</b>) is newer than the tested range (<b>%2</b>). "
+             "Things may work fine, but you could encounter unexpected behavior.")
+              .arg(version, rangeStr)
+        : tr("Your Proton VPN CLI (<b>v%1</b>) is older than the tested range (<b>%2</b>). "
+             "Some features may not work correctly. Consider upgrading the CLI.")
+              .arg(version, rangeStr);
 
     const auto* scrollArea = findChild<QScrollArea*>(QStringLiteral("vpnScrollArea"));
     if (scrollArea == nullptr || scrollArea->widget() == nullptr) return;

@@ -65,7 +65,7 @@ This transparently wraps commands with `flatpak-spawn --host` when inside a Flat
 - **No `.ui` files** — all layouts built programmatically in constructors
 - **Singletons** via `static T& instance()`: `AppConfig`, `ConnectionHistory`
 - **Logging**: use `DBG_APP(msg)`, `DBG_CLI(msg)`, `DBG_SETTINGS(msg)` macros (stdout, tagged+timestamped). Never use `qDebug()`.
-- **Versioning**: single source of truth is `src/version.json` (keys: `app_version`, `cli_version_tested`); read at runtime via embedded resource `:/version.json`
+- **Versioning**: single source of truth is `src/version.json` (keys: `app_version`, `cli_version_tested_min`, `cli_version_tested_max`); read at runtime via embedded resource `:/version.json`
 - **Palette**: dark Proton-branded theme set in `main.cpp` (`bg #1a1a2e`, accent purple `#6d4aff`)
 - **Translations**: Qt Linguist, source file `i18n/proton_vpn_qt_en.ts`; UI strings use `tr()` or `QCoreApplication::translate()`
 - **Language**: American English only — variable names, comments, and default/fallback text strings (e.g. `color` not `colour`, `canceled` not `cancelled`, `initialize` not `initialise`)
