@@ -2,7 +2,7 @@
 Name=Proton VPN
 GenericName=VPN Client
 Comment=Qt GUI frontend for Proton VPN CLI
-Exec=proton-vpn-qt-app
+Exec=proton_vpn_qt
 Icon=proton-vpn-qt-app
 Terminal=false
 Type=Application

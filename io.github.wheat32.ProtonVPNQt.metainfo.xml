@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>io.github.wheat32.ProtonVPNQt</id>
+  <name>Proton VPN</name>
+  <summary>Qt GUI frontend for the ProtonVPN CLI</summary>
+  <description>
+    <p>
+      A lightweight Qt-based graphical interface for the ProtonVPN command-line
+      tool. Supports connecting to servers by country or city, account management,
+      favorites, connection history, and VPN settings.
+    </p>
+    <p>
+      When running as a Flatpak, the app communicates with the ProtonVPN CLI
+      installed on the host system via flatpak-spawn. The CLI must be installed
+      separately.
+    </p>
+  </description>
+
+  <url type="homepage">https://github.com/wheat32/proton-vpn-qt-app</url>
+  <url type="bugtracker">https://github.com/wheat32/proton-vpn-qt-app/issues</url>
+
+  <launchable type="desktop-id">io.github.wheat32.ProtonVPNQt.desktop</launchable>
+
+  <screenshots>
+    <screenshot type="default">
+      <caption>Main connection page</caption>
+      <image>https://raw.githubusercontent.com/wheat32/proton-vpn-qt-app/main/screenshots/main-page_normal-width.png</image>
+    </screenshot>
+    <screenshot>
+      <caption>Main connection page (narrow)</caption>
+      <image>https://raw.githubusercontent.com/wheat32/proton-vpn-qt-app/main/screenshots/main-page_narrow-width.png</image>
+    </screenshot>
+    <screenshot>
+      <caption>Countries list</caption>
+      <image>https://raw.githubusercontent.com/wheat32/proton-vpn-qt-app/main/screenshots/countries-list_normal-width.png</image>
+    </screenshot>
+    <screenshot>
+      <caption>Countries list (narrow)</caption>
+      <image>https://raw.githubusercontent.com/wheat32/proton-vpn-qt-app/main/screenshots/countries-list_narrow-width.png</image>
+    </screenshot>
+    <screenshot>
+      <caption>Account page</caption>
+      <image>https://raw.githubusercontent.com/wheat32/proton-vpn-qt-app/main/screenshots/account-page.png</image>
+    </screenshot>
+    <screenshot>
+      <caption>Settings — VPN tab</caption>
+      <image>https://raw.githubusercontent.com/wheat32/proton-vpn-qt-app/main/screenshots/settings-page_vpn-tab.png</image>
+    </screenshot>
+    <screenshot>
+      <caption>Settings — App tab</caption>
+      <image>https://raw.githubusercontent.com/wheat32/proton-vpn-qt-app/main/screenshots/settings-page_app-tab-1.png</image>
+    </screenshot>
+    <screenshot>
+      <caption>Settings — App tab (continued)</caption>
+      <image>https://raw.githubusercontent.com/wheat32/proton-vpn-qt-app/main/screenshots/settings-page_app-tab-2.png</image>
+    </screenshot>
+    <screenshot>
+      <caption>Settings — Appearance tab</caption>
+      <image>https://raw.githubusercontent.com/wheat32/proton-vpn-qt-app/main/screenshots/settings-page_appearance-tab.png</image>
+    </screenshot>
+  </screenshots>
+
+  <releases>
+    <release version="1.9.0" date="2026-05-27">
+      <description>
+        <p>Latest release.</p>
+      </description>
+    </release>
+  </releases>
+
+  <content_rating type="oars-1.1"/>
+
+  <metadata_license>MIT</metadata_license>
+  <project_license>GPL-3.0-only</project_license>
+
+  <requires>
+    <internet>always</internet>
+  </requires>
+
+  <recommends>
+    <control>pointing</control>
+    <control>keyboard</control>
+  </recommends>
+</component>
+
