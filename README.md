@@ -60,14 +60,19 @@ When Port Forwarding is enabled in Settings and you are connected to a P2P serve
 ---
 
 ## Screenshots
-<img width="670" height="629" alt="Screenshot_20260318_142949" src="https://github.com/user-attachments/assets/0ceaabad-f436-4363-9916-96dbdfd957ed" />
-<div>Country List - Wide View</div>
-<img width="670" height="629" alt="Screenshot_20260318_142959" src="https://github.com/user-attachments/assets/01ac1c89-825e-475c-83b2-db0d90001158" />
-<div>Country List - Narrow View</div>
-<img width="571" height="629" alt="Screenshot_20260318_143126" src="https://github.com/user-attachments/assets/4c25b20e-71d6-4c6d-a02e-40829c36c59e" />
-<img width="535" height="630" alt="Screenshot_20260307_151135" src="https://github.com/user-attachments/assets/687d6bde-039e-4ac4-8fb7-c7de7f2374a6" />
-<img width="670" height="629" alt="Screenshot_20260318_143011" src="https://github.com/user-attachments/assets/d590e188-0a05-42f4-9e45-35bbf2c6bbf0" />
-<img width="571" height="629" alt="Screenshot_20260318_143126" src="https://github.com/user-attachments/assets/f87d3d76-b70b-44b6-87a9-3a6e8c6643ac" />
+Main Page
+<img width="571" height="614" alt="Screenshot_20260527_152515" src="https://github.com/user-attachments/assets/ed419e10-124c-4533-b194-16d067cbad0d" />
+<img width="773" height="614" alt="Screenshot_20260527_152536" src="https://github.com/user-attachments/assets/8c4e8a0a-213c-4404-955e-9610cb084100" />
+Country List
+<img width="468" height="614" alt="Screenshot_20260527_152503" src="https://github.com/user-attachments/assets/f886d61a-b1bb-4185-a5ae-bf8ee40b71ee" />
+<img width="626" height="694" alt="Screenshot_20260527_152448" src="https://github.com/user-attachments/assets/37fb89c2-821a-449a-9ce5-7d603dfe4088" />
+Account Page
+<img width="626" height="694" alt="Screenshot_20260527_152439" src="https://github.com/user-attachments/assets/95860a4e-156b-47f3-adce-41b9c57a7f28" />
+Settings Page
+<img width="626" height="694" alt="Screenshot_20260527_152434" src="https://github.com/user-attachments/assets/1ccab72f-c56b-4b9e-9ac6-b0da97c294e7" />
+<img width="626" height="694" alt="Screenshot_20260527_152427" src="https://github.com/user-attachments/assets/acdbf5dc-e951-4fe3-b2fa-a818af4db170" />
+<img width="626" height="694" alt="Screenshot_20260527_152423" src="https://github.com/user-attachments/assets/ad0d4d5b-bf2c-4552-a53f-f713bd0ea031" />
+<img width="626" height="694" alt="Screenshot_20260527_152420" src="https://github.com/user-attachments/assets/a05708fd-8e4e-4141-ab89-02dbd90a2043" />
 
 ---
 
