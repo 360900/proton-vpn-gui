@@ -117,6 +117,10 @@ install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/../proton-vpn-sign.svg
         RENAME proton-vpn-qt-app.svg
 )
 
+install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/../io.github.wheat32.ProtonVPNQt.metainfo.xml
+        DESTINATION share/metainfo
+)
+
 # ── Tests ────────────────────────────────────────────────────────────────────
 enable_testing()
 add_subdirectory(tests)

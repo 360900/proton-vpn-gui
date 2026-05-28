@@ -42,9 +42,7 @@ modules:
       # Rename the .desktop file itself to the app-id (required by Flatpak)
       - mv /app/share/applications/proton-vpn-qt-app.desktop
           /app/share/applications/io.github.wheat32.ProtonVPNQt.desktop
-      # Install AppStream metainfo (required by Flathub)
-      - install -Dm644 ../io.github.wheat32.ProtonVPNQt.metainfo.xml
-          /app/share/metainfo/io.github.wheat32.ProtonVPNQt.metainfo.xml
+
     sources:
       - type: dir
         path: .
