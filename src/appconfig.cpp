@@ -8,7 +8,7 @@
 #include <QJsonObject>
 #include <QStandardPaths>
 
-// ── Easy-to-change config location ──────────────────────────────────────────
+//  Easy-to-change config location
 // QStandardPaths::GenericConfigLocation resolves to:
 //   - Native install : ~/.config/ProtonVPN-Qt/
 //   - Flatpak sandbox: ~/.var/app/io.github.wheat32.ProtonVPNQt/config/ProtonVPN-Qt/
@@ -21,7 +21,6 @@ static QString configDir()
            + QStringLiteral("/ProtonVPN-Qt");
 }
 static QString configFile() { return configDir() + QStringLiteral("/app.json"); }
-// ────────────────────────────────────────────────────────────────────────────
 
 AppConfig& AppConfig::instance()
 {

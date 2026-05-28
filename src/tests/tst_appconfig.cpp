@@ -24,7 +24,7 @@ private slots:
         QStandardPaths::setTestModeEnabled(false);
     }
 
-    // ── Default values ────────────────────────────────────────────────────────
+    //  Default values
     // With no pre-existing config file the singleton must expose the defaults
     // documented in appconfig.h.
     void defaults_autoConnectIsFalse()
@@ -52,7 +52,7 @@ private slots:
         QCOMPARE(AppConfig::instance().theme(), AppConfig::Theme::System);
     }
 
-    // ── Setters round-trip ───────────────────────────────────────────────────
+    //  Setters round-trip
     void setAutoConnect_storesValue()
     {
         AppConfig::instance().setAutoConnect(true);
@@ -77,7 +77,7 @@ private slots:
         AppConfig::instance().setStartHidden(false);
     }
 
-    // ── Theme round-trip ─────────────────────────────────────────────────────
+    //  Theme round-trip
     void setTheme_dark_storesValue()
     {
         AppConfig::instance().setTheme(AppConfig::Theme::Dark);
@@ -96,7 +96,7 @@ private slots:
         QCOMPARE(AppConfig::instance().theme(), AppConfig::Theme::System);
     }
 
-    // ── recentConnectionsCount boundary ─────────────────────────────────────
+    //  recentConnectionsCount boundary
     void setRecentConnectionsCount_negativeValue_clampsToZero()
     {
         AppConfig::instance().setRecentConnectionsCount(-1);

@@ -516,7 +516,7 @@ SettingsPage::SettingsPage(VpnManager* manager, NatPmpManager* natPmpManager, QW
     titleLabel->setObjectName(QStringLiteral("sectionTitle"));
     outerLayout->addWidget(titleLabel);
 
-    // ── Tab widget ────────────────────────────────────────────
+    //  Tab widget
     auto* tabs = new QTabWidget(this);
     tabs->setObjectName(QStringLiteral("settingsTabs"));
     outerLayout->addWidget(tabs, 1);
@@ -609,7 +609,7 @@ SettingsPage::SettingsPage(VpnManager* manager, NatPmpManager* natPmpManager, QW
             return {card, cl};
         };
 
-        // ── Section: Startup ─────────────────────────────────
+        //  Section: Startup
         addHeader(tr("Startup"));
         auto [startupCard, startupLayout] = makeAppCard();
 
@@ -722,7 +722,7 @@ SettingsPage::SettingsPage(VpnManager* manager, NatPmpManager* natPmpManager, QW
             addStartup(row);
         }
 
-        // ── Section: Notifications ───────────────────────────
+        //  Section: Notifications
         addHeader(tr("Notifications"));
         auto [notifCard, notifLayout] = makeAppCard();
         (void)notifLayout; // layout used implicitly via makeAppCard
@@ -746,11 +746,11 @@ SettingsPage::SettingsPage(VpnManager* manager, NatPmpManager* natPmpManager, QW
             notifLayout->addWidget(row);
         }
 
-        // ── Plus Members Only divider ─────────────────────────
+        //  Plus Members Only divider
         m_appPlusDivider = makePlusDivider(appContent);
         appContentLayout->addWidget(m_appPlusDivider);
 
-        // ── Plus-only section container ───────────────────────
+        //  Plus-only section container
         // m_appPlusSection wraps History + Favorites so updatePlusSectionState
         // can disable/fade the whole block for free users.
         m_appPlusSection = new QWidget(appContent);
@@ -780,7 +780,7 @@ SettingsPage::SettingsPage(VpnManager* manager, NatPmpManager* natPmpManager, QW
             appPlusSectionLayout->addWidget(w);
         };
 
-        // ── Sub-section: Connection History ──────────────────
+        //  Sub-section: Connection History
         addPlusHeader(tr("Connection History"));
         auto [histCard, histLayout] = makeSubCard(m_appPlusSection, appPlusSectionLayout);
 
@@ -850,7 +850,7 @@ SettingsPage::SettingsPage(VpnManager* manager, NatPmpManager* natPmpManager, QW
             });
         }
 
-        // ── Sub-section: Favorites ────────────────────────────
+        //  Sub-section: Favorites
         addPlusHeader(tr("Favorites"));
         auto [favCard, favLayout] = makeSubCard(m_appPlusSection, appPlusSectionLayout);
 
@@ -927,7 +927,7 @@ SettingsPage::SettingsPage(VpnManager* manager, NatPmpManager* natPmpManager, QW
             });
         }
 
-        // ── Section: About ────────────────────────────────────
+        //  Section: About
         addHeader(tr("About"));
         auto [aboutCard, aboutLayout] = makeAppCard();
         (void)aboutLayout;
@@ -975,7 +975,7 @@ SettingsPage::SettingsPage(VpnManager* manager, NatPmpManager* natPmpManager, QW
             appearanceCardLayout->addWidget(w);
         };
 
-        // ── Theme ─────────────────────────────────────────────
+        //  Theme
         {
             auto* row = new QWidget(appearanceCard);
             auto* rl = new QHBoxLayout(row);
@@ -1010,7 +1010,7 @@ SettingsPage::SettingsPage(VpnManager* manager, NatPmpManager* natPmpManager, QW
             addAppearance(row);
         }
 
-        // ── Show Selected Location Picker ─────────────────────
+        //  Show Selected Location Picker
         {
             auto* row = new QWidget(appearanceCard);
             auto* rl = new QHBoxLayout(row);
@@ -1030,7 +1030,7 @@ SettingsPage::SettingsPage(VpnManager* manager, NatPmpManager* natPmpManager, QW
             addAppearance(row);
         }
 
-        // ── Show Favorites Dropdown ───────────────────────────
+        //  Show Favorites Dropdown
         {
             auto* row = new QWidget(appearanceCard);
             auto* rl = new QHBoxLayout(row);
@@ -1118,7 +1118,7 @@ SettingsPage::SettingsPage(VpnManager* manager, NatPmpManager* natPmpManager, QW
 
     tabs->addTab(vpnTab, tr("VPN"));
 
-    // ── FREE rows (available to all plans) ───────────────────
+    //  FREE rows (available to all plans)
     bool vpnFirst = true;
     auto addVpn = [&](QWidget* w)
     {
@@ -1127,13 +1127,13 @@ SettingsPage::SettingsPage(VpnManager* manager, NatPmpManager* natPmpManager, QW
         vpnCardLayout->addWidget(w);
     };
 
-    // ── Anonymous Crash Reports ───────────────────────────────
+    //  Anonymous Crash Reports
     addVpn(makeToggleRow(vpnCard,
                          tr("Anonymous Crash Reports"),
                          tr("Send anonymous crash reports to Proton for the VPN CLI tool — not this Qt app."),
                          QStringLiteral("anonymous-crash-reports")));
 
-    // ── IPv6 ─────────────────────────────────────────────────
+    //  IPv6
     addVpn(makeToggleRow(vpnCard,
                          tr("IPv6"),
                          tr("Enable IPv6 support over the VPN tunnel."),
@@ -1141,7 +1141,7 @@ SettingsPage::SettingsPage(VpnManager* manager, NatPmpManager* natPmpManager, QW
                          QStringLiteral("on"),
                          /*requiresReconnect=*/true));
 
-    // ── Kill Switch ───────────────────────────────────────────
+    //  Kill Switch
     {
         // Outer container: toggle row on top + collapsible radio sub-panel below.
         auto* ksContainer = new QWidget(vpnCard);
@@ -1283,12 +1283,12 @@ SettingsPage::SettingsPage(VpnManager* manager, NatPmpManager* natPmpManager, QW
         addVpn(ksContainer);
     }
 
-    // ── Plus Members Only divider ─────────────────────────────
+    //  Plus Members Only divider
     addDivider(vpnCardLayout, vpnCard);   // separator between last free row and plus section
     m_plusDivider = makePlusDivider(vpnCard);
     vpnCardLayout->addWidget(m_plusDivider);
 
-    // ── PLUS-ONLY section ─────────────────────────────────────
+    //  PLUS-ONLY section
     m_plusSection = new QWidget(vpnCard);
     auto* plusLayout = new QVBoxLayout(m_plusSection);
     plusLayout->setContentsMargins(0, 0, 0, 0);
@@ -1307,7 +1307,7 @@ SettingsPage::SettingsPage(VpnManager* manager, NatPmpManager* natPmpManager, QW
         plusLayout->addWidget(w);
     };
 
-    // ── NAT Type ──────────────────────────────────────────────
+    //  NAT Type
     addPlus(makeComboRow(m_plusSection,
                          tr("NAT Type"),
                          tr("Controls how the VPN server maps your connection. "
@@ -1321,13 +1321,13 @@ SettingsPage::SettingsPage(VpnManager* manager, NatPmpManager* natPmpManager, QW
                          {QStringLiteral("off"), QStringLiteral("on")},
                          /*requiresReconnect=*/true));
 
-    // ── VPN Accelerator ───────────────────────────────────────
+    //  VPN Accelerator
     addPlus(makeToggleRow(m_plusSection,
                           tr("VPN Accelerator"),
                           tr("Boost connection speeds using advanced protocol techniques."),
                           QStringLiteral("vpn-accelerator")));
 
-    // ── NetShield ─────────────────────────────────────────────
+    //  NetShield
     addPlus(makeComboRow(m_plusSection,
                          tr("NetShield Ad-blocker"),
                          tr("Block malware, ads, and trackers at the DNS level."),
@@ -1343,7 +1343,7 @@ SettingsPage::SettingsPage(VpnManager* manager, NatPmpManager* natPmpManager, QW
                              QStringLiteral("malware-ads-trackers")
                          }));
 
-    // ── Port Forwarding ───────────────────────────────────────
+    //  Port Forwarding
     {
         QWidget* pfRow = makeToggleRow(m_plusSection,
                                     tr("Port Forwarding"),
@@ -1478,7 +1478,7 @@ SettingsPage::SettingsPage(VpnManager* manager, NatPmpManager* natPmpManager, QW
 
         addPlus(pfRow);
 
-        // ── Forwarded port display ────────────────────────────────────────
+        //  Forwarded port display
         // Shown below the toggle when port forwarding is on and natpmpc is installed.
         m_settingsPortRow = new QWidget(m_plusSection);
         m_settingsPortRow->setObjectName(QStringLiteral("settingsPortRow"));
@@ -1575,7 +1575,7 @@ SettingsPage::SettingsPage(VpnManager* manager, NatPmpManager* natPmpManager, QW
         }
     }
 
-    // ── Custom DNS ────────────────────────────────────────────
+    //  Custom DNS
     {
         addDivider(plusLayout, m_plusSection);
 

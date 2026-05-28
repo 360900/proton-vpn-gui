@@ -17,7 +17,7 @@
 #include "../appconfig.h"
 #include "../dialogs/whatsnewdialog.h"
 
-// ── Small helpers ────────────────────────────────────────────────────────────
+//  Small helpers
 
 static QLabel* makeSectionHeader(const QString& text, QWidget* parent)
 {
@@ -54,7 +54,7 @@ static QString themeStr(AppConfig::Theme t)
     }
 }
 
-// ── DebugPage constructor ────────────────────────────────────────────────────
+//  DebugPage constructor
 
 DebugPage::DebugPage(QWidget* parent)
     : QWidget(parent)
@@ -77,7 +77,7 @@ DebugPage::DebugPage(QWidget* parent)
     layout->setSpacing(12);
     layout->setContentsMargins(24, 20, 24, 20);
 
-    // ── Page header ──────────────────────────────────────────────────────────
+    //  Page header
     QLabel* titleLabel = new QLabel(tr("Debug Tools"), content);
     titleLabel->setObjectName(QStringLiteral("titleLabel"));
     QFont titleFont = titleLabel->font();
@@ -95,7 +95,7 @@ DebugPage::DebugPage(QWidget* parent)
 
     layout->addWidget(makeDivider(content));
 
-    // ── Dialogs section ──────────────────────────────────────────────────────
+    //  Dialogs section
     layout->addWidget(makeSectionHeader(tr("Dialogs"), content));
 
     QPushButton* whatsNewBtn = new QPushButton(tr("Test \u201cWhat\u2019s New\u201d Dialog"), content);
@@ -119,7 +119,7 @@ DebugPage::DebugPage(QWidget* parent)
 
     layout->addWidget(makeDivider(content));
 
-    // ── Settings section ─────────────────────────────────────────────────────
+    //  Settings section
     layout->addWidget(makeSectionHeader(tr("Settings"), content));
 
     // "Clear All Settings" row
@@ -155,7 +155,7 @@ DebugPage::DebugPage(QWidget* parent)
     clearRow->addWidget(clearAllBtn, 0, Qt::AlignRight);
     layout->addLayout(clearRow);
 
-    // ── Per-key grid ─────────────────────────────────────────────────────────
+    //  Per-key grid
     QWidget* gridWidget = new QWidget(content);
     QGridLayout* grid = new QGridLayout(gridWidget);
     grid->setContentsMargins(0, 4, 0, 4);

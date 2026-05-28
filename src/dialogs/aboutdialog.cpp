@@ -58,7 +58,7 @@ AboutDialog::AboutDialog(const QString& installedCliVersion, QWidget* parent)
     auto* layout = new QVBoxLayout(this);
     layout->setSpacing(10);
 
-    // ── Title / subtitle ─────────────────────────────────────
+    //  Title / subtitle
     auto* titleLabel = new QLabel(
         QStringLiteral("<h2 style=\"margin-bottom:2px;\">%1</h2>")
             .arg(tr("ProtonVPN Qt App").toHtmlEscaped()),
@@ -73,7 +73,7 @@ AboutDialog::AboutDialog(const QString& installedCliVersion, QWidget* parent)
     subtitleLabel->setTextFormat(Qt::RichText);
     layout->addWidget(subtitleLabel);
 
-    // ── Version table ─────────────────────────────────────────
+    //  Version table
     auto* versionWidget = new QWidget(this);
     auto* versionGrid   = new QGridLayout(versionWidget);
     versionGrid->setContentsMargins(0, 4, 0, 8);
@@ -137,7 +137,7 @@ AboutDialog::AboutDialog(const QString& installedCliVersion, QWidget* parent)
 
     layout->addWidget(versionWidget);
 
-    // ── Disclaimer + Credits ──────────────────────────────────
+    //  Disclaimer + Credits
     auto* browser = new QTextBrowser(this);
     browser->setOpenExternalLinks(true);
     browser->setFrameShape(QFrame::NoFrame);

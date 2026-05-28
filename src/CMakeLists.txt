@@ -121,7 +121,7 @@ install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/../io.github.wheat32.ProtonVPNQt.metai
         DESTINATION share/metainfo
 )
 
-# ── Tests ────────────────────────────────────────────────────────────────────
+#  Tests
 enable_testing()
 add_subdirectory(tests)
 

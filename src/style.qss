@@ -234,6 +234,17 @@ QPushButton#iconButton:hover {
     background-color: #2d2d4a;
 }
 
+QToolButton#starButton {
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 3px;
+}
+QToolButton#starButton:hover {
+    background-color: #2d2d4a;
+    border: 1px solid #6d4aff;
+    border-radius: 3px;
+}
+
 QListWidget#serverList {
     background-color: #1a1a2e;
     border: 1px solid #3a3a55;
@@ -387,7 +398,7 @@ QLabel#upgradeLabel a {
     color: #7B61FF;
 }
 
-/* ── Plus Members Only divider (VPN settings tab) ── */
+/*  Plus Members Only divider (VPN settings tab)  */
 QLabel#plusDividerLabel {
     color: #7B61FF;
     font-size: 9pt;
@@ -398,7 +409,7 @@ QFrame#plusDividerLine {
     color: #3a3a55;
 }
 
-/* ── App-tab section headers ── */
+/*  App-tab section headers  */
 QLabel#appSectionHeader {
     color: #c0b8e8;
     font-size: 13px;
@@ -414,7 +425,7 @@ QFrame#appSectionDivider {
     margin: 8px 0px 0px 0px;
 }
 
-/* ── About nav row (clickable settings-style row) ── */
+/*  About nav row (clickable settings-style row)  */
 QWidget#appNavRow:hover {
     background-color: #2d2d4a;
     border-radius: 8px;
@@ -424,7 +435,7 @@ QWidget#appNavRow QWidget {
     background-color: transparent;
 }
 
-/* ── Forwarded-port button group ── */
+/*  Forwarded-port button group  */
 /* Left segment: port number label */
 QLabel#portValueLabel {
     border: 1px solid palette(mid);
@@ -451,7 +462,7 @@ QPushButton#portCopyBtn:pressed {
     background: rgba(255,255,255,40);
 }
 
-/* ── Picker Drawer ───────────────────────────────────────────────────────── */
+/*  Picker Drawer  */
 QFrame#pickerDrawer {
     background-color: #14142a;
     border-top: 1px solid #3a3a55;

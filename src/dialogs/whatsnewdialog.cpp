@@ -20,7 +20,7 @@ WhatsNewDialog::WhatsNewDialog(const QString& version, QWidget* parent)
     layout->setSpacing(12);
     layout->setContentsMargins(24, 20, 24, 16);
 
-    // ── Header ───────────────────────────────────────────────────────────────
+    //  Header
     auto* titleLabel = new QLabel(
         QStringLiteral("<h2 style=\"margin-bottom:2px;\">%1</h2>")
             .arg(tr("What\u2019s New").toHtmlEscaped()),
@@ -40,7 +40,7 @@ WhatsNewDialog::WhatsNewDialog(const QString& version, QWidget* parent)
     divider->setObjectName(QStringLiteral("sidebarDivider"));
     layout->addWidget(divider);
 
-    // ── Release notes ────────────────────────────────────────────────────────
+    //  Release notes
     auto* browser = new QTextBrowser(this);
     browser->setOpenExternalLinks(true);
     browser->setFrameShape(QFrame::NoFrame);
@@ -52,7 +52,7 @@ WhatsNewDialog::WhatsNewDialog(const QString& version, QWidget* parent)
                 "github.com/wheat32/proton-vpn-qt-app/releases</a>.")));
     layout->addWidget(browser, 1);
 
-    // ── Buttons ──────────────────────────────────────────────────────────────
+    //  Buttons
     auto* btnLayout = new QHBoxLayout();
     btnLayout->setSpacing(8);
 

@@ -43,7 +43,7 @@ private slots:
             qunsetenv("FLATPAK_ID");
     }
 
-    // ── isRunningAsFlatpak ────────────────────────────────────────────────────
+    //  isRunningAsFlatpak
 
     void isRunningAsFlatpak_envNotSet_returnsFalse()
     {
@@ -56,7 +56,7 @@ private slots:
         QVERIFY(isRunningAsFlatpak());
     }
 
-    // ── buildHostCommand ──────────────────────────────────────────────────────
+    //  buildHostCommand
 
     void buildHostCommand_notFlatpak_returnsProgramUnchanged()
     {

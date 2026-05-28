@@ -10,7 +10,7 @@ class TstUiHelpers : public QObject
 
 private slots:
 
-    // ── isOnString ────────────────────────────────────────────────────────────
+    //  isOnString
 
     void isOnString_on_returnsTrue()
     {
@@ -64,7 +64,7 @@ private slots:
         QVERIFY(!isOnString(QStringLiteral("True")));  // case-sensitive
     }
 
-    // ── kSpinnerFrames sanity ─────────────────────────────────────────────────
+    //  kSpinnerFrames sanity
 
     void spinnerFrames_countMatchesConstant()
     {
@@ -73,7 +73,7 @@ private slots:
         QCOMPARE(static_cast<int>(std::size(kSpinnerFrames)), kSpinnerFrameCount);
     }
 
-    // ── kServerFeatures sanity ────────────────────────────────────────────────
+    //  kServerFeatures sanity
 
     void serverFeatures_allFieldsNonNull()
     {

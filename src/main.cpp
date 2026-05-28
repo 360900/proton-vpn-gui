@@ -46,7 +46,7 @@ int main(int argc, char* argv[])
     }
     QApplication::setApplicationVersion(appVersion);
 
-    // ── Startup diagnostics ──────────────────────────────────────────────────
+    //  Startup diagnostics
     DBG_APP(QStringLiteral("=== ProtonVPN Qt App starting ==="));
     DBG_APP(QStringLiteral("App version    : ") + appVersion);
     DBG_APP(QStringLiteral("CLI tested for : ") + cliVersionTested);

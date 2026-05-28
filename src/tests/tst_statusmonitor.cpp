@@ -13,7 +13,7 @@ class TstStatusMonitor : public QObject
 
 private slots:
 
-    // ── parseStatusFields ─────────────────────────────────────────────────────
+    //  parseStatusFields
 
     void parseStatusFields_connectedOutput_returnsStatusAndServer()
     {
@@ -122,7 +122,7 @@ private slots:
         QCOMPARE(fields.value(QStringLiteral("ip")), QStringLiteral("2001:db8::1"));
     }
 
-    // ── parseCityFromServer ───────────────────────────────────────────────────
+    //  parseCityFromServer
 
     void parseCityFromServer_fullServerString_returnsCity()
     {

@@ -32,7 +32,7 @@ public:
 
     bool isRunning() const;
 
-    // ── Shared parsing helpers ───────────────────────────────────────────────
+    //  Shared parsing helpers
 
     // Strip noise lines from `protonvpn status` output and parse all
     // "Key: Value" pairs into a map (keys are lowercased).

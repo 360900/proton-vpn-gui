@@ -83,7 +83,7 @@ void PowerButton::paintEvent(QPaintEvent*)
     constexpr qreal margin = RING_WIDTH / 2.0 + 4.0;
     const QRectF ringRect = widgetRect.adjusted(margin, margin, -margin, -margin);
 
-    // ── ring / arc ──────────────────────────────────────────
+    //  ring / arc
     QPen ringPen;
     ringPen.setWidth(RING_WIDTH);
     ringPen.setCapStyle(Qt::RoundCap);
@@ -112,7 +112,7 @@ void PowerButton::paintEvent(QPaintEvent*)
         p.drawEllipse(ringRect);
     }
 
-    // ── hover glow ──────────────────────────────────────────
+    //  hover glow
     if (m_hovered)
     {
         constexpr QColor glow(0xff, 0xff, 0xff, 18);
@@ -124,7 +124,7 @@ void PowerButton::paintEvent(QPaintEvent*)
                                           -(margin + RING_WIDTH / 2)));
     }
 
-    // ── power SVG ───────────────────────────────────────────
+    //  power SVG
     constexpr QRectF iconRect(
         (BTN_SIZE - ICON_SIZE) / 2.0,
         (BTN_SIZE - ICON_SIZE) / 2.0,
@@ -180,7 +180,7 @@ LocationPicker::LocationPicker(const QString& countryCode, const QString& countr
     setObjectName(QStringLiteral("locationPicker"));
     setFixedWidth(260);
 
-    // ── Header row (always visible, acts as the button) ──────────────────
+    //  Header row (always visible, acts as the button)
     m_header = new QFrame(this);
     m_header->setObjectName(QStringLiteral("locationPickerHeader"));
     m_header->setCursor(Qt::PointingHandCursor);
@@ -224,13 +224,13 @@ LocationPicker::LocationPicker(const QString& countryCode, const QString& countr
     m_chevron->setObjectName(QStringLiteral("locationPickerChevron"));
     headerLayout->addWidget(m_chevron);
 
-    // ── Outer layout ─────────────────────────────────────────────────────
+    //  Outer layout
     QVBoxLayout* outerLayout = new QVBoxLayout(this);
     outerLayout->setContentsMargins(0, 0, 0, 0);
     outerLayout->setSpacing(0);
     outerLayout->addWidget(m_header);
 
-    // ── Popup ─────────────────────────────────────────────────────────────
+    //  Popup
     initPopup();
     m_header->installEventFilter(this);
     connect(m_list, &QListWidget::itemClicked, this, &LocationPicker::onRowClicked);
@@ -406,7 +406,7 @@ void LocationPicker::populate(const QList<QPair<QString, QString>>& cities)
     setLoading(false);
     m_list->clear();
 
-    // ── Fastest server entry ──────────────────────────────────────────────
+    //  Fastest server entry
     QListWidgetItem* fastestItem = new QListWidgetItem();
     fastestItem->setData(Qt::UserRole, QString());
 
@@ -446,7 +446,7 @@ void LocationPicker::populate(const QList<QPair<QString, QString>>& cities)
     m_list->setItemWidget(fastestItem, fastestRow);
     installOnRowWidget(fastestRow);
 
-    // ── "Change country" action item ──────────────────────────────────────
+    //  "Change country" action item
     QListWidgetItem* changeItem = new QListWidgetItem();
     changeItem->setData(Qt::UserRole, QStringLiteral("__change_country__"));
 
@@ -469,7 +469,7 @@ void LocationPicker::populate(const QList<QPair<QString, QString>>& cities)
     m_list->setItemWidget(changeItem, changeRow);
     installOnRowWidget(changeRow);
 
-    // ── City entries ──────────────────────────────────────────────────────
+    //  City entries
     for (const auto& [city, features] : cities)
     {
         QListWidgetItem* item = new QListWidgetItem();
@@ -776,6 +776,12 @@ void FavoritesPicker::refresh()
         m_list->setItemWidget(item, row);
         installOnRowWidget(row);
     }
+
+    // If the popup is currently open, resize it to match the new item count.
+    if (m_popup != nullptr && m_popup->isVisible())
+    {
+        resizeList();
+    }
 }
 
 bool FavoritesPicker::eventFilter(QObject* obj, QEvent* ev)
@@ -814,7 +820,7 @@ VpnPage::VpnPage(VpnManager* manager, QWidget* parent)
     // area via m_scrollOffsetWidget, keeping content clear of the drawer overlay.
     outerLayout->setContentsMargins(0, 0, 0, 0);
 
-    // ── Logo row — always at the top, full width ─────────────────────────
+    //  Logo row — always at the top, full width
     m_logoRow = new QWidget(this);
     m_logoRow->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
     auto* logoRowLayout = new QHBoxLayout(m_logoRow);
@@ -827,7 +833,7 @@ VpnPage::VpnPage(VpnManager* manager, QWidget* parent)
 
     outerLayout->addWidget(m_logoRow);
 
-    // ── Fixed top section: power button + status label ───────────────────
+    //  Fixed top section: power button + status label
     m_topContentWidget = new QWidget(this);
     m_topContentWidget->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
     QVBoxLayout* topLayout = new QVBoxLayout(m_topContentWidget);
@@ -919,7 +925,7 @@ VpnPage::VpnPage(VpnManager* manager, QWidget* parent)
     setLocationPickerVisible(AppConfig::instance().showLocationPicker());
 
 
-    // ── Scrollable section: timer, info, hint, button ────────────────────
+    //  Scrollable section: timer, info, hint, button
     QWidget* scrollContent = new QWidget();
     scrollContent->setObjectName(QStringLiteral("vpnScrollContent"));
     scrollContent->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
@@ -966,7 +972,7 @@ VpnPage::VpnPage(VpnManager* manager, QWidget* parent)
     connect(m_errorDetailsBtn, &QPushButton::clicked, this, &VpnPage::showErrorDetails);
     scrollLayout->addWidget(m_errorDetailsBtn, 0, Qt::AlignCenter);
 
-    // ── Port forwarding row ───────────────────────────────────────────────
+    //  Port forwarding row
     // Hidden by default; appears when natpmpc successfully allocates a port.
     m_portRow = new QWidget(scrollContent);
     auto* portRowLayout = new QHBoxLayout(m_portRow);
@@ -977,7 +983,7 @@ VpnPage::VpnPage(VpnManager* manager, QWidget* parent)
     portTitleLabel->setObjectName(QStringLiteral("infoLabel"));
     portRowLayout->addWidget(portTitleLabel, 0, Qt::AlignVCenter);
 
-    // ── Button-group container ────────────────────────────────────────────
+    //  Button-group container
     // Left segment : port number label
     // Right segment: clipboard icon button
     // Styled to look like a Bootstrap input-group / btn-group.
@@ -1046,7 +1052,7 @@ VpnPage::VpnPage(VpnManager* manager, QWidget* parent)
         "QScrollArea#vpnScrollArea > QWidget > QWidget { background: transparent; }"));
     scrollContent->setAutoFillBackground(false);
 
-    // ── Narrow mode wrapper (default) ───────────────────────────────────
+    //  Narrow mode wrapper (default)
     m_narrowContent = new QWidget(this);
     m_narrowContent->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
     m_narrowContentLayout = new QVBoxLayout(m_narrowContent);
@@ -1067,7 +1073,7 @@ VpnPage::VpnPage(VpnManager* manager, QWidget* parent)
     m_narrowContentLayout->addWidget(m_scrollOffsetWidget, 1);
     outerLayout->addWidget(m_narrowContent, 1);
 
-    // ── Wide mode wrapper (two-column layout, initially hidden) ─────────
+    //  Wide mode wrapper (two-column layout, initially hidden)
     m_wideContent = new QWidget(this);
     m_wideContent->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
     m_wideContent->setVisible(false);
@@ -1164,7 +1170,7 @@ VpnPage::VpnPage(VpnManager* manager, QWidget* parent)
         m_connectedCountryCode = cc;
     });
 
-    // ── NatPmpManager ────────────────────────────────────────────────────
+    //  NatPmpManager
     m_natPmpManager = new NatPmpManager(this);
 
     connect(m_natPmpManager, &NatPmpManager::portAcquired, this, [this](int port)
@@ -1265,7 +1271,7 @@ VpnPage::VpnPage(VpnManager* manager, QWidget* parent)
         }
     });
 
-    // ── Sliding picker drawer (overlay — not part of outerLayout) ──────────
+    //  Sliding picker drawer (overlay — not part of outerLayout)
     // The drawer sits on the left edge of the VpnPage and overlays the main content.
     m_drawer = new PickerDrawer(m_locationPicker, m_recentPicker, m_favoritesPicker, this);
     m_drawer->setGeometry(0, 0, PickerDrawer::kCollapsedW, m_drawer->sizeHint().height());
@@ -1425,7 +1431,7 @@ void VpnPage::applyWideMode(bool wide)
 
     if (wide == true)
     {
-        // ── Switch to wide mode ──────────────────────────────────────────
+        //  Switch to wide mode
         // 1. Release pickers from the drawer and place them in the sidebar.
         m_drawer->releasePickers();
         m_pickerSidebarLayout->addWidget(m_locationPicker, 0, Qt::AlignLeft);
@@ -1466,7 +1472,7 @@ void VpnPage::applyWideMode(bool wide)
     }
     else
     {
-        // ── Switch to narrow mode ────────────────────────────────────────
+        //  Switch to narrow mode
         // 1. Remove pickers from sidebar and reclaim them into the drawer.
         m_pickerSidebarLayout->removeWidget(m_locationPicker);
         m_pickerSidebarLayout->removeWidget(m_recentPicker);

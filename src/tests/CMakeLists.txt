@@ -4,7 +4,7 @@ enable_testing()
 
 find_package(Qt6 COMPONENTS Test REQUIRED)
 
-# ── Helper macro ─────────────────────────────────────────────────────────────
+#  Helper macro
 # add_qt_test(name sources...)
 # Creates an executable, links Qt6::Test + Qt6::Core, and registers it with
 # CTest so `ctest` (or cmake --build . --target test) picks it up.
@@ -18,7 +18,7 @@ macro(add_qt_test name)
     add_test(NAME ${name} COMMAND ${name})
 endmacro()
 
-# ── GeoUtils ─────────────────────────────────────────────────────────────────
+#  GeoUtils
 add_qt_test(tst_geoutils
     tst_geoutils.cpp
     ../geoutils.h
@@ -26,14 +26,14 @@ add_qt_test(tst_geoutils
 )
 target_link_libraries(tst_geoutils Qt6::Gui Qt6::Svg Qt6::SvgWidgets)
 
-# ── AppConfig ────────────────────────────────────────────────────────────────
+#  AppConfig
 add_qt_test(tst_appconfig
     tst_appconfig.cpp
     ../appconfig.h
     ../appconfig.cpp
 )
 
-# ── ConnectionHistory ────────────────────────────────────────────────────────
+#  ConnectionHistory
 add_qt_test(tst_connectionhistory
     tst_connectionhistory.cpp
     ../connectionhistory.h
@@ -42,7 +42,7 @@ add_qt_test(tst_connectionhistory
     ../appconfig.cpp
 )
 
-# ── StatusMonitor (static parsing helpers only — no subprocess spawned) ───────
+#  StatusMonitor (static parsing helpers only — no subprocess spawned)
 add_qt_test(tst_statusmonitor
     tst_statusmonitor.cpp
     ../cli/statusmonitor.h
@@ -50,13 +50,13 @@ add_qt_test(tst_statusmonitor
     ../cli/flatpakutils.h
 )
 
-# ── UiHelpers ─────────────────────────────────────────────────────────────────
+#  UiHelpers
 add_qt_test(tst_uihelpers
     tst_uihelpers.cpp
     ../uihelpers.h
 )
 
-# ── FlatpakUtils ──────────────────────────────────────────────────────────────
+#  FlatpakUtils
 add_qt_test(tst_flatpakutils
     tst_flatpakutils.cpp
     ../cli/flatpakutils.h
