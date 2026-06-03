@@ -1,4 +1,3 @@
-#include "geoutils.h"
 
 #include <QFile>
 #include <QMap>
@@ -6,12 +5,17 @@
 #include <QPixmap>
 #include <QSvgRenderer>
 #include <QTimeZone>
+#include "geoutils.h"
 
 namespace GeoUtils
 {
 
+constexpr int ISO_COUNTRY_CODE_LENGTH = 2;
+constexpr int FLAG_ICON_WIDTH = 20;
+constexpr int FLAG_ICON_HEIGHT = 15;
+
 // ---------------------------------------------------------------------------
-// Timezone → country-code mapping (representative/most-common zone per country)
+// Timezone -> country-code mapping (representative/most-common zone per country)
 // ---------------------------------------------------------------------------
 static const QMap<QString, QString> kTimezoneToCountry = {
     // Americas
@@ -277,12 +281,14 @@ QString detectUserCountry()
 {
     // 1. Try system timezone
     const QByteArray tzId = QTimeZone::systemTimeZoneId();
-    if (!tzId.isEmpty())
+    if (tzId.isEmpty() == false)
     {
         const QString tzStr = QString::fromUtf8(tzId);
         const auto it = kTimezoneToCountry.find(tzStr);
         if (it != kTimezoneToCountry.end())
+        {
             return it.value();
+        }
     }
 
     // 2. Try QLocale territory
@@ -292,17 +298,21 @@ QString detectUserCountry()
     {
 #if QT_VERSION >= QT_VERSION_CHECK(6, 2, 0)
         const QString code = QLocale::territoryToCode(territory);
-        if (!code.isEmpty())
+        if (code.isEmpty() == false)
+        {
             return code.toUpper();
+        }
 #endif
-        // Fallback: parse the BCP-47 name (e.g. "en-US" → "US")
+        // Fallback: parse the BCP-47 name (e.g. "en-US" -> "US")
         const QString bcp47 = sysLocale.bcp47Name();
         const qsizetype dashPos = bcp47.indexOf(QLatin1Char('-'));
         if (dashPos != -1)
         {
             const QString regionTag = bcp47.mid(dashPos + 1).toUpper();
-            if (regionTag.length() == 2 && regionTag[0].isLetter() && regionTag[1].isLetter())
+            if (regionTag.length() == ISO_COUNTRY_CODE_LENGTH && regionTag[0].isLetter() && regionTag[1].isLetter())
+            {
                 return regionTag;
+            }
         }
     }
 
@@ -353,14 +363,14 @@ QIcon flagIcon(const QString& countryCode)
         return it.value();
 
     const QString path = QStringLiteral(":/flags/") + key;
-    if (!QFile::exists(path))
+    if (QFile::exists(path) == false)
     {
         cache.insert(key, QIcon());
         return {};
     }
 
     // Render flags at 4:3 so they keep their natural aspect ratio.
-    const QIcon icon(svgPixmap(path, 20, 15));
+    const QIcon icon(svgPixmap(path, FLAG_ICON_WIDTH, FLAG_ICON_HEIGHT));
     cache.insert(key, icon);
     return icon;
 }

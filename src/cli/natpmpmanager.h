@@ -4,16 +4,12 @@
 
 class QTimer;
 
-// ---------------------------------------------------------------------------
-// NatPmpManager
-//
 // Manages the natpmpc keep-alive loop required by ProtonVPN port forwarding.
 // Runs `natpmpc -a 1 0 udp 60 -g 10.2.0.1 && natpmpc -a 1 0 tcp 60 -g 10.2.0.1`
-// every 45 seconds to maintain the 60-second NAT-PMP lease.
-//
+//  every 45 seconds to maintain the 60-second NAT-PMP lease.
+
 // Consumers connect to the signals and call start()/stop() as the VPN state
-// changes.  All UI concerns are left to the consumer.
-// ---------------------------------------------------------------------------
+//  changes. All UI concerns are left to the consumer.
 class NatPmpManager : public QObject
 {
     Q_OBJECT
@@ -45,7 +41,7 @@ signals:
     // Emitted each time the port lease is successfully renewed.
     void portAcquired(int port);
 
-    // Emitted when natpmpc exits non-zero — the port is no longer valid.
+    // Emitted when natpmpc exits non-zero - the port is no longer valid.
     void portLost();
 
     // Emitted from start() when natpmpc is not installed.

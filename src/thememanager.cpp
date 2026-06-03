@@ -1,15 +1,16 @@
-#include "thememanager.h"
-
 #include <QApplication>
 #include <QFile>
-#include <QPalette>
 #include <QGuiApplication>
+#include <QPalette>
 #include <QStyleHints>
+#include "thememanager.h"
 
 namespace ThemeManager
 {
 
-static void applyDark()
+namespace
+{
+void applyDark()
 {
     QPalette palette;
     constexpr QColor bg(0x1a, 0x1a, 0x2e);
@@ -41,10 +42,12 @@ static void applyDark()
 
     QFile f(QStringLiteral(":/style.qss"));
     if (f.open(QIODevice::ReadOnly | QIODevice::Text))
+    {
         qApp->setStyleSheet(QString::fromUtf8(f.readAll()));
+    }
 }
 
-static void applyLight()
+void applyLight()
 {
     QPalette palette;
     constexpr QColor bg(0xf0, 0xf0, 0xf5);
@@ -76,11 +79,13 @@ static void applyLight()
 
     QFile f(QStringLiteral(":/style_light.qss"));
     if (f.open(QIODevice::ReadOnly | QIODevice::Text))
+    {
         qApp->setStyleSheet(QString::fromUtf8(f.readAll()));
+    }
 }
 
 // Detect whether the system is using a dark color scheme.
-static bool systemIsDark()
+bool systemIsDark()
 {
 #if QT_VERSION >= QT_VERSION_CHECK(6, 5, 0)
     return QGuiApplication::styleHints()->colorScheme() == Qt::ColorScheme::Dark;
@@ -90,20 +95,22 @@ static bool systemIsDark()
 #endif
 }
 
-void apply(AppConfig::Theme theme)
+} // anonymous namespace
+
+void apply(const AppConfig::Theme theme)
 {
     bool useDark = false;
     switch (theme)
     {
-    case AppConfig::Theme::Dark:
-        useDark = true;
-        break;
-    case AppConfig::Theme::Light:
-        useDark = false;
-        break;
-    default:
-        useDark = systemIsDark();
-        break;
+        case AppConfig::Theme::Dark:
+            useDark = true;
+            break;
+        case AppConfig::Theme::Light:
+            useDark = false;
+            break;
+        default:
+            useDark = systemIsDark();
+            break;
     }
 
     if (useDark)

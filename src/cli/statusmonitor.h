@@ -1,4 +1,3 @@
-// statusmonitor.h
 // StatusMonitor: long-lived subprocess that runs `protonvpn status` in a
 // 15-second loop and emits a parsed snapshot for every iteration.
 //
@@ -22,11 +21,11 @@ public:
     explicit StatusMonitor(QObject* parent = nullptr);
     ~StatusMonitor() override;
 
-    // Start the monitor loop.  Safe to call multiple times — ignored if
+    // Start the monitor loop.  Safe to call multiple times - ignored if
     // already running.
     void start();
 
-    // Stop the monitor loop and kill the subprocess.  Any pending auto-restart
+    // Stop the monitor loop and kill the subprocess. Any pending auto-restart
     // timer is also cancelled.
     void stop();
 

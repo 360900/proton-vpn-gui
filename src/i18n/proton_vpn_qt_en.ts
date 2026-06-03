@@ -750,7 +750,7 @@ What would you like to do before quitting?</source>
     </message>
     <message>
         <location filename="../pages/settingspage.cpp" line="135"/>
-        <source>%1 — Reconnect Required</source>
+        <source>%1 - Reconnect Required</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -894,7 +894,7 @@ You can disconnect, apply the change, and reconnect to the same location automat
     </message>
     <message>
         <location filename="../pages/settingspage.cpp" line="681"/>
-        <source>Send anonymous crash reports to Proton for the VPN CLI tool — not this Qt app.</source>
+        <source>Send anonymous crash reports to Proton for the VPN CLI tool - not this Qt app.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -940,7 +940,7 @@ You can disconnect, apply the change, and reconnect to the same location automat
     </message>
     <message>
         <location filename="../pages/settingspage.cpp" line="788"/>
-        <source>Temporarily removed from the Proton VPN CLI — not currently available.</source>
+        <source>Temporarily removed from the Proton VPN CLI - not currently available.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>

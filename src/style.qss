@@ -489,10 +489,23 @@ QComboBox:disabled {
     background-color: #1e1e32;
     border-color: #2a2a40;
 }
+QComboBox::drop-down {
+    background: transparent;
+    border: none;
+}
 QComboBox::drop-down:disabled {
-    border-color: #2a2a40;
+    background: transparent;
+    border: none;
+}
+QComboBox::down-arrow {
+    image: url(:/assets/chevron-down-light.svg);
+    width: 12px;
+    height: 12px;
 }
 QComboBox::down-arrow:disabled {
+    image: url(:/assets/chevron-down-light.svg);
+    width: 12px;
+    height: 12px;
     opacity: 0.3;
 }
 

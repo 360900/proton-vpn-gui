@@ -1,9 +1,20 @@
-#include "pickerdrawer.h"
-#include "../connectionhistory.h"
-#include "../favoritesmanager.h"
-
 #include <QColor>
 #include <QEasingCurve>
+#include "../connectionhistory.h"
+#include "../favoritesmanager.h"
+#include "pickerdrawer.h"
+
+namespace
+{
+constexpr int SHADOW_BLUR_RADIUS        = 20;
+constexpr int SHADOW_OFFSET_X           = 6;
+constexpr int SHADOW_ALPHA              = 130;
+constexpr int DRAWER_V_MARGIN           = 20;
+constexpr int DRAWER_SPACING            = 8;
+constexpr int ANIM_DURATION_MS          = 220;
+constexpr int DRAWER_EXPANDED_H_MARGIN  = 16;
+constexpr int DRAWER_COLLAPSED_R_MARGIN = 2;
+} // namespace
 
 PickerDrawer::PickerDrawer(PickerBase* loc, PickerBase* rec,
                            PickerBase* fav, QWidget* parent)
@@ -13,17 +24,17 @@ PickerDrawer::PickerDrawer(PickerBase* loc, PickerBase* rec,
     setAttribute(Qt::WA_StyledBackground);
 
     m_shadow = new QGraphicsDropShadowEffect(this);
-    m_shadow->setBlurRadius(20);
-    m_shadow->setOffset(6, 0);
-    m_shadow->setColor(QColor(0, 0, 0, 130));
+    m_shadow->setBlurRadius(SHADOW_BLUR_RADIUS);
+    m_shadow->setOffset(SHADOW_OFFSET_X, 0);
+    m_shadow->setColor(QColor(0, 0, 0, SHADOW_ALPHA));
     m_shadow->setEnabled(false); // only enabled when expanded
     setGraphicsEffect(m_shadow);
 
     m_contentLayout = new QVBoxLayout(this);
     // SetNoConstraint: lets the drawer resize freely even when pickers are larger.
     m_contentLayout->setSizeConstraint(QLayout::SetNoConstraint);
-    m_contentLayout->setContentsMargins(0, 20, 0, 20);
-    m_contentLayout->setSpacing(8);
+    m_contentLayout->setContentsMargins(0, DRAWER_V_MARGIN, 0, DRAWER_V_MARGIN);
+    m_contentLayout->setSpacing(DRAWER_SPACING);
 
     // Re-parent pickers into the drawer
     m_locationPicker->setParent(this);
@@ -44,7 +55,7 @@ PickerDrawer::PickerDrawer(PickerBase* loc, PickerBase* rec,
     }
 
     setAllCollapsed(true);
-    setDrawerW(kCollapsedW);
+    setDrawerW(COLLAPSED_DRAWER_WIDTH);
 }
 
 void PickerDrawer::setDrawerW(int w)
@@ -58,11 +69,11 @@ void PickerDrawer::toggle()
 {
     if (m_anim != nullptr)
     {
-        m_anim->stop(); // triggers destroyed → m_anim = nullptr
+        m_anim->stop(); // triggers destroyed -> m_anim = nullptr
     }
 
-    const int fromW = m_expanded ? kExpandedW : kCollapsedW;
-    const int toW   = m_expanded ? kCollapsedW : kExpandedW;
+    const int fromW = m_expanded ? EXPANDED_DRAWER_WIDTH : COLLAPSED_DRAWER_WIDTH;
+    const int toW   = m_expanded ? COLLAPSED_DRAWER_WIDTH : EXPANDED_DRAWER_WIDTH;
     m_expanded = !m_expanded;
 
     if (m_expanded == false)
@@ -78,7 +89,7 @@ void PickerDrawer::toggle()
     m_anim = new QPropertyAnimation(this, "drawerW", this);
     m_anim->setStartValue(fromW);
     m_anim->setEndValue(toW);
-    m_anim->setDuration(220);
+    m_anim->setDuration(ANIM_DURATION_MS);
     m_anim->setEasingCurve(QEasingCurve::OutCubic);
 
     if (m_expanded == true)
@@ -102,7 +113,7 @@ void PickerDrawer::toggle()
     m_anim->start(QAbstractAnimation::DeleteWhenStopped);
 }
 
-void PickerDrawer::setAllCollapsed(bool c)
+void PickerDrawer::setAllCollapsed(const bool c) const
 {
     // Do not touch collapse state while pickers live in the wide-mode sidebar.
     if (m_pickersReleased == true)
@@ -120,10 +131,16 @@ void PickerDrawer::setAllCollapsed(bool c)
         m_favoritesPicker->setCollapsed(c);
     }
 
-    m_contentLayout->setContentsMargins(c ? 0 : 16, 20, c ? 2 : 16, 20);
+    m_contentLayout->setContentsMargins(
+        c == true ? 0 : DRAWER_EXPANDED_H_MARGIN,
+        DRAWER_V_MARGIN,
+        c == true ? DRAWER_COLLAPSED_R_MARGIN : DRAWER_EXPANDED_H_MARGIN,
+        DRAWER_V_MARGIN);
 }
 
-void PickerDrawer::syncVisibility(bool isFreeUser, bool showFavDropdown, bool favEnabled)
+void PickerDrawer::syncVisibility(const bool isFreeUser,
+    const bool showFavDropdown,
+    const bool favEnabled)
 {
     const bool hasHistory   = (isFreeUser == false)
                               && (ConnectionHistory::instance().entries().isEmpty() == false);
@@ -215,4 +232,3 @@ void PickerDrawer::reclaimPickers()
         m_contentLayout->setAlignment(m_favoritesPicker, Qt::AlignHCenter);
     }
 }
-

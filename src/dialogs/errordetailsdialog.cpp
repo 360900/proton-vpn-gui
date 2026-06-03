@@ -1,29 +1,36 @@
 #include "errordetailsdialog.h"
 
-// ReSharper disable once CppUnusedIncludeDirective
-#include <QVBoxLayout>
+#include <QClipboard>
+#include <QFont>
+#include <QGuiApplication>
 #include <QHBoxLayout>
 #include <QPlainTextEdit>
 #include <QPushButton>
-#include <QFont>
-#include <QGuiApplication>
-#include <QClipboard>
+// ReSharper disable once CppUnusedIncludeDirective
+#include <QVBoxLayout>
+
+namespace
+{
+constexpr int ERROR_DIALOG_MIN_WIDTH  = 640;
+constexpr int ERROR_DIALOG_MIN_HEIGHT = 400;
+constexpr int ERROR_DIALOG_SPACING    = 10;
+constexpr int MONO_FONT_SIZE          = 9;
+} // namespace
 
 ErrorDetailsDialog::ErrorDetailsDialog(const QString& errorText, QWidget* parent)
     : QDialog(parent)
 {
     setWindowTitle(tr("Error Details"));
-    setMinimumSize(640, 400);
+    setMinimumSize(ERROR_DIALOG_MIN_WIDTH, ERROR_DIALOG_MIN_HEIGHT);
     setAttribute(Qt::WA_DeleteOnClose);
 
     QVBoxLayout* layout = new QVBoxLayout(this);
-    layout->setSpacing(10);
+    layout->setSpacing(ERROR_DIALOG_SPACING);
 
     QPlainTextEdit* textEdit = new QPlainTextEdit(this);
     textEdit->setReadOnly(true);
     textEdit->setPlainText(errorText);
-    textEdit->setFont(QFont(QStringLiteral("Monospace"), 9));
-    layout->addWidget(textEdit);
+    textEdit->setFont(QFont(QStringLiteral("Monospace"), MONO_FONT_SIZE));
 
     QHBoxLayout* btnRow = new QHBoxLayout();
     QPushButton* copyBtn = new QPushButton(tr("Copy to Clipboard"), this);

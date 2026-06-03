@@ -42,7 +42,7 @@ add_qt_test(tst_connectionhistory
     ../appconfig.cpp
 )
 
-#  StatusMonitor (static parsing helpers only — no subprocess spawned)
+#  StatusMonitor (static parsing helpers only - no subprocess spawned)
 add_qt_test(tst_statusmonitor
     tst_statusmonitor.cpp
     ../cli/statusmonitor.h

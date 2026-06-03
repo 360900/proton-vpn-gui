@@ -1,6 +1,3 @@
-#include "connectionhistory.h"
-#include "appconfig.h"
-
 #include <QDir>
 #include <QFile>
 #include <QJsonArray>
@@ -9,18 +6,20 @@
 #include <QStandardPaths>
 // ReSharper disable once CppUnusedIncludeDirective
 #include <ranges>
+#include "appconfig.h"
+#include "connectionhistory.h"
 
-static QString historyFilePath()
+namespace
+{
+QString historyFilePath()
 {
     // XDG_DATA_HOME / ProtonVPN-Qt / history.json
-    const QString dataHome = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
-    // AppDataLocation already appends the app name on most platforms, but our
-    // app name is "ProtonVPN" so we end up with ~/.local/share/ProtonVPN/…
-    // Override to be explicit about our sub-dir name.
+    // Override to be explicit about the sub-dir name.
     const QString dir = QStandardPaths::writableLocation(QStandardPaths::GenericDataLocation)
                         + QStringLiteral("/ProtonVPN-Qt");
     return dir + QStringLiteral("/history.json");
 }
+} // namespace
 
 ConnectionHistory& ConnectionHistory::instance()
 {
@@ -50,7 +49,7 @@ void ConnectionHistory::record(const QString& countryCode,
 {
     const int maxCount = AppConfig::instance().recentConnectionsCount();
 
-    // 0 means the feature is disabled — don't store anything.
+    // 0 means the feature is disabled - don't store anything.
     if (maxCount == 0)
         return;
 
@@ -73,7 +72,7 @@ void ConnectionHistory::record(const QString& countryCode,
         return;
     }
 
-    // New entry — prepend
+    // New entry - prepend
     ConnectionEntry e;
     e.countryCode  = countryCode;
     e.countryName  = countryName;
@@ -84,7 +83,9 @@ void ConnectionHistory::record(const QString& countryCode,
     // Trim to max
     // ReSharper disable once CppDFALoopConditionNotUpdated
     while (m_entries.size() > maxCount)
+    {
         m_entries.removeLast();
+    }
 
     save();
     emit changed();
@@ -121,7 +122,7 @@ void ConnectionHistory::trimToCount(const int newMax)
 void ConnectionHistory::load()
 {
     QFile f(historyFilePath());
-    if (!f.open(QIODevice::ReadOnly))
+    if (f.open(QIODevice::ReadOnly) == false)
         return;
 
     const QJsonArray arr = QJsonDocument::fromJson(f.readAll()).array();
@@ -137,8 +138,10 @@ void ConnectionHistory::load()
         e.city         = obj.value(QStringLiteral("city")).toString();
         e.connectedAt  = QDateTime::fromString(
             obj.value(QStringLiteral("connected_at")).toString(), Qt::ISODate);
-        if (!e.countryCode.isEmpty())
+        if (e.countryCode.isEmpty() == false)
+        {
             m_entries.append(e);
+        }
     }
 }
 
@@ -161,6 +164,8 @@ void ConnectionHistory::save() const
 
     QFile f(path);
     if (f.open(QIODevice::WriteOnly | QIODevice::Text))
+    {
         f.write(QJsonDocument(arr).toJson(QJsonDocument::Indented));
+    }
 }
 

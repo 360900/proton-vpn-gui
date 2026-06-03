@@ -16,9 +16,8 @@
 #include <QSvgRenderer>
 #include <QToolButton>
 
-// ============================================================
 // Feature metadata shared by wide + narrow city rows
-// ============================================================
+
 // kServerFeatures is defined in uihelpers.h
 
 // Helper: does a feature string contain a keyword?
@@ -516,7 +515,7 @@ void CountriesPage::buildNarrowLayout(QVBoxLayout* parent)
             emit connectRequested(m_selectedCode, m_selectedCity);
         }
     });
-    // Store as the narrow connect button — we'll sync text/enabled with m_connectBtn
+    // Store as the narrow connect button - we'll sync text/enabled with m_connectBtn
     narrowOuterLayout->addWidget(narrowConnectBtn);
 
     // Keep the narrow connect button pointer for sync
@@ -880,7 +879,7 @@ void CountriesPage::updateBubbleStyles() const
 // ============================================================
 void CountriesPage::updateConnectBtnLockState() const
 {
-    // Locked style: muted dark button with a subtle purple tint — looks
+    // Locked style: muted dark button with a subtle purple tint - looks
     // "disabled" but stays interactive so the hover tooltip is reachable.
     static const QString kLockedStyle = QStringLiteral(
         "QPushButton {"
@@ -1184,7 +1183,7 @@ void CountriesPage::onCitiesReady(const QString& code,
             ++added;
         }
 
-        // "Fastest server" row — always shown unless ALL cities were filtered out.
+        // "Fastest server" row - always shown unless ALL cities were filtered out.
         if (added > 0 || !(m_filterP2P || m_filterSecureCore || m_filterTor))
         {
             addNarrowCityItem(acc.citiesLayout, QString(), QString(), code);
@@ -1340,7 +1339,7 @@ void CountriesPage::addNarrowCityItem(QVBoxLayout* layout, const QString& city,
         hbox->addWidget(iconLabel, 0, Qt::AlignVCenter);
     }
 
-    // Star button (favorites) — narrow mode
+    // Star button (favorites) - narrow mode
     if (AppConfig::instance().favoritesEnabled())
     {
         const QString countryName = GeoUtils::countryCodeToName(code);

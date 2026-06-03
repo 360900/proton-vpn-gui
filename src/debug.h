@@ -1,6 +1,6 @@
 #pragma once
 
-// debug.h — Lightweight diagnostic logging helpers.
+// debug.h - Lightweight diagnostic logging helpers.
 // Prints to stdout when the app is started from a terminal.
 // All output is prefixed with a tag for easy grepping.
 

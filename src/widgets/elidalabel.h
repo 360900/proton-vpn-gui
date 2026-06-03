@@ -4,10 +4,9 @@
 #include <QResizeEvent>
 #include <utility>
 
-// ============================================================
-// ElideLabel – a QLabel that elides its text with "…" at the
-// right edge whenever it is too narrow to show the text in full.
-// ============================================================
+// ElideLabel is a QLabel that elides its text with "…" at the
+//  right edge whenever it is too narrow to show the text in full.
+
 class ElideLabel : public QLabel
 {
 public:

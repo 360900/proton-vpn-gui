@@ -4,20 +4,28 @@
 //
 // All functions that interact with the protonvpn CLI live in protonvpncli.cpp.
 
-#include "vpnmanager.h"
-#include "cli/statusmonitor.h"
-#include "debug.h"
-
 #include <QDir>
 #include <QFile>
-// ReSharper disable once CppUnusedIncludeDirective
-#include <QJsonDocument> // Ignore unused include warning; we do use QJsonDocument
-#include <QJsonObject>
 #include <QJsonArray>
+// ReSharper disable once CppUnusedIncludeDirective
+#include <QJsonDocument>
+#include <QJsonObject>
+#include "cli/statusmonitor.h"
+#include "debug.h"
+#include "vpnmanager.h"
 
+namespace
+{
 // Path to the ProtonVPN settings file, relative to the user's home directory.
-static const QString kSettingsPath =
-    QDir::homePath() + QStringLiteral("/.config/Proton/VPN/settings.json");
+QString getSettingsFilePath()
+{
+    return QDir::homePath() + QStringLiteral("/.config/Proton/VPN/settings.json");
+}
+
+constexpr int KILLSWITCH_MODE_STANDARD    = 1;
+constexpr int NETSHIELD_MODE_MALWARE      = 1;
+constexpr int NETSHIELD_MODE_FULL         = 2;
+} // namespace
 
 VpnManager::VpnManager(QObject* parent)
     : QObject(parent)
@@ -25,14 +33,14 @@ VpnManager::VpnManager(QObject* parent)
 }
 
 // ---------------------------------------------------------------------------
-// Settings (file-based — no CLI involved)
+// Settings (file-based - no CLI involved)
 // ---------------------------------------------------------------------------
 
 void VpnManager::fetchSettings()
 {
     QMap<QString, QString> settings;
 
-    QFile f(kSettingsPath);
+    QFile f(getSettingsFilePath());
     if (f.open(QIODevice::ReadOnly) == false)
     {
         emit settingsReady(settings);
@@ -50,7 +58,7 @@ void VpnManager::fetchSettings()
 
     const QJsonObject root = doc.object();
 
-    auto boolStr = [](bool b) -> QString
+    auto boolStr = [](const bool b) -> QString
     {
         return b ? QStringLiteral("on") : QStringLiteral("off");
     };
@@ -59,7 +67,7 @@ void VpnManager::fetchSettings()
     {
         const int ks = root[QStringLiteral("killswitch")].toInt(0);
         settings.insert(QStringLiteral("kill-switch"),
-                        ks == 1 ? QStringLiteral("standard") : QStringLiteral("off"));
+                        ks == KILLSWITCH_MODE_STANDARD ? QStringLiteral("standard") : QStringLiteral("off"));
     }
 
     if (root.contains(QStringLiteral("ipv6")))
@@ -105,15 +113,15 @@ void VpnManager::fetchSettings()
             QString nsVal;
             switch (ns)
             {
-            case 1:
-                nsVal = QStringLiteral("malware-only");
-                break;
-            case 2:
-                nsVal = QStringLiteral("malware-ads-trackers");
-                break;
-            default:
-                nsVal = QStringLiteral("off");
-                break;
+                case NETSHIELD_MODE_MALWARE:
+                    nsVal = QStringLiteral("malware-only");
+                    break;
+                case NETSHIELD_MODE_FULL:
+                    nsVal = QStringLiteral("malware-ads-trackers");
+                    break;
+                default:
+                    nsVal = QStringLiteral("off");
+                    break;
             }
             settings.insert(QStringLiteral("netshield"), nsVal);
         }
@@ -142,7 +150,7 @@ void VpnManager::fetchSettings()
 
 bool VpnManager::portForwardingEnabled() const
 {
-    QFile f(kSettingsPath);
+    QFile f(getSettingsFilePath());
     if (f.open(QIODevice::ReadOnly) == false)
         return false;
     const QJsonDocument doc = QJsonDocument::fromJson(f.readAll());
@@ -200,12 +208,12 @@ void VpnManager::applyStatusFields(const QMap<QString, QString>& fields)
     const QString server = (newState == VpnState::Connected)
                            ? fields.value(QStringLiteral("server"))
                            : QString();
-    const QString city   = StatusMonitor::parseCityFromServer(server);
-    const QString info   = server.isEmpty()
-                           ? QString()
-                           : QStringLiteral("Connected to %1.").arg(server);
+    const QString city = StatusMonitor::parseCityFromServer(server);
+    const QString info = server.isEmpty()
+                        ? QString() :
+                        QStringLiteral("Connected to %1.").arg(server);
 
-    // Country code — e.g. "US" from "US-NJ#203 in Secaucus, United States".
+    // Country code - e.g. "US" from "US-NJ#203 in Secaucus, United States".
     QString countryCode;
     if (server.isEmpty() == false)
     {
@@ -255,7 +263,7 @@ void VpnManager::applyStatusFields(const QMap<QString, QString>& fields)
         m_connectedServer = server;
     }
 
-    auto stateToStr = [](VpnState s) -> QString
+    auto stateToStr = [](const VpnState s) -> QString
     {
         switch (s)
         {

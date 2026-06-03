@@ -4,9 +4,10 @@
 // in vpnmanager.cpp.
 
 #include "../vpnmanager.h"
+
 #include "../debug.h"
-#include "statusmonitor.h"
 #include "flatpakutils.h"
+#include "statusmonitor.h"
 
 #include <QProcess>
 #include <QRegularExpression>
@@ -14,18 +15,25 @@
 #include <ranges>
 
 // ---------------------------------------------------------------------------
-// Flatpak helper — when running inside a Flatpak sandbox, all CLI calls must
+// Flatpak helper - when running inside a Flatpak sandbox, all CLI calls must
 // be forwarded to the host via flatpak-spawn.
 // ---------------------------------------------------------------------------
 
+namespace
+{
+constexpr int CLI_START_TIMEOUT_MS       = 2000;
+constexpr int DISCONNECT_SYNC_TIMEOUT_MS = 10000;
+constexpr int MIN_COUNTRY_PARTS          = 2;
+
 // Returns {program, fullArgs} ready for QProcess::start.
-static std::pair<QString, QStringList> buildCliCommand(const QStringList& args)
+std::pair<QString, QStringList> buildCliCommand(const QStringList& args)
 {
     return buildHostCommand(QStringLiteral("protonvpn"), args);
 }
+} // namespace
 
 // ---------------------------------------------------------------------------
-// Internal helper — run any protonvpn sub-command asynchronously.
+// Internal helper - run any protonvpn sub-command asynchronously.
 // ---------------------------------------------------------------------------
 
 void VpnManager::runCommand(const QStringList& args,
@@ -42,9 +50,13 @@ void VpnManager::runCommand(const QStringList& args,
                 DBG_CLI(QStringLiteral("<<< ") + cmdLine +
                         QStringLiteral(" [exit=") + QString::number(exitCode) + QStringLiteral("]"));
                 if (out.isEmpty() == false)
+                {
                     DBG_CLI(QStringLiteral("    stdout: ") + out);
+                }
                 if (err.isEmpty() == false)
+                {
                     DBG_CLI(QStringLiteral("    stderr: ") + err);
+                }
                 callback(exitCode, out, err);
                 process->deleteLater();
             });
@@ -73,7 +85,7 @@ void VpnManager::checkInstalled()
             });
     auto [program, fullArgs] = buildCliCommand({QStringLiteral("--help")});
     process->start(program, fullArgs);
-    if (process->waitForStarted(2000) == false)
+    if (process->waitForStarted(CLI_START_TIMEOUT_MS) == false)
     {
         process->deleteLater();
         emit installedResult(false);
@@ -92,14 +104,14 @@ void VpnManager::checkLoginStatus()
         if (match.hasMatch())
         {
             const QString accountVal = match.captured(1).trimmed();
-            if (accountVal != QStringLiteral("None") && !accountVal.isEmpty())
+            if (accountVal != QStringLiteral("None") && accountVal.isEmpty() == false)
             {
                 loggedIn = true;
                 username = accountVal;
             }
         }
 
-        if (loggedIn)
+        if (loggedIn == true)
         {
             startStatusMonitor();
             fetchAccountType();
@@ -113,8 +125,8 @@ void VpnManager::login(const QString& username, const QString& password)
 {
     DBG_CLI(QStringLiteral("Login attempt for user: ") + username);
     // CLI flow: protonvpn signin <username>
-    //   stderr: "Password: "   → write password + '\n' to stdin
-    //   stderr: "2FA Token: "  → optional; emit twoFactorRequired()
+    //   stderr: "Password: "   -> write password + '\n' to stdin
+    //   stderr: "2FA Token: "  -> optional; emit twoFactorRequired()
 
     if (m_signinProcess != nullptr)
     {
@@ -173,7 +185,7 @@ void VpnManager::login(const QString& username, const QString& password)
                 delete state;
 
                 // If cancelLogin() was called first, m_signinProcess is already
-                // nullptr — don't emit loginFinished for a deliberate cancellation.
+                // nullptr - don't emit loginFinished for a deliberate cancellation.
                 if (process != m_signinProcess)
                 {
                     process->deleteLater();
@@ -190,7 +202,7 @@ void VpnManager::login(const QString& username, const QString& password)
                 {
                     const QStringList lines = combined.split(QLatin1Char('\n'), Qt::SkipEmptyParts);
                     QStringList errorLines;
-                    for (const auto& line : lines)
+                    for (const QString& line : lines)
                     {
                         const QString l = line.trimmed();
                         if (l.isEmpty() == false
@@ -252,7 +264,7 @@ void VpnManager::signOut()
 
 void VpnManager::connectVpn(const QString& country, const QString& city)
 {
-    DBG_CLI(QStringLiteral("Connecting to VPN — country: '") + (country.isEmpty() ? QStringLiteral("(fastest)") : country) +
+    DBG_CLI(QStringLiteral("Connecting to VPN - country: '") + (country.isEmpty() ? QStringLiteral("(fastest)") : country) +
             QStringLiteral("'  city: '") + (city.isEmpty() ? QStringLiteral("(any)") : city) + QStringLiteral("'"));
     m_lastConnectCountry = country;
     m_lastConnectCity    = city;
@@ -333,12 +345,12 @@ void VpnManager::disconnectVpn()
 
 void VpnManager::disconnectVpnSync()
 {
-    // Used at application exit — run synchronously so the event loop does not
+    // Used at application exit - run synchronously so the event loop does not
     // need to stay alive.
     QProcess process;
     auto [program, fullArgs] = buildCliCommand({QStringLiteral("disconnect")});
     process.start(program, fullArgs);
-    process.waitForFinished(10000); // up to 10 s
+    process.waitForFinished(DISCONNECT_SYNC_TIMEOUT_MS); // up to 10 s
 }
 
 void VpnManager::applyConfigValueAndReconnect(const QString& key, const QString& value)
@@ -393,10 +405,14 @@ void VpnManager::fetchCountries()
         {
             const QString trimmed = line.trimmed();
             if (trimmed.isEmpty()) continue;
-            if (trimmed.startsWith(QStringLiteral("--"))) { pastSeparator = true; continue; }
+            if (trimmed.startsWith(QStringLiteral("--")))
+            {
+                pastSeparator = true;
+                continue;
+            }
             if (pastSeparator == false) continue;
             const QStringList parts = line.split(QStringLiteral("  "), Qt::SkipEmptyParts);
-            if (parts.size() < 2) continue;
+            if (parts.size() < MIN_COUNTRY_PARTS) continue;
             const QString name = parts.first().trimmed();
             const QString code = parts.last().trimmed();
             if (name.isEmpty() == false && code.isEmpty() == false)
@@ -422,7 +438,11 @@ void VpnManager::fetchCities(const QString& countryCode)
                    {
                        const QString trimmed = line.trimmed();
                        if (trimmed.isEmpty()) continue;
-                       if (trimmed.startsWith(QStringLiteral("--"))) { pastSeparator = true; continue; }
+                       if (trimmed.startsWith(QStringLiteral("--")))
+                       {
+                           pastSeparator = true;
+                           continue;
+                       }
                        if (pastSeparator == false) continue;
                        const QStringList parts = line.split(QStringLiteral("  "), Qt::SkipEmptyParts);
                        const QString city     = parts.value(0).trimmed();
@@ -451,7 +471,8 @@ void VpnManager::fetchCityFeatures(const QString& countryCode, const QString& ci
                        if (trimmed.isEmpty()) continue;
                        if (trimmed.startsWith(QStringLiteral("--")))
                        {
-                           pastSeparator = true; continue;
+                           pastSeparator = true;
+                           continue;
                        }
                        if (pastSeparator == false) continue;
                        const QStringList parts = line.split(QStringLiteral("  "), Qt::SkipEmptyParts);
@@ -499,7 +520,7 @@ void VpnManager::fetchAccountType()
 
 void VpnManager::fetchCliVersion()
 {
-    // `protonvpn` with no args prints the ASCII banner; the version number
+    // "protonvpn" in the terminal with no args prints the ASCII banner; the version number
     // (semver) appears on the last banner line.
     runCommand({}, [this](int, const QString& out, const QString& err)
     {
@@ -523,9 +544,9 @@ void VpnManager::fetchCliVersion()
 // Config
 // ---------------------------------------------------------------------------
 
-void VpnManager::applyConfig(const QString& key, bool enabled)
+void VpnManager::applyConfig(const QString& key, const bool enabled)
 {
-    applyConfigValue(key, enabled ? QStringLiteral("on") : QStringLiteral("off"));
+    applyConfigValue(key, enabled == true ? QStringLiteral("on") : QStringLiteral("off"));
 }
 
 void VpnManager::applyConfigValue(const QString& key, const QString& value)

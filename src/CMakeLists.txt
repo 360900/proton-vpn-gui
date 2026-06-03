@@ -92,7 +92,7 @@ if(Qt6LinguistTools_FOUND)
             NO_GENERATE_PLURALS_TS_FILE
     )
 else()
-    message(WARNING "Qt6LinguistTools not found — translations will not be compiled.")
+    message(WARNING "Qt6LinguistTools not found - translations will not be compiled.")
 endif()
 
 target_link_libraries(proton_vpn_qt

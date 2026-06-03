@@ -3,8 +3,8 @@
 #include "cli/flatpakutils.h"
 
 // Tests for the inline helpers in flatpakutils.h:
-//   isRunningAsFlatpak()   — env-var detection
-//   buildHostCommand()     — transparent flatpak-spawn wrapping
+//   isRunningAsFlatpak()   - env-var detection
+//   buildHostCommand()     - transparent flatpak-spawn wrapping
 
 class TstFlatpakUtils : public QObject
 {

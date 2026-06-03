@@ -1,6 +1,6 @@
 #include "loginpage.h"
-#include "../widgets/svgbanner.h"
 #include "../widgets/flatpakbetabanner.h"
+#include "../widgets/svgbanner.h"
 
 #include <QFile>
 #include <QHBoxLayout>
@@ -8,12 +8,34 @@
 #include <QJsonDocument> // Ignore unused include warning; we do use QJsonDocument
 #include <QJsonObject>
 #include <QLabel>
+#include <QPainter>
 #include <QPixmap>
 #include <QSvgRenderer>
-#include <QPainter>
 #include <QVersionNumber>
 
-static QIcon svgIcon(const QString& path, const QSize& size = {20, 20})
+namespace
+{
+constexpr int LOGIN_CARD_WIDTH          = 360;
+constexpr int LOGIN_LAYOUT_SPACING      = 16;
+constexpr int LOGIN_H_MARGIN            = 32;
+constexpr int LOGIN_TOP_MARGIN          = 32;
+constexpr int LOGIN_BOT_MARGIN          = 24;
+constexpr int LOGIN_LOGO_SPACING        = 8;
+constexpr int LOGIN_FIELD_SPACING       = 4;
+constexpr double LOGIN_LOGO_SCALE       = 4.0;
+constexpr int PASSWORD_TOGGLE_ICON_SIZE = 20;
+constexpr int PASSWORD_TOGGLE_BTN_SIZE  = 36;
+constexpr int SVG_ICON_SIZE             = 20;
+constexpr int TFA_MAX_LENGTH            = 8;
+constexpr int ERROR_SCROLL_HEIGHT       = 100;
+constexpr int ERROR_DETAILS_BTN_WIDTH   = 140;
+constexpr int ERROR_CONTAINER_SPACING   = 6;
+constexpr int ERROR_H_MARGIN            = 32;
+constexpr int ERROR_BOT_MARGIN          = 16;
+constexpr int STACK_INDEX_CREDS         = 0;
+constexpr int STACK_INDEX_TFA           = 1;
+
+QIcon svgIcon(const QString& path, const QSize& size = {SVG_ICON_SIZE, SVG_ICON_SIZE})
 {
     QPixmap pix(size);
     pix.fill(Qt::transparent);
@@ -22,6 +44,7 @@ static QIcon svgIcon(const QString& path, const QSize& size = {20, 20})
     renderer.render(&p);
     return QIcon(pix);
 }
+} // namespace
 
 LoginPage::LoginPage(QWidget* parent)
     : QWidget(parent)
@@ -31,7 +54,7 @@ LoginPage::LoginPage(QWidget* parent)
 
     QWidget* card = new QWidget(this);
     card->setObjectName(QStringLiteral("loginCard"));
-    card->setFixedWidth(360);
+    card->setFixedWidth(LOGIN_CARD_WIDTH);
 
     QVBoxLayout* cardLayout = new QVBoxLayout(card);
     cardLayout->setSpacing(0);
@@ -44,15 +67,15 @@ LoginPage::LoginPage(QWidget* parent)
     buildTFAWidget();
 
     m_stack->addWidget(m_credsWidget); // index 0
-    m_stack->addWidget(m_tfaWidget); // index 1
+    m_stack->addWidget(m_tfaWidget);   // index 1
     cardLayout->addWidget(m_stack);
 
     // Shared error section below the stack
     m_errorContainer = new QWidget(card);
     m_errorContainer->setVisible(false);
     QVBoxLayout* errorContainerLayout = new QVBoxLayout(m_errorContainer);
-    errorContainerLayout->setSpacing(6);
-    errorContainerLayout->setContentsMargins(32, 0, 32, 16);
+    errorContainerLayout->setSpacing(ERROR_CONTAINER_SPACING);
+    errorContainerLayout->setContentsMargins(ERROR_H_MARGIN, 0, ERROR_H_MARGIN, ERROR_BOT_MARGIN);
 
     // Scrollable error label
     m_errorLabel = new QLabel();
@@ -63,7 +86,7 @@ LoginPage::LoginPage(QWidget* parent)
     m_errorScrollArea = new QScrollArea(m_errorContainer);
     m_errorScrollArea->setWidget(m_errorLabel);
     m_errorScrollArea->setWidgetResizable(true);
-    m_errorScrollArea->setFixedHeight(100);
+    m_errorScrollArea->setFixedHeight(ERROR_SCROLL_HEIGHT);
     m_errorScrollArea->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     m_errorScrollArea->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
     m_errorScrollArea->setObjectName(QStringLiteral("errorLabel"));
@@ -72,7 +95,7 @@ LoginPage::LoginPage(QWidget* parent)
 
     // "View Details" button
     m_errorDetailsBtn = new QPushButton(tr("View Details"), m_errorContainer);
-    m_errorDetailsBtn->setFixedWidth(140);
+    m_errorDetailsBtn->setFixedWidth(ERROR_DETAILS_BTN_WIDTH);
     connect(m_errorDetailsBtn, &QPushButton::clicked, this, [this]()
     {
         ErrorDetailsDialog* dlg = new ErrorDetailsDialog(m_rawError, this);
@@ -93,22 +116,22 @@ void LoginPage::buildCredsWidget()
 {
     m_credsWidget = new QWidget();
     QVBoxLayout* layout = new QVBoxLayout(m_credsWidget);
-    layout->setSpacing(16);
-    layout->setContentsMargins(32, 32, 32, 24);
+    layout->setSpacing(LOGIN_LAYOUT_SPACING);
+    layout->setContentsMargins(LOGIN_H_MARGIN, LOGIN_TOP_MARGIN, LOGIN_H_MARGIN, LOGIN_BOT_MARGIN);
 
     // Logo
-    SvgBanner* logo = new SvgBanner(QStringLiteral(":/assets/proton-vpn-logo.svg"), 4.0, m_credsWidget);
+    SvgBanner* logo = new SvgBanner(QStringLiteral(":/assets/proton-vpn-logo.svg"), LOGIN_LOGO_SCALE, m_credsWidget);
     logo->setLightResource(QStringLiteral(":/assets/proton-vpn-logo-light.svg"));
     layout->addWidget(logo, 0, Qt::AlignCenter);
 
-    layout->addSpacing(8);
+    layout->addSpacing(LOGIN_LOGO_SPACING);
 
     QLabel* titleLabel = new QLabel(tr("Sign in to Proton VPN"), m_credsWidget);
     titleLabel->setObjectName(QStringLiteral("sectionTitle"));
     titleLabel->setAlignment(Qt::AlignCenter);
     layout->addWidget(titleLabel);
 
-    layout->addSpacing(4);
+    layout->addSpacing(LOGIN_FIELD_SPACING);
 
     // Username
     QLabel* usernameLabel = new QLabel(tr("Username"), m_credsWidget);
@@ -119,6 +142,8 @@ void LoginPage::buildCredsWidget()
     m_usernameEdit->setObjectName(QStringLiteral("inputField"));
     m_usernameEdit->setPlaceholderText(tr("Enter your username"));
     layout->addWidget(m_usernameEdit);
+
+    layout->addSpacing(LOGIN_FIELD_SPACING);
 
     // Password
     QLabel* passwordLabel = new QLabel(tr("Password"), m_credsWidget);
@@ -135,18 +160,20 @@ void LoginPage::buildCredsWidget()
     m_togglePasswordBtn = new QPushButton(m_credsWidget);
     m_togglePasswordBtn->setObjectName(QStringLiteral("iconButton"));
     m_togglePasswordBtn->setIcon(svgIcon(QStringLiteral(":/assets/eye-show.svg")));
-    m_togglePasswordBtn->setIconSize({20, 20});
-    m_togglePasswordBtn->setFixedSize(36, 36);
+    m_togglePasswordBtn->setIconSize({PASSWORD_TOGGLE_ICON_SIZE, PASSWORD_TOGGLE_ICON_SIZE});
+    m_togglePasswordBtn->setFixedSize(PASSWORD_TOGGLE_BTN_SIZE, PASSWORD_TOGGLE_BTN_SIZE);
     m_togglePasswordBtn->setCheckable(true);
     m_togglePasswordBtn->setToolTip(tr("Show/hide password"));
     m_togglePasswordBtn->setCursor(Qt::PointingHandCursor);
-    connect(m_togglePasswordBtn, &QPushButton::toggled, this, [this](bool checked)
+    connect(m_togglePasswordBtn, &QPushButton::toggled, this, [this](const bool checked)
     {
         m_passwordVisible = checked;
         togglePasswordVisibility();
     });
     passwordRow->addWidget(m_togglePasswordBtn);
     layout->addLayout(passwordRow);
+
+    layout->addSpacing(LOGIN_FIELD_SPACING);
 
     // Sign In button
     m_loginBtn = new QPushButton(tr("Sign In"), m_credsWidget);
@@ -166,15 +193,15 @@ void LoginPage::buildTFAWidget()
 {
     m_tfaWidget = new QWidget();
     QVBoxLayout* layout = new QVBoxLayout(m_tfaWidget);
-    layout->setSpacing(16);
-    layout->setContentsMargins(32, 32, 32, 24);
+    layout->setSpacing(LOGIN_LAYOUT_SPACING);
+    layout->setContentsMargins(LOGIN_H_MARGIN, LOGIN_TOP_MARGIN, LOGIN_H_MARGIN, LOGIN_BOT_MARGIN);
 
     // Logo
-    SvgBanner* logo = new SvgBanner(QStringLiteral(":/assets/proton-vpn-logo.svg"), 4.0, m_tfaWidget);
+    SvgBanner* logo = new SvgBanner(QStringLiteral(":/assets/proton-vpn-logo.svg"), LOGIN_LOGO_SCALE, m_tfaWidget);
     logo->setLightResource(QStringLiteral(":/assets/proton-vpn-logo-light.svg"));
     layout->addWidget(logo, 0, Qt::AlignCenter);
 
-    layout->addSpacing(8);
+    layout->addSpacing(LOGIN_LOGO_SPACING);
 
     QLabel* titleLabel = new QLabel(tr("Two-Factor Authentication"), m_tfaWidget);
     titleLabel->setObjectName(QStringLiteral("sectionTitle"));
@@ -189,7 +216,7 @@ void LoginPage::buildTFAWidget()
     descLabel->setAlignment(Qt::AlignCenter);
     layout->addWidget(descLabel);
 
-    layout->addSpacing(4);
+    layout->addSpacing(LOGIN_FIELD_SPACING);
 
     QLabel* tfaLabel = new QLabel(tr("2FA Token"), m_tfaWidget);
     tfaLabel->setObjectName(QStringLiteral("fieldLabel"));
@@ -198,7 +225,7 @@ void LoginPage::buildTFAWidget()
     m_tfaEdit = new QLineEdit(m_tfaWidget);
     m_tfaEdit->setObjectName(QStringLiteral("inputField"));
     m_tfaEdit->setPlaceholderText(tr("e.g. 123456"));
-    m_tfaEdit->setMaxLength(8); // TOTP codes are 6 digits; allow 8 for recovery codes
+    m_tfaEdit->setMaxLength(TFA_MAX_LENGTH); // TOTP codes are 6 digits; allow 8 for recovery codes
     layout->addWidget(m_tfaEdit);
 
     m_tfaSubmitBtn = new QPushButton(tr("Verify"), m_tfaWidget);
@@ -227,13 +254,13 @@ void LoginPage::show2FAPrompt() const
     m_tfaSubmitBtn->setEnabled(true);
     m_tfaSubmitBtn->setText(tr("Verify"));
     m_tfaEdit->setEnabled(true);
-    m_stack->setCurrentIndex(1);
+    m_stack->setCurrentIndex(STACK_INDEX_TFA);
     m_tfaEdit->setFocus();
 }
 
 void LoginPage::reset() const
 {
-    m_stack->setCurrentIndex(0);
+    m_stack->setCurrentIndex(STACK_INDEX_CREDS);
     setError(QString());
     m_passwordEdit->clear();
     m_tfaEdit->clear();
@@ -263,26 +290,26 @@ void LoginPage::setError(const QString& error) const
 
 void LoginPage::setLoading(const bool loading) const
 {
-    if (m_stack->currentIndex() == 0)
+    if (m_stack->currentIndex() == STACK_INDEX_CREDS)
     {
-        m_loginBtn->setEnabled(!loading);
-        m_loginBtn->setText(loading ? tr("Signing in\u2026") : tr("Sign In"));
-        m_usernameEdit->setEnabled(!loading);
-        m_passwordEdit->setEnabled(!loading);
-        m_togglePasswordBtn->setEnabled(!loading);
+        m_loginBtn->setEnabled(loading == false);
+        m_loginBtn->setText(loading == true ? tr("Signing in\u2026") : tr("Sign In"));
+        m_usernameEdit->setEnabled(loading == false);
+        m_passwordEdit->setEnabled(loading == false);
+        m_togglePasswordBtn->setEnabled(loading == false);
     }
     else
     {
-        m_tfaSubmitBtn->setEnabled(!loading);
-        m_tfaSubmitBtn->setText(loading ? tr("Verifying\u2026") : tr("Verify"));
-        m_tfaEdit->setEnabled(!loading);
-        m_tfaCancelBtn->setEnabled(!loading);
+        m_tfaSubmitBtn->setEnabled(loading == false);
+        m_tfaSubmitBtn->setText(loading == true ? tr("Verifying\u2026") : tr("Verify"));
+        m_tfaEdit->setEnabled(loading == false);
+        m_tfaCancelBtn->setEnabled(loading == false);
     }
 }
 
 void LoginPage::togglePasswordVisibility() const
 {
-    if (m_passwordVisible)
+    if (m_passwordVisible == true)
     {
         m_passwordEdit->setEchoMode(QLineEdit::Normal);
         m_togglePasswordBtn->setIcon(svgIcon(QStringLiteral(":/assets/eye-hide.svg")));
@@ -302,7 +329,7 @@ void LoginPage::checkPrereleaseBanner()
     const QJsonObject obj = QJsonDocument::fromJson(vf.readAll()).object();
     vf.close();
 
-    if (!obj.value(QStringLiteral("prerelease")).toBool(false)) return;
+    if (obj.value(QStringLiteral("prerelease")).toBool(false) == false) return;
 
     const QString appVersion = obj.value(QStringLiteral("app_version")).toString();
     const QString msg = tr(
@@ -358,17 +385,17 @@ void LoginPage::onCliVersionReady(const QString& version)
         ? (cliVersionMin + QStringLiteral("-") + cliVersionMax)
         : (cliVersionMin.isEmpty() ? cliVersionMax : cliVersionMin);
 
-    static const QString kWorkaround = tr(
+    static const QString WORKAROUND_MSG = tr(
         " If you cannot log in due to this incompatibility, open a terminal and run "
         "<code>protonvpn connect</code> as a workaround until an update is released.");
 
-    const QString msg = tooNew
+    const QString msg = tooNew == true
         ? tr("Your Proton VPN CLI (<b>v%1</b>) is newer than the tested range (<b>%2</b>). "
              "Things may work fine, but you could encounter unexpected behavior.%3")
-              .arg(version, rangeStr, kWorkaround)
+              .arg(version, rangeStr, WORKAROUND_MSG)
         : tr("Your Proton VPN CLI (<b>v%1</b>) is older than the tested range (<b>%2</b>). "
              "Some features may not work correctly. Consider upgrading the CLI.%3")
-              .arg(version, rangeStr, kWorkaround);
+              .arg(version, rangeStr, WORKAROUND_MSG);
 
     m_versionBanner = new InfoBanner(msg, this);
     connect(m_versionBanner, &InfoBanner::dismissed, this, [this]() {

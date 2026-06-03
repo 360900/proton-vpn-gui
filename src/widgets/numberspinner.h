@@ -11,11 +11,10 @@
 #include <QPushButton>
 #include <QSvgRenderer>
 
-// ============================================================
-// NumberSpinner – a styled replacement for QSpinBox that
-// renders its up/down chevrons from SVG resources correctly,
-// even when the SVGs use fill="currentColor".
-// ============================================================
+// This is a styled replacement for QSpinBox that
+//  renders its up/down chevrons from SVG resources correctly,
+//  even when the SVGs use fill="currentColor".
+
 class NumberSpinner : public QFrame
 {
     Q_OBJECT

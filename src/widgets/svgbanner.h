@@ -6,20 +6,14 @@
 #include <QSvgRenderer>
 #include <QWidget>
 
-// ============================================================
-// SvgBanner – responsive SVG widget that maintains a fixed
-// aspect ratio and fills its parent's width up to a maximum.
-// Once the maximum width is reached the widget stops expanding
-// and stays centered via the parent layout's alignment flag.
-//
-// aspectRatio = width / height  (e.g. 4.0 for a 4:1 banner)
-//
-// Call setLightResource() with an alternate SVG path to have
-// the widget automatically switch to that asset on light
-// backgrounds (and back to the primary asset on dark ones).
-// ============================================================
+// SVG widget that scales to fill its parent's width up to a configurable maximum,
+// keeping a fixed aspect ratio (width / height, e.g. 4.0 for a 4:1 banner).
+// Optionally call setLightResource() to supply an alternate SVG for light themes.
 class SvgBanner : public QWidget
 {
+    static constexpr int DEFAULT_MAX_WIDTH               = 500;
+    static constexpr int LIGHT_THEME_LIGHTNESS_THRESHOLD = 128;
+
 public:
     explicit SvgBanner(const QString& resource,
                        const qreal aspectRatio,
@@ -27,8 +21,8 @@ public:
         : QWidget(parent), m_renderer(resource), m_aspect(aspectRatio)
     {
         setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
-        QWidget::setMaximumWidth(defaultMaxWidth); // start with a reasonable default max width
-        m_maxWidth = defaultMaxWidth;
+        QWidget::setMaximumWidth(DEFAULT_MAX_WIDTH);
+        m_maxWidth = DEFAULT_MAX_WIDTH;
     }
 
     void setMaxWidth(const int maxWidth) // In pixels
@@ -48,7 +42,7 @@ public:
 
     [[nodiscard]] QSize sizeHint() const override
     {
-        const int parentW = parentWidget() ? parentWidget()->width() : m_maxWidth;
+        const int parentW = (parentWidget() != nullptr) ? parentWidget()->width() : m_maxWidth;
         const int w = qMin(parentW, m_maxWidth);
         return {w, qRound(w / m_aspect)};
     }
@@ -77,14 +71,16 @@ protected:
         // so the layout can never squeeze the two axes independently.
         const int correctH = qRound(width() / m_aspect);
         if (height() != correctH)
+        {
             setFixedHeight(correctH);
+        }
         updateGeometry();
     }
 
     void changeEvent(QEvent* e) override
     {
         QWidget::changeEvent(e);
-        if (m_lightRenderer && e->type() == QEvent::PaletteChange)
+        if (m_lightRenderer != nullptr && e->type() == QEvent::PaletteChange)
         {
             update();
         }
@@ -94,10 +90,10 @@ private:
     // Returns the renderer appropriate for the current palette.
     QSvgRenderer& activeRenderer()
     {
-        if (m_lightRenderer)
+        if (m_lightRenderer != nullptr)
         {
             const QColor windowColor = QGuiApplication::palette().color(QPalette::Window);
-            if (windowColor.lightness() >= 128)
+            if (windowColor.lightness() >= LIGHT_THEME_LIGHTNESS_THRESHOLD)
             {
                 return *m_lightRenderer;
             }
@@ -105,7 +101,6 @@ private:
         return m_renderer;
     }
 
-    int defaultMaxWidth = 500;
 
     QSvgRenderer m_renderer;
     std::unique_ptr<QSvgRenderer> m_lightRenderer;

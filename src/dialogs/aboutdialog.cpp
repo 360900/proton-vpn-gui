@@ -1,17 +1,29 @@
 #include "aboutdialog.h"
 
-#include <QVBoxLayout>
-#include <QGridLayout>
-#include <QLabel>
-#include <QTextBrowser>
 #include <QDialogButtonBox>
-#include <QFrame>
 #include <QFile>
+#include <QFrame>
+#include <QGridLayout>
 // ReSharper disable once CppUnusedIncludeDirective
 #include <QJsonDocument> // Ignore unused include warning; we do use QJsonDocument
 #include <QJsonObject>
-#include <QVersionNumber>
+#include <QLabel>
 #include <QProcessEnvironment>
+#include <QTextBrowser>
+#include <QVersionNumber>
+#include <QVBoxLayout>
+
+namespace
+{
+constexpr int ABOUT_MIN_WIDTH          = 520;
+constexpr int ABOUT_MIN_HEIGHT         = 480;
+constexpr int ABOUT_LAYOUT_SPACING     = 10;
+constexpr int VERSION_GRID_TOP_MARGIN  = 4;
+constexpr int VERSION_GRID_BOT_MARGIN  = 8;
+constexpr int VERSION_GRID_H_SPACING   = 8;
+constexpr int VERSION_GRID_V_SPACING   = 4;
+constexpr int VERSION_COL_STRETCH      = 1;
+} // namespace
 
 AboutDialog::AboutDialog(const QString& installedCliVersion, QWidget* parent)
     : QDialog(parent)
@@ -53,20 +65,20 @@ AboutDialog::AboutDialog(const QString& installedCliVersion, QWidget* parent)
     }
 
     setWindowTitle(tr("About ProtonVPN Qt App"));
-    setMinimumSize(520, 480);
+    setMinimumSize(ABOUT_MIN_WIDTH, ABOUT_MIN_HEIGHT);
 
-    auto* layout = new QVBoxLayout(this);
-    layout->setSpacing(10);
+    QVBoxLayout* layout = new QVBoxLayout(this);
+    layout->setSpacing(ABOUT_LAYOUT_SPACING);
 
     //  Title / subtitle
-    auto* titleLabel = new QLabel(
+    QLabel* titleLabel = new QLabel(
         QStringLiteral("<h2 style=\"margin-bottom:2px;\">%1</h2>")
             .arg(tr("ProtonVPN Qt App").toHtmlEscaped()),
         this);
     titleLabel->setTextFormat(Qt::RichText);
     layout->addWidget(titleLabel);
 
-    auto* subtitleLabel = new QLabel(
+    QLabel* subtitleLabel = new QLabel(
         QStringLiteral("<span style=\"color:#888;\">%1</span>")
             .arg(tr("A community-built Qt front-end for the Proton VPN CLI.").toHtmlEscaped()),
         this);
@@ -74,16 +86,16 @@ AboutDialog::AboutDialog(const QString& installedCliVersion, QWidget* parent)
     layout->addWidget(subtitleLabel);
 
     //  Version table
-    auto* versionWidget = new QWidget(this);
-    auto* versionGrid   = new QGridLayout(versionWidget);
-    versionGrid->setContentsMargins(0, 4, 0, 8);
-    versionGrid->setHorizontalSpacing(8);
-    versionGrid->setVerticalSpacing(4);
-    versionGrid->setColumnStretch(1, 1);
+    QWidget*      versionWidget = new QWidget(this);
+    QGridLayout*  versionGrid   = new QGridLayout(versionWidget);
+    versionGrid->setContentsMargins(0, VERSION_GRID_TOP_MARGIN, 0, VERSION_GRID_BOT_MARGIN);
+    versionGrid->setHorizontalSpacing(VERSION_GRID_H_SPACING);
+    versionGrid->setVerticalSpacing(VERSION_GRID_V_SPACING);
+    versionGrid->setColumnStretch(1, VERSION_COL_STRETCH);
 
     auto makeKey = [&](const QString& text) -> QLabel*
     {
-        auto* l = new QLabel(QStringLiteral("<b>%1</b>").arg(text.toHtmlEscaped()), versionWidget);
+        QLabel* l = new QLabel(QStringLiteral("<b>%1</b>").arg(text.toHtmlEscaped()), versionWidget);
         l->setTextFormat(Qt::RichText);
         return l;
     };
@@ -99,7 +111,7 @@ AboutDialog::AboutDialog(const QString& installedCliVersion, QWidget* parent)
 
     const bool isFlatpak = qEnvironmentVariableIsSet("FLATPAK_ID");
     versionGrid->addWidget(makeKey(tr("Package:")),            3, 0);
-    versionGrid->addWidget(new QLabel(isFlatpak ? tr("Flatpak") : tr("System"), versionWidget), 3, 1);
+    versionGrid->addWidget(new QLabel(isFlatpak == true ? tr("Flatpak") : tr("System"), versionWidget), 3, 1);
 
     // Installed CLI version – highlighted only when outside the tested range
     if (installedCliVersion.isEmpty() == false)
@@ -115,9 +127,9 @@ AboutDialog::AboutDialog(const QString& installedCliVersion, QWidget* parent)
 
         if (tooOld || tooNew)
         {
-            const QString arrow   = tooNew ? QStringLiteral(" \u25b2") : QStringLiteral(" \u25bc");
-            const QString color   = tooNew ? QStringLiteral("#f59e0b") : QStringLiteral("#ef4444");
-            const QString tooltip = tooNew
+            const QString arrow   = tooNew == true ? QStringLiteral(" \u25b2") : QStringLiteral(" \u25bc");
+            const QString color   = tooNew == true ? QStringLiteral("#f59e0b") : QStringLiteral("#ef4444");
+            const QString tooltip = tooNew == true
                 ? tr("Your installed CLI (v%1) is newer than the tested range (%2). "
                      "Things may work fine, but you could encounter unexpected behavior.")
                       .arg(installedCliVersion, testedVersionStr)
@@ -138,7 +150,7 @@ AboutDialog::AboutDialog(const QString& installedCliVersion, QWidget* parent)
     layout->addWidget(versionWidget);
 
     //  Disclaimer + Credits
-    auto* browser = new QTextBrowser(this);
+    QTextBrowser* browser = new QTextBrowser(this);
     browser->setOpenExternalLinks(true);
     browser->setFrameShape(QFrame::NoFrame);
     browser->setHtml(
@@ -170,7 +182,7 @@ AboutDialog::AboutDialog(const QString& installedCliVersion, QWidget* parent)
             tr("This software is provided as-is, without warranty of any kind. Use at your own risk.")));
     layout->addWidget(browser);
 
-    auto* btns = new QDialogButtonBox(QDialogButtonBox::Close, this);
+    QDialogButtonBox* btns = new QDialogButtonBox(QDialogButtonBox::Close, this);
     connect(btns, &QDialogButtonBox::rejected, this, &QDialog::accept);
     layout->addWidget(btns);
 }

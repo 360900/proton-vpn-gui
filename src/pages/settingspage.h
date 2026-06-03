@@ -110,7 +110,7 @@ private:
     QWidget* m_plusSection  = nullptr;
     QWidget* m_plusDivider  = nullptr;
 
-    // The card widget that wraps all VPN-tab settings — disabled en-masse
+    // The card widget that wraps all VPN-tab settings - disabled en-masse
     // while the VPN is connecting or disconnecting.
     QWidget* m_vpnCard = nullptr;
 

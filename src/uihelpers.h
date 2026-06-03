@@ -2,9 +2,7 @@
 
 #include <QCoreApplication>
 
-// ============================================================
 // Shared UI helpers used across multiple source files.
-// ============================================================
 
 //  Braille spinner frames
 // Use with spinnerFrame() and kSpinnerFrameCount.
@@ -14,7 +12,7 @@ static constexpr const char* kSpinnerFrames[] =
 };
 static constexpr int kSpinnerFrameCount = 10;
 
-//  Server-feature metadata
+// Server-feature metadata
 // Used to render per-item feature icons in city lists / location pickers.
 struct FeatureMeta
 {

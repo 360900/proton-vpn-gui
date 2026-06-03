@@ -10,6 +10,12 @@
 #include <QStandardPaths>
 #include <QTimer>
 
+namespace
+{
+constexpr int KEEPALIVE_INTERVAL_MS = 45'000; // keeps a 60 s NAT-PMP lease alive
+constexpr int NO_PORT               = 0;
+} // namespace
+
 NatPmpManager::NatPmpManager(QObject* parent)
     : QObject(parent)
 {
@@ -17,13 +23,12 @@ NatPmpManager::NatPmpManager(QObject* parent)
 
 bool NatPmpManager::isInstalled()
 {
-    return !QStandardPaths::findExecutable(QStringLiteral("natpmpc")).isEmpty();
+    return QStandardPaths::findExecutable(QStringLiteral("natpmpc")).isEmpty() == false;
 }
 
 void NatPmpManager::start()
 {
-    if (m_timer != nullptr)
-        return; // already running
+    if (m_timer != nullptr) return; // already running
 
     if (QStandardPaths::findExecutable(QStringLiteral("natpmpc")).isEmpty())
     {
@@ -32,7 +37,7 @@ void NatPmpManager::start()
     }
 
     m_timer = new QTimer(this);
-    m_timer->setInterval(45'000); // 45 s keeps a 60 s NAT-PMP lease alive
+    m_timer->setInterval(KEEPALIVE_INTERVAL_MS);
     connect(m_timer, &QTimer::timeout, this, &NatPmpManager::run);
     m_timer->start();
 
@@ -43,7 +48,7 @@ void NatPmpManager::refresh()
 {
     if (m_timer == nullptr)
     {
-        start(); // not yet running — start() calls run() immediately
+        start(); // not yet running - start() calls run() immediately
         return;
     }
     // Loop already running: fire an immediate request if none is in flight.
@@ -62,13 +67,12 @@ void NatPmpManager::stop()
         m_timer = nullptr;
     }
     m_active        = false;
-    m_forwardedPort = 0;
+    m_forwardedPort = NO_PORT;
 }
 
 void NatPmpManager::run()
 {
-    if (m_active)
-        return; // previous invocation still in flight
+    if (m_active == true) return; // previous invocation still in flight
 
     m_active = true;
 
@@ -85,19 +89,19 @@ void NatPmpManager::run()
         {
             if (isInstalled() == false)
             {
-                // natpmpc was uninstalled during runtime — clear the displayed
+                // natpmpc was uninstalled during runtime - clear the displayed
                 // port first, then stop the loop and signal the missing binary.
-                if (m_forwardedPort != 0)
+                if (m_forwardedPort != NO_PORT)
                 {
-                    m_forwardedPort = 0;
+                    m_forwardedPort = NO_PORT;
                     emit portLost();
                 }
                 stop();
                 emit natpmpcMissing();
             }
-            else if (m_forwardedPort != 0)
+            else if (m_forwardedPort != NO_PORT)
             {
-                m_forwardedPort = 0;
+                m_forwardedPort = NO_PORT;
                 emit portLost();
             }
             return;
@@ -121,4 +125,3 @@ void NatPmpManager::run()
                     QStringLiteral("natpmpc -a 1 0 udp 60 -g 10.2.0.1 "
                                    "&& natpmpc -a 1 0 tcp 60 -g 10.2.0.1")});
 }
-

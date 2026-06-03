@@ -3,10 +3,7 @@
 #include <QDialog>
 #include <QString>
 
-// ---------------------------------------------------------------------------
-// ErrorDetailsDialog – shows raw VPN/CLI error text with a copy-to-clipboard
-// button.
-// ---------------------------------------------------------------------------
+// Shows raw VPN/CLI error text with a copy-to-clipboard button.
 class ErrorDetailsDialog : public QDialog
 {
     Q_OBJECT

@@ -64,7 +64,7 @@ private slots:
         ConnectionHistory::instance().record(
             QStringLiteral("DE"), QStringLiteral("Germany"), QString());
 
-        // Re-record US — it must jump back to position 0 without duplication.
+        // Re-record US - it must jump back to position 0 without duplication.
         ConnectionHistory::instance().record(
             QStringLiteral("US"), QStringLiteral("United States"), QString());
 

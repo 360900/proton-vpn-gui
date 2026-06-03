@@ -5,6 +5,13 @@
 #include <QLabel>
 #include <QPushButton>
 
+namespace
+{
+constexpr int BANNER_LEFT_MARGIN = 12;
+constexpr int BANNER_MARGIN      = 8;
+constexpr int DISMISS_BTN_SIZE   = 22;
+} // namespace
+
 // ============================================================
 // InfoBanner – a dismissable horizontal warning/info banner.
 //
@@ -23,9 +30,9 @@ public:
     explicit InfoBanner(const QString& htmlMessage, QWidget* parent = nullptr)
         : QFrame(parent)
     {
-        static const std::string kColor       = "#7a5c00";
-        static const std::string kBgColor     = "#fff3cd";
-        static const std::string kBorderColor = "#e6ac00";
+        static constexpr const char* kColor       = "#7a5c00";
+        static constexpr const char* kBgColor     = "#fff3cd";
+        static constexpr const char* kBorderColor = "#e6ac00";
 
         setStyleSheet(
             QStringLiteral(
@@ -36,8 +43,8 @@ public:
                  QLatin1String(kColor)));
 
         QHBoxLayout* layout = new QHBoxLayout(this);
-        layout->setContentsMargins(12, 8, 8, 8);
-        layout->setSpacing(8);
+        layout->setContentsMargins(BANNER_LEFT_MARGIN, BANNER_MARGIN, BANNER_MARGIN, BANNER_MARGIN);
+        layout->setSpacing(BANNER_MARGIN);
 
         QLabel* iconLabel = new QLabel(QStringLiteral("⚠"), this);
         iconLabel->setStyleSheet(QStringLiteral("font-size: 16px; font-weight: bold;"));
@@ -51,7 +58,7 @@ public:
         layout->addWidget(msgLabel, 1);
 
         QPushButton* dismissBtn = new QPushButton(QStringLiteral("✕"), this);
-        dismissBtn->setFixedSize(22, 22);
+        dismissBtn->setFixedSize(DISMISS_BTN_SIZE, DISMISS_BTN_SIZE);
         dismissBtn->setFlat(true);
         dismissBtn->setCursor(Qt::PointingHandCursor);
         dismissBtn->setStyleSheet(
