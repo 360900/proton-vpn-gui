@@ -1,6 +1,7 @@
 #include "settingspage.h"
 #include "../appconfig.h"
 #include "../connectionhistory.h"
+#include "../debug.h"
 #include "../favoritesmanager.h"
 #include "../geoutils.h"
 #include "../thememanager.h"
@@ -26,7 +27,6 @@
 #include <QJsonObject>
 #include <QMessageBox>
 #include <QMouseEvent>
-#include <QProcess>
 #include <QRadioButton>
 #include <QScrollArea>
 #include <QSpinBox>
@@ -65,11 +65,6 @@ constexpr int SETTING_ROW_V_MARGIN          = 12;
 constexpr int SETTING_ROW_SPACING           = 16;
 constexpr int COMBO_MIN_WIDTH               = 160;
 constexpr int DNS_ADDR_BOT_MARGIN           = 12;
-
-// systemd timeouts
-constexpr int SYSTEMD_CHECK_TIMEOUT_MS      = 2000;
-constexpr int SYSTEMD_QUERY_TIMEOUT_MS      = 3000;
-constexpr int SYSTEMD_ENABLE_TIMEOUT_MS     = 5000;
 
 // constructor outer layout
 constexpr int OUTER_LAYOUT_MARGIN           = 16;
@@ -132,10 +127,6 @@ constexpr double PLUS_SECTION_DISABLED_OPACITY = 0.45;
 constexpr int REFRESH_OVERLAY_MARGIN        = 8;
 constexpr int REFRESH_OVERLAY_H             = 30;
 
-// systemd service
-const QString SYSTEMD_USER_SERVICE_DIR =
-    QDir::homePath() + QStringLiteral("/.config/systemd/user");
-const QString SERVICE_FILE_NAME = QStringLiteral("proton-vpn-qt.service");
 
 #ifdef QT_DEBUG
 constexpr bool DRY_RUN_MODE = true;
@@ -579,7 +570,6 @@ SettingsPage::SettingsPage(VpnManager* manager, NatPmpManager* natPmpManager, QW
             startupLayout->addWidget(w);
         };
 
-        if (systemdAvailable())
         {
             m_autoStartRow = new QWidget(startupCard);
             QHBoxLayout* rl = new QHBoxLayout(m_autoStartRow);
@@ -588,8 +578,7 @@ SettingsPage::SettingsPage(VpnManager* manager, NatPmpManager* natPmpManager, QW
             rl->setSpacing(SETTING_ROW_SPACING);
             rl->addWidget(makeTextCol(m_autoStartRow,
                                       tr("Launch on Startup"),
-                                      tr("Automatically start the app in the background when you log in "
-                                         "(installs a systemd user service).")), 1);
+                                      tr("Start Proton VPN automatically when you log in.")), 1);
             m_autoStartToggle = new ToggleWithStatus(m_autoStartRow);
             m_autoStartToggle->setOn(autoStartEnabled(), false);
             connect(m_autoStartToggle, &ToggleWithStatus::toggled, this, [this](const bool on)
@@ -1846,122 +1835,77 @@ void SettingsPage::onSettingsReady(const QMap<QString, QString>& info)
 }
 
 // ---------------------------------------------------------------------------
-// Auto-start helpers (systemd user service)
+// Auto-start helpers (XDG autostart .desktop file)
 // ---------------------------------------------------------------------------
 
-QString SettingsPage::serviceFilePath()
+QString SettingsPage::autoStartFilePath()
 {
     return QStandardPaths::writableLocation(QStandardPaths::ConfigLocation)
-           + QStringLiteral("/systemd/user/proton-vpn-qt.service");
-}
-
-bool SettingsPage::systemdAvailable()
-{
-    // The systemd user session creates this directory when it is running.
-    const QString runtimeDir = QStandardPaths::writableLocation(QStandardPaths::RuntimeLocation);
-    return QDir(runtimeDir + QStringLiteral("/systemd")).exists();
+           + QStringLiteral("/autostart/proton-vpn-qt.desktop");
 }
 
 bool SettingsPage::autoStartEnabled()
 {
-    return QFileInfo::exists(serviceFilePath());
+    return QFileInfo::exists(autoStartFilePath());
 }
 
 bool SettingsPage::setAutoStart(const bool enable, QString& errorOut)
 {
+    const QString filePath = autoStartFilePath();
+
     if (enable == true)
     {
-        // Read the bundled service template.
-        QFile templateFile(QStringLiteral(":/systemd/proton-vpn-qt.service"));
+        // Load the bundled .desktop template.
+        QFile templateFile(QStringLiteral(":/autostart/proton-vpn-qt.desktop"));
         if (templateFile.open(QIODevice::ReadOnly) == false)
         {
-            errorOut = tr("Could not read the service template resource.");
+            errorOut = tr("Could not read the autostart template resource.");
             return false;
         }
         QString content = QString::fromUtf8(templateFile.readAll());
         templateFile.close();
 
         // Substitute the executable path placeholder.
-        const QString execStart = isRunningAsFlatpak()
+        const QString exec = isRunningAsFlatpak()
             ? QStringLiteral("flatpak run ") + QString::fromUtf8(qgetenv("FLATPAK_ID"))
             : QCoreApplication::applicationFilePath();
-        content.replace(QStringLiteral("%1"), execStart);
+        content.replace(QStringLiteral("@EXEC@"), exec);
 
-        // Ensure the target directory exists.
-        const QString filePath = serviceFilePath();
+        if (DRY_RUN_MODE == true)
+        {
+            DBG_SETTINGS(QStringLiteral("[DRY RUN] Would write autostart file: ") + filePath);
+            return true;
+        }
+
+        // Ensure ~/.config/autostart/ exists.
         QDir targetDir = QFileInfo(filePath).dir();
         if (targetDir.mkpath(targetDir.absolutePath()) == false)
         {
-            errorOut = tr("Could not create the systemd user service directory.");
+            errorOut = tr("Could not create the autostart directory.");
             return false;
         }
 
-        // Write the service file.
         QFile outFile(filePath);
         if (outFile.open(QIODevice::WriteOnly | QIODevice::Truncate) == false)
         {
-            errorOut = tr("Could not write the service file: %1").arg(outFile.errorString());
+            errorOut = tr("Could not write the autostart file: %1").arg(outFile.errorString());
             return false;
         }
         outFile.write(content.toUtf8());
         outFile.close();
-
-        // Reload the daemon so it picks up the new unit.
-        {
-            auto [prog, args] = buildHostCommand(QStringLiteral("systemctl"),
-                {QStringLiteral("--user"), QStringLiteral("daemon-reload")});
-            QProcess proc;
-            proc.start(prog, args);
-            proc.waitForFinished(SYSTEMD_ENABLE_TIMEOUT_MS);
-            if (proc.exitCode() != 0)
-            {
-                errorOut = QString::fromUtf8(proc.readAllStandardError()).trimmed();
-                return false;
-            }
-        }
-
-        // Enable the service so it starts at login.
-        {
-            auto [prog, args] = buildHostCommand(QStringLiteral("systemctl"),
-                {QStringLiteral("--user"), QStringLiteral("enable"),
-                 QStringLiteral("proton-vpn-qt.service")});
-            QProcess proc;
-            proc.start(prog, args);
-            proc.waitForFinished(SYSTEMD_ENABLE_TIMEOUT_MS);
-            if (proc.exitCode() != 0)
-            {
-                errorOut = QString::fromUtf8(proc.readAllStandardError()).trimmed();
-                return false;
-            }
-        }
     }
     else
     {
-        // Disable the unit (ignore errors — it may never have been enabled).
+        if (DRY_RUN_MODE == true)
         {
-            auto [prog, args] = buildHostCommand(QStringLiteral("systemctl"),
-                {QStringLiteral("--user"), QStringLiteral("disable"),
-                 QStringLiteral("proton-vpn-qt.service")});
-            QProcess proc;
-            proc.start(prog, args);
-            proc.waitForFinished(SYSTEMD_ENABLE_TIMEOUT_MS);
+            DBG_SETTINGS(QStringLiteral("[DRY RUN] Would remove autostart file: ") + filePath);
+            return true;
         }
 
-        // Remove the service file.
-        const QString filePath = serviceFilePath();
         if (QFileInfo::exists(filePath) == true && QFile::remove(filePath) == false)
         {
-            errorOut = tr("Could not remove the service file: %1").arg(filePath);
+            errorOut = tr("Could not remove the autostart file: %1").arg(filePath);
             return false;
-        }
-
-        // Reload so the daemon stops tracking the removed unit.
-        {
-            auto [prog, args] = buildHostCommand(QStringLiteral("systemctl"),
-                {QStringLiteral("--user"), QStringLiteral("daemon-reload")});
-            QProcess proc;
-            proc.start(prog, args);
-            proc.waitForFinished(SYSTEMD_ENABLE_TIMEOUT_MS);
         }
     }
 

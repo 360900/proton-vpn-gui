@@ -38,8 +38,8 @@
         <file>style.qss</file>
         <file>style_light.qss</file>
     </qresource>
-    <qresource prefix="/init">
-        <file alias="systemd/proton-vpn-qt.service">init/systemd/proton-vpn-qt.service</file>
+    <qresource prefix="/autostart">
+        <file alias="proton-vpn-qt.desktop">autostart/proton-vpn-qt.desktop</file>
     </qresource>
 </RCC>
 

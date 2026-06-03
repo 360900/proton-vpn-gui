@@ -25,6 +25,8 @@ set(SOURCES
         main.cpp
         appconfig.h
         appconfig.cpp
+        migrations.h
+        migrations.cpp
         thememanager.h
         thememanager.cpp
         connectionhistory.h

@@ -17,6 +17,7 @@
 #include "dbus/vpnstatusadaptor.h"
 #include "debug.h"
 #include "mainwindow.h"
+#include "migrations.h"
 #include "thememanager.h"
 
 int main(int argc, char* argv[])
@@ -106,6 +107,10 @@ int main(int argc, char* argv[])
     // Apply theme (palette + stylesheet) based on saved preference.
     // This replaces the former hard-coded dark palette block.
     ThemeManager::apply(AppConfig::instance().theme());
+
+    // Run one-time upgrade migrations before the main window is constructed.
+    // lastSeenVersion() still holds the previous version at this point.
+    Migrations::run(AppConfig::instance().lastSeenVersion());
 
     MainWindow w;
 

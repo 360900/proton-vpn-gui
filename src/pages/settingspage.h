@@ -71,7 +71,7 @@ private:
     // keeps the whole VPN card disabled through the Disconnected interim.
     bool m_sequencePending = false;
 
-    // Auto-start (systemd user service)
+    // Auto-start (XDG autostart .desktop file)
     ToggleWithStatus* m_autoStartToggle = nullptr;
     QWidget* m_autoStartRow = nullptr;
 
@@ -150,8 +150,7 @@ private:
     void maybeWarnReconnect(const QString& cliOutput);
 
     // Auto-start helpers
-    static QString serviceFilePath();
-    static bool systemdAvailable();
+    static QString autoStartFilePath();
     static bool autoStartEnabled();
     static bool setAutoStart(bool enable, QString& errorOut);
     void updateAutoConnectRowVisibility() const;

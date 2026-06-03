@@ -12,7 +12,7 @@ finish-args:
   - --share=network
   # Talk to the host D-Bus session bus (for system tray, notifications)
   - --socket=session-bus
-  # Allow talking to the host system bus (NetworkManager, systemd, etc.)
+  # Allow talking to the host system bus (for NetworkManager and other services)
   - --socket=system-bus
   # Allow flatpak-spawn to call the host protonvpn CLI
   - --talk-name=org.freedesktop.Flatpak
@@ -20,8 +20,8 @@ finish-args:
   # Without this, fetchSettings() cannot read ~/.config/Proton/VPN/settings.json
   # and all VPN settings toggles will appear as OFF.
   - --filesystem=~/.config/Proton:ro
-  # Allow writing the systemd user service file for the "Launch on Startup" feature.
-  - --filesystem=~/.config/systemd/user
+  # Allow writing the XDG autostart .desktop file for the "Launch on Startup" feature.
+  - --filesystem=~/.config/autostart
 
 modules:
   - name: proton_vpn_qt

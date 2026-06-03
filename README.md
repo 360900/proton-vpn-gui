@@ -35,7 +35,7 @@ A Qt GUI front-end for the [Proton VPN Linux CLI](https://protonvpn.com/support/
 
 ### Settings
 **App tab**
-- Launch on Startup via a systemd user service, with optional Auto-connect
+- Launch on Startup via XDG autostart, with optional Auto-connect
 - Desktop Notifications for connect/disconnect events
 - *(Plus)* Recent Connections count (0–20) and one-click history clear
 
@@ -105,7 +105,7 @@ When Port Forwarding is enabled in Settings and you are connected to a P2P serve
 | `protonvpn` CLI | Core VPN control — sign in, connect, disconnect, status, country/city lists, settings |
 | Qt 6 (Core, Gui, Widgets, Svg, SvgWidgets) | UI framework |
 | `curl` | **Optional** — fetches your public IP address when already connected on launch |
-| `systemd` (user session) | **Optional** — required for the "Launch on Startup" feature |
+| XDG autostart (`~/.config/autostart/`) | **Optional** — required for the "Launch on Startup" feature; supported by all major desktop environments |
 
 The app communicates exclusively with the `protonvpn` CLI. `curl` degrades gracefully if absent.
 
