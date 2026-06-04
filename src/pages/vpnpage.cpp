@@ -473,9 +473,8 @@ bool LocationPicker::trySelectCity(const QString& city)
             return true;
         }
     }
-    // City not in the list – show "Active connection" as fallback.
-    m_selectedCity.clear();
-    setUnknownConnection(true);
+    // City not in the local country's list (e.g. connected to a different country).
+    // Leave the picker display unchanged so it keeps showing the last local selection.
     return false;
 }
 
@@ -1457,6 +1456,12 @@ void VpnPage::onStatusCityKnown(const QString& city)
     // and applyPendingStatusCity() can select it once the list is populated.
     m_pendingStatusCity = city;
     m_activeCity        = city;
+    // If already connected (e.g. status monitor fires after the state was set),
+    // apply the city immediately rather than waiting for a state transition.
+    if (m_currentState == VpnState::Connected)
+    {
+        applyPendingStatusCity();
+    }
 }
 
 void VpnPage::applyPendingStatusCity()
@@ -1464,13 +1469,9 @@ void VpnPage::applyPendingStatusCity()
     if (m_pendingStatusCity.isEmpty())
         return;
 
-    const bool found = m_locationPicker->trySelectCity(m_pendingStatusCity);
-    if (found == false)
-    {
-        // City not in the list – treat as unknown active connection.
-        m_activeCity.clear();
-        m_hadUnknownConnection = true;
-    }
+    // If the city is in the local country's list the picker updates to show it.
+    // If not (e.g. connected to a different country) the picker is left unchanged.
+    m_locationPicker->trySelectCity(m_pendingStatusCity);
     m_pendingStatusCity.clear();
 }
 
@@ -1842,6 +1843,17 @@ void VpnPage::updateUi(const VpnState state, const QString& info)
         if (prevState == VpnState::Connecting)
         {
             startElapsedTimer();
+            // Update the picker immediately using the city known at connect
+            // time. The status monitor may not have polled yet, so
+            // m_pendingStatusCity is often empty here; m_activeCity is always
+            // set at the moment connectRequested was emitted.
+            {
+                const QString city = m_pendingStatusCity.isEmpty() == false
+                    ? m_pendingStatusCity
+                    : m_activeCity;
+                m_locationPicker->trySelectCity(city);
+                m_pendingStatusCity.clear();
+            }
             if (m_isFreeUser == false && m_recentPicker != nullptr)
             {
                 m_recentPicker->refresh();
