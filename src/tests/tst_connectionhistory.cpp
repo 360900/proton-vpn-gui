@@ -27,7 +27,7 @@ private slots:
         QStandardPaths::setTestModeEnabled(false);
     }
 
-    // ── Basic record ─────────────────────────────────────────────────────────
+    //  Basic record
     void record_newEntry_appearsInEntries()
     {
         ConnectionHistory::instance().clear();
@@ -55,7 +55,7 @@ private slots:
         QCOMPARE(entries.at(1).countryCode, QStringLiteral("DE"));
     }
 
-    // ── Deduplication ────────────────────────────────────────────────────────
+    //  Deduplication
     void record_duplicateCountryAndCity_movesToFront()
     {
         ConnectionHistory::instance().clear();
@@ -64,7 +64,7 @@ private slots:
         ConnectionHistory::instance().record(
             QStringLiteral("DE"), QStringLiteral("Germany"), QString());
 
-        // Re-record US — it must jump back to position 0 without duplication.
+        // Re-record US - it must jump back to position 0 without duplication.
         ConnectionHistory::instance().record(
             QStringLiteral("US"), QStringLiteral("United States"), QString());
 
@@ -85,7 +85,7 @@ private slots:
         QCOMPARE(entries.size(), 2);
     }
 
-    // ── Capacity trimming ────────────────────────────────────────────────────
+    //  Capacity trimming
     void record_exceedsMaxCount_trimsOldest()
     {
         AppConfig::instance().setRecentConnectionsCount(3);
@@ -108,7 +108,7 @@ private slots:
         AppConfig::instance().setRecentConnectionsCount(5);
     }
 
-    // ── Feature disabled (count = 0) ─────────────────────────────────────────
+    //  Feature disabled (count = 0)
     void record_countIsZero_nothingStored()
     {
         AppConfig::instance().setRecentConnectionsCount(0);
@@ -137,7 +137,7 @@ private slots:
         AppConfig::instance().setRecentConnectionsCount(5);
     }
 
-    // ── clear() ──────────────────────────────────────────────────────────────
+    //  clear()
     void clear_removesAllEntries()
     {
         ConnectionHistory::instance().record(
@@ -148,7 +148,7 @@ private slots:
         QVERIFY(!ConnectionHistory::instance().hasAnyEntries());
     }
 
-    // ── hasAnyEntries ────────────────────────────────────────────────────────
+    //  hasAnyEntries
     void hasAnyEntries_afterRecord_isTrue()
     {
         ConnectionHistory::instance().clear();
@@ -159,7 +159,7 @@ private slots:
         QVERIFY(ConnectionHistory::instance().hasAnyEntries());
     }
 
-    // ── changed() signal ─────────────────────────────────────────────────────
+    //  changed() signal
     void record_emitsChangedSignal()
     {
         ConnectionHistory::instance().clear();

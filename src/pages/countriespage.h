@@ -35,8 +35,8 @@ private:
     VpnManager* m_manager;
     QString     m_localCountryCode;
 
-    QMap<QString, QString> m_allCountries; // name → code
-    QMap<QString, QList<QPair<QString, QString>>> m_cityCache; // code → cities
+    QMap<QString, QString> m_allCountries; // name -> code
+    QMap<QString, QList<QPair<QString, QString>>> m_cityCache; // code -> cities
     QSet<QString> m_pendingCityCodes;
 
     QString m_selectedCode;

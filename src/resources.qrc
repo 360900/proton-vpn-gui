@@ -19,6 +19,7 @@
         <file alias="eye-show.svg">assets/eye/show.svg</file>
         <file alias="chevron-up.svg">assets/chevron-up.svg</file>
         <file alias="chevron-down.svg">assets/chevron-down.svg</file>
+        <file alias="chevron-down-light.svg">assets/chevron-down-light.svg</file>
         <file alias="server-p2p.svg">assets/servers/p2p.svg</file>
         <file alias="server-secure-core.svg">assets/servers/secure-core.svg</file>
         <file alias="server-smart-routing.svg">assets/servers/smart-routing.svg</file>
@@ -37,8 +38,8 @@
         <file>style.qss</file>
         <file>style_light.qss</file>
     </qresource>
-    <qresource prefix="/init">
-        <file alias="systemd/proton-vpn-qt.service">init/systemd/proton-vpn-qt.service</file>
+    <qresource prefix="/autostart">
+        <file alias="proton-vpn-qt.desktop">autostart/proton-vpn-qt.desktop</file>
     </qresource>
 </RCC>
 

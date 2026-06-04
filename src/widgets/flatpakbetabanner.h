@@ -1,18 +1,14 @@
 #pragma once
 
-// ============================================================
-// FlatpakBetaBanner
-//
 // Shows a dismissable amber warning banner when the app is running
-// as a Flatpak, indicating that the Flatpak packaging is in beta.
-//
-// TO RETIRE: delete this file and remove:
+//  as a Flatpak, indicating that the Flatpak packaging is in beta.
+
+// Note to self for later: to retire, delete this file and remove:
 //   - #include "widgets/flatpakbetabanner.h"  (in each page)
 //   - m_flatpakBetaBanner member declaration   (in each page .h)
 //   - checkFlatpakBetaBanner() declaration     (in each page .h)
 //   - checkFlatpakBetaBanner() call            (in each page constructor)
 //   - checkFlatpakBetaBanner() implementation  (in each page .cpp)
-// ============================================================
 
 #include "infobanner.h"
 #include "../cli/flatpakutils.h"

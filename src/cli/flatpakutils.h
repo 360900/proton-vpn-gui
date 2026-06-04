@@ -16,8 +16,8 @@ inline bool isRunningAsFlatpak()
 
 // Returns {program, fullArgs} to run an arbitrary host command via QProcess.
 // When running inside a Flatpak sandbox, the command is forwarded to the host
-// via flatpak-spawn --host. Outside of Flatpak, it is returned unchanged.
-//
+//  via flatpak-spawn --host. Outside of Flatpak, it is returned unchanged.
+
 // Example:
 //   auto [prog, args] = buildHostCommand("systemctl", {"--user", "enable", "foo"});
 //   process.start(prog, args);

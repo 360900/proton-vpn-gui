@@ -1,27 +1,34 @@
 #include "notinstalledpage.h"
 
-#include <QVBoxLayout>
+#include <QDesktopServices>
 #include <QLabel>
 #include <QPushButton>
 #include <QSvgWidget>
-#include <QDesktopServices>
 #include <QUrl>
+#include <QVBoxLayout>
+
+namespace
+{
+constexpr int NOT_INSTALLED_LAYOUT_SPACING = 20;
+constexpr int NOT_INSTALLED_ICON_SIZE      = 96;
+constexpr int NOT_INSTALLED_TITLE_FONT_SIZE = 16;
+} // namespace
 
 NotInstalledPage::NotInstalledPage(QWidget* parent)
     : QWidget(parent)
 {
     QVBoxLayout* layout = new QVBoxLayout(this);
     layout->setAlignment(Qt::AlignCenter);
-    layout->setSpacing(20);
+    layout->setSpacing(NOT_INSTALLED_LAYOUT_SPACING);
 
     QSvgWidget* icon = new QSvgWidget(QStringLiteral(":/assets/no-app-icon.svg"), this);
-    icon->setFixedSize(96, 96);
+    icon->setFixedSize(NOT_INSTALLED_ICON_SIZE, NOT_INSTALLED_ICON_SIZE);
     layout->addWidget(icon, 0, Qt::AlignCenter);
 
     QLabel* titleLabel = new QLabel(tr("ProtonVPN CLI Not Found"), this);
     titleLabel->setObjectName(QStringLiteral("titleLabel"));
     QFont titleFont = titleLabel->font();
-    titleFont.setPointSize(16);
+    titleFont.setPointSize(NOT_INSTALLED_TITLE_FONT_SIZE);
     titleFont.setBold(true);
     titleLabel->setFont(titleFont);
     titleLabel->setAlignment(Qt::AlignCenter);

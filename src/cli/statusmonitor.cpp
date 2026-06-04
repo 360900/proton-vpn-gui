@@ -23,13 +23,13 @@ static constexpr char kProcessName[] = "protonvpn-qt-status-mon"; // NOLINT(*-av
 // Shell command run by the subprocess:
 //   1. exec -a renames the bash process to kProcessName (sets argv[0]).
 //   2. The inner bash runs an infinite loop:
-//        a. `protonvpn status` (stdout + stderr merged) — or via flatpak-spawn
+//        a. `protonvpn status` (stdout + stderr merged) - or via flatpak-spawn
 //           when running inside a Flatpak sandbox.
-//        b. ASCII 0x1E (Record Separator) — unambiguous snapshot delimiter
+//        b. ASCII 0x1E (Record Separator) - unambiguous snapshot delimiter
 //        c. sleep 15
 static QString buildLoopCommand()
 {
-    // Inside a Flatpak sandbox, `protonvpn` is not available directly — it
+    // Inside a Flatpak sandbox, `protonvpn` is not available directly - it
     // must be forwarded to the host via flatpak-spawn.
     const QString vpnCmd = isRunningAsFlatpak()
         ? QStringLiteral("flatpak-spawn --host protonvpn status")
@@ -69,7 +69,7 @@ void StatusMonitor::start()
     if (m_process != nullptr)
     {
         DBG_STATUS(QStringLiteral("start() called but monitor is already running "
-                               "(PID %1) — ignored.").arg(m_process->processId()));
+                               "(PID %1) - ignored.").arg(m_process->processId()));
         return;
     }
 
@@ -100,7 +100,7 @@ bool StatusMonitor::isRunning() const
 }
 
 // ---------------------------------------------------------------------------
-// Private — process lifecycle
+// Private - process lifecycle
 // ---------------------------------------------------------------------------
 
 void StatusMonitor::launchProcess()
@@ -179,19 +179,19 @@ void StatusMonitor::onReadyRead()
 
 void StatusMonitor::onProcessFinished(int exitCode, QProcess::ExitStatus status)
 {
-    // CrashExit means the process was terminated by a signal — either an
+    // CrashExit means the process was terminated by a signal - either an
     // external `kill`/`kill -9` or the kernel via PR_SET_PDEATHSIG.
     // NormalExit with a non-zero code means the shell loop exited on its own.
     if (status == QProcess::CrashExit)
     {
         DBG_STATUS(QStringLiteral("Process was killed externally (signal termination)."
-                               "  restart#=%1 — restarting in %2 ms.")
+                               "  restart#=%1 - restarting in %2 ms.")
                     .arg(m_restartCount).arg(kRestartDelayMs));
     }
     else
     {
         DBG_STATUS(QStringLiteral("Process exited unexpectedly (non-zero exit):"
-                               "  exitCode=%1  restart#=%2 — restarting in %3 ms.")
+                               "  exitCode=%1  restart#=%2 - restarting in %3 ms.")
                     .arg(exitCode).arg(m_restartCount).arg(kRestartDelayMs));
     }
 

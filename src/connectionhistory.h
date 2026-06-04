@@ -5,11 +5,11 @@
 #include <QObject>
 #include <QString>
 
-// ---------------------------------------------------------------------------
+/*
 // ConnectionHistory – persists recent VPN connections to
 //   $XDG_DATA_HOME/ProtonVPN-Qt/history.json
 //   (falls back to ~/.local/share/ProtonVPN-Qt/history.json)
-// ---------------------------------------------------------------------------
+*/
 struct ConnectionEntry
 {
     QString  countryCode; // e.g. "US"

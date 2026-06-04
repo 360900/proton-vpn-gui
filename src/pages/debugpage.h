@@ -16,7 +16,7 @@ public:
     explicit DebugPage(QWidget* parent = nullptr);
 
 private slots:
-    void refreshValues();
+    void refreshValues() const;
 
 private:
     // Value labels in the per-key settings grid (kept for live refresh)

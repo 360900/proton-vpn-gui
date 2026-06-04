@@ -5,7 +5,7 @@
 #include <QString>
 
 // ---------------------------------------------------------------------------
-// GeoUtils — shared utilities for country detection and flag icon loading.
+// GeoUtils - shared utilities for country detection and flag icon loading.
 // These are free functions in a namespace so any page can use them without
 // coupling to a specific widget class.
 // ---------------------------------------------------------------------------
@@ -17,7 +17,7 @@ namespace GeoUtils
     QString detectUserCountry();
 
     // Convert a 2-letter country code to its English display name
-    // (e.g. "US" → "United States").  Returns the code itself if unknown.
+    // (e.g. "US" -> "United States").  Returns the code itself if unknown.
     QString countryCodeToName(const QString& code);
 
     // Render an SVG resource path into a QPixmap at the given pixel size.
@@ -33,7 +33,7 @@ namespace GeoUtils
     QPixmap svgPixmap(const QString& resourcePath, int width, int height, const QColor& tint);
 
     // Return a QIcon for the given country code using the embedded /flags/
-    // resources (e.g. "US" → :/flags/us).  Icons are cached so each SVG is
+    // resources (e.g. "US" -> :/flags/us).  Icons are cached so each SVG is
     // only decoded once per session.  Returns a null QIcon if no flag exists.
     QIcon flagIcon(const QString& countryCode);
 } // namespace GeoUtils

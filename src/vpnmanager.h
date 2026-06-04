@@ -4,7 +4,7 @@
 #include <QString>
 #include <QMap>
 
-class StatusMonitor; // cli/statusmonitor.h — forward-declared to keep this
+class StatusMonitor; // cli/statusmonitor.h - forward-declared to keep this
                      // header lightweight; full type used only in vpnmanager.cpp.
 
 enum class VpnState
@@ -39,7 +39,7 @@ public:
     void signOut();
     void connectVpn(const QString& country = QString(), const QString& city = QString());
     void disconnectVpn();
-    static void disconnectVpnSync(); // blocking disconnect — safe to call just before app exit
+    static void disconnectVpnSync(); // blocking disconnect - safe to call just before app exit
     // Disconnect, change any config key/value, then reconnect to the previous location.
     void applyConfigValueAndReconnect(const QString& key, const QString& value);
     void fetchCountries();
@@ -58,10 +58,10 @@ public:
 
     VpnState    currentState()       const { return m_state; }
     AccountType accountType()        const { return m_accountType; }
-    // Last country / city passed to connectVpn() — empty if connected via CLI.
+    // Last country / city passed to connectVpn() - empty if connected via CLI.
     QString     lastConnectCountry() const { return m_lastConnectCountry; }
     QString     lastConnectCity()    const { return m_lastConnectCity; }
-    // Last server string seen while Connected (e.g. "US-NJ#189") — empty otherwise.
+    // Last server string seen while Connected (e.g. "US-NJ#189") - empty otherwise.
     QString     connectedServer()    const { return m_connectedServer; }
     // Reads the port-forwarding setting directly from the settings JSON file.
     bool        portForwardingEnabled() const;
@@ -79,7 +79,7 @@ signals:
     // Emitted alongside connectionCityKnown with the 2-letter country code
     // extracted from the connected server name (e.g. "US" from "US-NJ#189").
     void connectionCountryKnown(const QString& countryCode);
-    void countriesReady(const QMap<QString, QString>& countries); // name → code
+    void countriesReady(const QMap<QString, QString>& countries); // name -> code
     void citiesReady(const QString& countryCode, const QList<QPair<QString, QString>>& cities); // (city, features)
     void infoReady(const QMap<QString, QString>& info);
     void settingsReady(const QMap<QString, QString>& settings);

@@ -2,10 +2,7 @@
 
 #include <QDialog>
 
-// ---------------------------------------------------------------------------
-// WhatsNewDialog – shown once per app version on first launch after an update.
-// Displays a short "What's new" summary and a link to the GitHub release page.
-// ---------------------------------------------------------------------------
+// Shown once per app version on first launch after an update.
 class WhatsNewDialog : public QDialog
 {
     Q_OBJECT

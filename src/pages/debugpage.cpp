@@ -1,25 +1,39 @@
 #include "debugpage.h"
 
-#include <QVBoxLayout>
-#include <QHBoxLayout>
-#include <QGridLayout>
-#include <QLabel>
-#include <QFrame>
-#include <QPushButton>
-#include <QScrollArea>
-#include <QMessageBox>
-#include <QFile>
-#include <functional>
-// ReSharper disable once CppUnusedIncludeDirective
-#include <QJsonDocument> // Ignore unused include warning; we do use QJsonDocument
-#include <QJsonObject>
-
 #include "../appconfig.h"
 #include "../dialogs/whatsnewdialog.h"
 
-// ── Small helpers ────────────────────────────────────────────────────────────
+#include <QFile>
+#include <QFrame>
+#include <QGridLayout>
+#include <QHBoxLayout>
+// ReSharper disable once CppUnusedIncludeDirective
+#include <QJsonDocument> // Ignore unused include warning; we do use QJsonDocument
+#include <QJsonObject>
+#include <QLabel>
+#include <QMessageBox>
+#include <QPushButton>
+#include <QScrollArea>
+#include <QVBoxLayout>
+#include <functional>
 
-static QLabel* makeSectionHeader(const QString& text, QWidget* parent)
+namespace
+{
+constexpr int DEBUG_TITLE_FONT_SIZE  = 14;
+constexpr int DEBUG_H_MARGIN         = 24;
+constexpr int DEBUG_V_MARGIN         = 20;
+constexpr int DEBUG_LAYOUT_SPACING   = 12;
+constexpr int CLEAR_BTN_WIDTH        = 160;
+constexpr int CLEAR_ROW_SPACING      = 12;
+constexpr int GRID_V_MARGIN          = 4;
+constexpr int GRID_H_SPACING         = 12;
+constexpr int GRID_V_SPACING         = 6;
+constexpr int KEY_LABEL_MIN_WIDTH    = 180;
+constexpr int RESET_BTN_WIDTH        = 64;
+constexpr int DEFAULT_RECENT_COUNT   = 5;
+constexpr int VALUE_COL_STRETCH      = 1;
+
+QLabel* makeSectionHeader(const QString& text, QWidget* parent)
 {
     QLabel* lbl = new QLabel(text, parent);
     QFont f = lbl->font();
@@ -28,7 +42,7 @@ static QLabel* makeSectionHeader(const QString& text, QWidget* parent)
     return lbl;
 }
 
-static QFrame* makeDivider(QWidget* parent)
+QFrame* makeDivider(QWidget* parent)
 {
     QFrame* line = new QFrame(parent);
     line->setFrameShape(QFrame::HLine);
@@ -36,25 +50,24 @@ static QFrame* makeDivider(QWidget* parent)
     return line;
 }
 
-static QString boolStr(bool v)
+QString boolStr(const bool v)
 {
-    return v ? QStringLiteral("true") : QStringLiteral("false");
+    return v == true ? QStringLiteral("true") : QStringLiteral("false");
 }
 
-static QString themeStr(AppConfig::Theme t)
+QString themeStr(const AppConfig::Theme t)
 {
     switch (t)
     {
-    case AppConfig::Theme::Dark:
-        return QStringLiteral("Dark");
-    case AppConfig::Theme::Light:
-        return QStringLiteral("Light");
-    default:
-        return QStringLiteral("System");
+        case AppConfig::Theme::Dark:
+            return QStringLiteral("Dark");
+        case AppConfig::Theme::Light:
+            return QStringLiteral("Light");
+        default:
+            return QStringLiteral("System");
     }
 }
-
-// ── DebugPage constructor ────────────────────────────────────────────────────
+} // namespace
 
 DebugPage::DebugPage(QWidget* parent)
     : QWidget(parent)
@@ -74,14 +87,14 @@ DebugPage::DebugPage(QWidget* parent)
 
     QVBoxLayout* layout = new QVBoxLayout(content);
     layout->setAlignment(Qt::AlignTop);
-    layout->setSpacing(12);
-    layout->setContentsMargins(24, 20, 24, 20);
+    layout->setSpacing(DEBUG_LAYOUT_SPACING);
+    layout->setContentsMargins(DEBUG_H_MARGIN, DEBUG_V_MARGIN, DEBUG_H_MARGIN, DEBUG_V_MARGIN);
 
-    // ── Page header ──────────────────────────────────────────────────────────
+    //  Page header
     QLabel* titleLabel = new QLabel(tr("Debug Tools"), content);
     titleLabel->setObjectName(QStringLiteral("titleLabel"));
     QFont titleFont = titleLabel->font();
-    titleFont.setPointSize(14);
+    titleFont.setPointSize(DEBUG_TITLE_FONT_SIZE);
     titleFont.setBold(true);
     titleLabel->setFont(titleFont);
     layout->addWidget(titleLabel);
@@ -95,7 +108,7 @@ DebugPage::DebugPage(QWidget* parent)
 
     layout->addWidget(makeDivider(content));
 
-    // ── Dialogs section ──────────────────────────────────────────────────────
+    //  Dialogs section
     layout->addWidget(makeSectionHeader(tr("Dialogs"), content));
 
     QPushButton* whatsNewBtn = new QPushButton(tr("Test \u201cWhat\u2019s New\u201d Dialog"), content);
@@ -111,7 +124,7 @@ DebugPage::DebugPage(QWidget* parent)
             vf.close();
             version = obj.value(QStringLiteral("app_version")).toString(version);
         }
-        auto* dlg = new WhatsNewDialog(version, this);
+        WhatsNewDialog* dlg = new WhatsNewDialog(version, this);
         dlg->setModal(true);
         dlg->show();
     });
@@ -119,12 +132,12 @@ DebugPage::DebugPage(QWidget* parent)
 
     layout->addWidget(makeDivider(content));
 
-    // ── Settings section ─────────────────────────────────────────────────────
+    //  Settings section
     layout->addWidget(makeSectionHeader(tr("Settings"), content));
 
     // "Clear All Settings" row
     QHBoxLayout* clearRow = new QHBoxLayout();
-    clearRow->setSpacing(12);
+    clearRow->setSpacing(CLEAR_ROW_SPACING);
 
     QLabel* clearDesc = new QLabel(
         tr("Delete the config file and reset every value to its default."),
@@ -136,7 +149,7 @@ DebugPage::DebugPage(QWidget* parent)
     QPushButton* clearAllBtn = new QPushButton(tr("Clear All Settings"), content);
     clearAllBtn->setObjectName(QStringLiteral("dangerButton"));
     clearAllBtn->setCursor(Qt::PointingHandCursor);
-    clearAllBtn->setFixedWidth(160);
+    clearAllBtn->setFixedWidth(CLEAR_BTN_WIDTH);
     connect(clearAllBtn, &QPushButton::clicked, this, [this]()
     {
         QMessageBox mb(this);
@@ -155,15 +168,15 @@ DebugPage::DebugPage(QWidget* parent)
     clearRow->addWidget(clearAllBtn, 0, Qt::AlignRight);
     layout->addLayout(clearRow);
 
-    // ── Per-key grid ─────────────────────────────────────────────────────────
+    //  Per-key grid
     QWidget* gridWidget = new QWidget(content);
     QGridLayout* grid = new QGridLayout(gridWidget);
-    grid->setContentsMargins(0, 4, 0, 4);
-    grid->setHorizontalSpacing(12);
-    grid->setVerticalSpacing(6);
-    grid->setColumnStretch(1, 1); // value column stretches
+    grid->setContentsMargins(0, GRID_V_MARGIN, 0, GRID_V_MARGIN);
+    grid->setHorizontalSpacing(GRID_H_SPACING);
+    grid->setVerticalSpacing(GRID_V_SPACING);
+    grid->setColumnStretch(1, VALUE_COL_STRETCH); // value column stretches
 
-    // Helper: appends one row, wires the Reset button via onReset, and returns
+    // Appends one row, wires the Reset button via onReset, and returns
     // the value label so the caller can update it in refreshValues().
     int row = 0;
     auto addRow = [&](const QString& key,
@@ -174,7 +187,7 @@ DebugPage::DebugPage(QWidget* parent)
             QStringLiteral("<b>%1</b>").arg(key.toHtmlEscaped()),
             gridWidget);
         keyLbl->setTextFormat(Qt::RichText);
-        keyLbl->setMinimumWidth(180);
+        keyLbl->setMinimumWidth(KEY_LABEL_MIN_WIDTH);
 
         QLabel* valLbl = new QLabel(gridWidget);
         valLbl->setTextFormat(Qt::PlainText);
@@ -184,7 +197,7 @@ DebugPage::DebugPage(QWidget* parent)
         resetBtn->setObjectName(QStringLiteral("secondaryButton"));
         resetBtn->setCursor(Qt::PointingHandCursor);
         resetBtn->setToolTip(tr("Reset to default: %1").arg(defaultHint));
-        resetBtn->setFixedWidth(64);
+        resetBtn->setFixedWidth(RESET_BTN_WIDTH);
         connect(resetBtn, &QPushButton::clicked, this, [this, onReset]()
         {
             onReset();
@@ -212,7 +225,7 @@ DebugPage::DebugPage(QWidget* parent)
     m_valRecentCount = addRow(
         QStringLiteral("recent_connections_count"),
         QStringLiteral("5"),
-        []() { AppConfig::instance().setRecentConnectionsCount(5); });
+        []() { AppConfig::instance().setRecentConnectionsCount(DEFAULT_RECENT_COUNT); });
 
     m_valStartHidden = addRow(
         QStringLiteral("start_hidden"),
@@ -242,7 +255,7 @@ DebugPage::DebugPage(QWidget* parent)
     refreshValues();
 }
 
-void DebugPage::refreshValues()
+void DebugPage::refreshValues() const
 {
     const AppConfig& cfg = AppConfig::instance();
 

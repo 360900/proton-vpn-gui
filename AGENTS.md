@@ -72,30 +72,66 @@ This transparently wraps commands with `flatpak-spawn --host` when inside a Flat
 
 ### Code Style
 
+- **No if-init syntax**: do not use `if (init; condition)` — declare the variable on a separate line before the `if`:
+  ```cpp
+  // OK
+  QHBoxLayout* hl = qobject_cast<QHBoxLayout*>(layout());
+  if (hl != nullptr) { ... }
+
+  // Not OK
+  if (auto* hl = qobject_cast<QHBoxLayout*>(layout()); hl != nullptr) { ... }
+  ```
+- **Constant placement**: declare `constexpr` constants above the function or class that uses them, not inside function bodies. For `.cpp` files use an anonymous namespace; for class-scope constants use `static constexpr` members. For header-only free functions where an anonymous namespace is inappropriate (Clang-Tidy warns), use a named inner namespace (e.g. `namespace Detail`) or promote them to class-scope `static constexpr` members if a class is nearby.
+- **Magic numbers**: never use numeric literals inline — define named constants using `constexpr` (or `static constexpr` at class scope) with `UPPER_SNAKE_CASE` names:
+  ```cpp
+  // OK
+  constexpr int SIDEBAR_WIDTH = 64;
+  constexpr int NAV_ICON_SIZE = 24;
+  m_sidebar->setFixedWidth(SIDEBAR_WIDTH);
+
+  // Not OK
+  m_sidebar->setFixedWidth(64);
+  ```
+  String and boolean literals are exempt. Enumerators (which already have names) are also exempt. The literal `0` is also generally exempt when used as a neutral zero (e.g. empty margins, start indices, zero spacing) — only name it when `0` carries domain-specific meaning (e.g. "feature disabled" sentinel).
+
 - **Brace style**: GNU/Allman — opening brace on its own line for functions, classes, and control structures
 - **`auto`**: avoid for simple/obvious types; use explicit types (e.g. `int count = 0;`, `QString name = ...`). `auto` is acceptable where the type is verbose or deduced from a template (e.g. range-for over complex containers, structured bindings)
 - **Loop bodies**: ALL loops (`for`, `while`) must use curly braces — no single-line unbraced loops, no exceptions
 - **No `do`/`while` loops**: use a `while` loop instead
-- **`switch` case bodies**: the `case` label and its body must never be on the same line; the body always starts on the next line:
+- **`switch` case bodies**: `case` labels are indented one level inside the `switch` block; the body always starts on the next line after the label:
   ```cpp
   // OK
-  case VpnState::Connected:
-      handleConnected();
-      break;
+  switch (state)
+  {
+      case VpnState::Connected:
+          handleConnected();
+          break;
+
+      case VpnState::Error:
+          handleError();
+          break;
+
+      default:
+          break;
+  }
 
   // Not OK
   case VpnState::Connected: handleConnected(); break;
   ```
 - **Boolean negation**: use `== false` instead of `!` in conditions — `if (ok == false)` not `if (!ok)`. Likewise prefer `== true` when it improves clarity over a bare identifier.
 - **Pointer null checks**: always use `== nullptr` or `!= nullptr` explicitly — never rely on implicit pointer-to-bool conversion (`if (ptr)` or `if (!ptr)`).
-- **Condition bodies**: `if`/`else` bodies must use curly braces **unless** the body is a bare `return`, `continue`, or `break` with no other logic:
+- **Condition bodies**: `if`/`else` bodies must use curly braces **unless** the body is a bare `return;` (void), `return true;`/`return false;` (boolean), `break;`, or `continue;`, in which case the body may appear on the same line as the condition without braces. Everything else — including assignments, function calls, and any other return expression — must use curly braces:
   ```cpp
-  // OK — single control-flow statement
-  if (!ok) return;
-  for (int i = 0; i < n; i++) { ... }   // braces required
+  // OK — bare void/boolean return, break, or continue, same line
+  if (ok == false) return;
+  if (m_value == value) return;
+  if (found == false) return false;
+  if (done) break;
+  if (skip) continue;
 
-  // Not OK
-  if (x) doSomething();                  // must use braces
+  // Not OK — must use braces
+  if (x) doSomething();                  // function call
+  if (x) return m_value;                 // non-boolean return expression
   ```
 
 ## Testing

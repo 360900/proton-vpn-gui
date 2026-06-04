@@ -3,28 +3,45 @@
 #include <QHBoxLayout>
 #include <QSvgWidget>
 
-static QWidget* makeInfoRow(const QString& labelText, QLabel*& valueLabel, QWidget* parent)
+#include <array>
+
+namespace
+{
+constexpr int ACCOUNT_PAGE_MARGIN  = 16;
+constexpr int ACCOUNT_PAGE_SPACING = 12;
+constexpr int INFO_ROW_H_MARGIN    = 16;
+constexpr int INFO_ROW_V_MARGIN    = 10;
+constexpr int REFRESH_BTN_HEIGHT   = 30;
+constexpr int SPINNER_INTERVAL_MS  = 200;
+constexpr int SPINNER_FRAME_COUNT  = 10;
+
+constexpr std::array<const char*, SPINNER_FRAME_COUNT> SPINNER_FRAMES = {
+    "⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"
+};
+
+QWidget* makeInfoRow(const QString& labelText, QLabel*& valueLabel, QWidget* parent)
 {
     QWidget* row = new QWidget(parent);
     row->setObjectName(QStringLiteral("infoRow"));
     QHBoxLayout* layout = new QHBoxLayout(row);
-    layout->setContentsMargins(16, 10, 16, 10);
+    layout->setContentsMargins(INFO_ROW_H_MARGIN, INFO_ROW_V_MARGIN, INFO_ROW_H_MARGIN, INFO_ROW_V_MARGIN);
     QLabel* label = new QLabel(labelText, row);
     label->setObjectName(QStringLiteral("infoKey"));
     layout->addWidget(label);
     layout->addStretch();
-    valueLabel = new QLabel(QStringLiteral("—"), row);
+    valueLabel = new QLabel(QStringLiteral("-"), row);
     valueLabel->setObjectName(QStringLiteral("infoValue"));
     layout->addWidget(valueLabel);
     return row;
 }
+} // namespace
 
 AccountPage::AccountPage(VpnManager* manager, QWidget* parent)
     : QWidget(parent), m_manager(manager)
 {
     QVBoxLayout* layout = new QVBoxLayout(this);
-    layout->setContentsMargins(16, 16, 16, 16);
-    layout->setSpacing(12);
+    layout->setContentsMargins(ACCOUNT_PAGE_MARGIN, ACCOUNT_PAGE_MARGIN, ACCOUNT_PAGE_MARGIN, ACCOUNT_PAGE_MARGIN);
+    layout->setSpacing(ACCOUNT_PAGE_SPACING);
 
     // Header
     QHBoxLayout* headerRow = new QHBoxLayout();
@@ -34,7 +51,7 @@ AccountPage::AccountPage(VpnManager* manager, QWidget* parent)
     headerRow->addStretch();
     m_refreshBtn = new QPushButton(tr("\u21bb Refresh"), this);
     m_refreshBtn->setObjectName(QStringLiteral("secondaryButton"));
-    m_refreshBtn->setFixedHeight(30);
+    m_refreshBtn->setFixedHeight(REFRESH_BTN_HEIGHT);
     connect(m_refreshBtn, &QPushButton::clicked, this, &AccountPage::refresh);
     headerRow->addWidget(m_refreshBtn);
     layout->addLayout(headerRow);
@@ -51,7 +68,7 @@ AccountPage::AccountPage(VpnManager* manager, QWidget* parent)
 
     layout->addWidget(card);
 
-    // Upgrade prompt — shown only for Free accounts.
+    // Upgrade prompt - shown only for Free accounts.
     m_upgradeLabel = new QLabel(
         tr("To upgrade to VPN Plus visit: "
            "<a href=\"https://account.protonvpn.com/pricing\">"
@@ -78,17 +95,17 @@ AccountPage::AccountPage(VpnManager* manager, QWidget* parent)
 
     // Show the account type we already know (fetched at startup / login).
     if (m_manager->accountType() != AccountType::Unknown)
+    {
         onAccountTypeReady(m_manager->accountType());
+    }
 
-    static constexpr const char* frames[] = {"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"};
-    static constexpr int frameCount = 10;
     m_spinnerTimer = new QTimer(this);
-    m_spinnerTimer->setInterval(200);
+    m_spinnerTimer->setInterval(SPINNER_INTERVAL_MS);
     connect(m_spinnerTimer, &QTimer::timeout, this, [this]()
     {
-        m_spinnerFrame = (m_spinnerFrame + 1) % frameCount;
+        m_spinnerFrame = (m_spinnerFrame + 1) % SPINNER_FRAME_COUNT;
         m_nameLabel->setText(
-            tr("%1 Loading\u2026").arg(QString::fromUtf8(frames[m_spinnerFrame])));
+            tr("%1 Loading\u2026").arg(QString::fromUtf8(SPINNER_FRAMES[m_spinnerFrame])));
     });
 }
 
@@ -111,8 +128,8 @@ void AccountPage::onInfoReady(const QMap<QString, QString>& info) const
 
     auto get = [&](const QString& key) -> QString
     {
-        const QString val = info.value(key, QStringLiteral("—"));
-        return (val == QStringLiteral("None") || val.isEmpty()) ? QStringLiteral("—") : val;
+        const QString val = info.value(key, QStringLiteral("-"));
+        return (val == QStringLiteral("None") || val.isEmpty()) ? QStringLiteral("-") : val;
     };
 
     m_nameLabel->setText(get(QStringLiteral("Account")));

@@ -1,40 +1,84 @@
-#include "mainwindow.h"
-
 #include <QApplication>
-#include <QPixmap>
+#include <QButtonGroup>
+#include <QFile>
+#include <QFrame>
+// ReSharper disable once CppUnusedIncludeDirective
+#include <QJsonDocument>
+#include <QJsonObject>
 #include <QPainter>
+#include <QPixmap>
 #include <QSvgRenderer>
 #include <QSvgWidget>
-#include <QToolButton>
-#include <QButtonGroup>
-#include <QFrame>
 #include <QTimer>
-#include <QFile>
-// ReSharper disable once CppUnusedIncludeDirective
-#include <QJsonDocument> // Ignore unused include warning; we do use QJsonDocument
-#include <QJsonObject>
+#include <QToolButton>
 #include <utility>
-
-#include "pages/notinstalledpage.h"
-#include "pages/loginpage.h"
-#include "pages/vpnpage.h"
-#include "pages/countriespage.h"
-#include "pages/accountpage.h"
-#include "pages/settingspage.h"
 #include "appconfig.h"
 #include "connectionhistory.h"
-#include "geoutils.h"
 #include "dialogs/whatsnewdialog.h"
+#include "geoutils.h"
+#include "mainwindow.h"
+#include "pages/accountpage.h"
+#include "pages/countriespage.h"
+#include "pages/loginpage.h"
+#include "pages/notinstalledpage.h"
+#include "pages/settingspage.h"
+#include "pages/vpnpage.h"
 #ifdef QT_DEBUG
 #include "pages/debugpage.h"
 #endif
+
+namespace
+{
+// Window dimensions
+constexpr int WINDOW_ICON_SIZE       = 64;
+constexpr int MIN_WINDOW_WIDTH       = 460;
+constexpr int MIN_WINDOW_HEIGHT      = 580;
+constexpr int INITIAL_WINDOW_WIDTH   = 660;
+constexpr int INITIAL_WINDOW_HEIGHT  = 600;
+
+// Sidebar layout
+constexpr int SIDEBAR_WIDTH          = 64;
+constexpr int SIDEBAR_DIVIDER_WIDTH  = 1;
+constexpr int SIDEBAR_MARGIN         = 8;
+constexpr int SIDEBAR_LAYOUT_SPACING = 4;
+constexpr int SIDEBAR_LOGO_SPACING   = 12;
+
+// Button sizes
+constexpr int LOGO_BTN_ICON_SIZE     = 40;
+constexpr int LOGO_BTN_SIZE          = 56;
+constexpr int NAV_ICON_SIZE          = 24;
+constexpr int NAV_BTN_SIZE           = 48;
+
+// Theme tint detection: lightness() returns 0–255; below midpoint = dark palette
+constexpr int DARK_THEME_LIGHTNESS_THRESHOLD = 128;
+
+// Proton dark-theme nav tint color (#1a1a2e)
+constexpr int DARK_BG_R = 0x1a;
+constexpr int DARK_BG_G = 0x1a;
+constexpr int DARK_BG_B = 0x2e;
+
+// Quit dialog
+constexpr int QUIT_DIALOG_MIN_WIDTH         = 440;
+constexpr int QUIT_DIALOG_SPACING           = 16;
+constexpr int QUIT_DIALOG_MARGIN            = 24;
+constexpr int QUIT_DIALOG_BOTTOM_MARGIN     = 20;
+constexpr int QUIT_DIALOG_BTN_ROW_SPACING   = 8;
+constexpr int QUIT_DIALOG_RESULT_DISCONNECT = 2;
+
+// Notifications and tray
+constexpr int NOTIFICATION_ICON_SIZE   = 64;
+constexpr int NOTIFICATION_DURATION_MS = 4000;
+constexpr int TRAY_ICON_SIZE           = 22;
+
+// Startup
+constexpr int WHATS_NEW_DELAY_MS = 400;
 
 // Renders the SVG at `path` into a QIcon of `size`.
 // When `tintForTheme` is true (used for monochrome utility icons), the result
 // is tinted white on dark backgrounds and dark navy on light backgrounds so
 // the icon is always legible.  Pass false for branded/colored logos that
 // should be rendered with their own SVG colors unchanged.
-static QIcon svgNavIcon(const QString& path, const QSize& size = {24, 24}, bool tintForTheme = true)
+QIcon svgNavIcon(const QString& path, const QSize& size = {NAV_ICON_SIZE, NAV_ICON_SIZE}, bool tintForTheme = true)
 {
     QPixmap pix(size);
     pix.fill(Qt::transparent);
@@ -45,9 +89,9 @@ static QIcon svgNavIcon(const QString& path, const QSize& size = {24, 24}, bool 
     if (tintForTheme)
     {
         const QColor windowColor = QApplication::palette().color(QPalette::Window);
-        const QColor tintColor = (windowColor.lightness() < 128)
+        const QColor tintColor = (windowColor.lightness() < DARK_THEME_LIGHTNESS_THRESHOLD)
                                      ? Qt::white
-                                     : QColor(0x1a, 0x1a, 0x2e);
+                                     : QColor(DARK_BG_R, DARK_BG_G, DARK_BG_B);
         p.setCompositionMode(QPainter::CompositionMode_SourceIn);
         p.fillRect(pix.rect(), tintColor);
     }
@@ -55,14 +99,15 @@ static QIcon svgNavIcon(const QString& path, const QSize& size = {24, 24}, bool 
     p.end();
     return QIcon(pix);
 }
+} // namespace
 
 MainWindow::MainWindow(QWidget* parent)
     : QWidget(parent)
 {
     setWindowTitle(QStringLiteral("ProtonVPN"));
-    setWindowIcon(svgNavIcon(QStringLiteral(":/assets/proton-vpn-sign.svg"), {64, 64}, false));
-    setMinimumSize(460, 580);
-    resize(660, 600);
+    setWindowIcon(svgNavIcon(QStringLiteral(":/assets/proton-vpn-sign.svg"), {WINDOW_ICON_SIZE, WINDOW_ICON_SIZE}, false));
+    setMinimumSize(MIN_WINDOW_WIDTH, MIN_WINDOW_HEIGHT);
+    resize(INITIAL_WINDOW_WIDTH, INITIAL_WINDOW_HEIGHT);
 
     m_manager = new VpnManager(this);
 
@@ -75,7 +120,7 @@ MainWindow::MainWindow(QWidget* parent)
     // Sidebar
     m_sidebar = new QWidget(this);
     m_sidebar->setObjectName(QStringLiteral("sidebar"));
-    m_sidebar->setFixedWidth(64);
+    m_sidebar->setFixedWidth(SIDEBAR_WIDTH);
     setupSidebar();
     m_sidebar->setEnabled(false); // disabled until startup checks complete
     rootLayout->addWidget(m_sidebar);
@@ -83,7 +128,7 @@ MainWindow::MainWindow(QWidget* parent)
     // Vertical divider
     auto* divider = new QFrame(this);
     divider->setFrameShape(QFrame::VLine);
-    divider->setFixedWidth(1);
+    divider->setFixedWidth(SIDEBAR_DIVIDER_WIDTH);
     divider->setObjectName(QStringLiteral("sidebarDivider"));
     rootLayout->addWidget(divider);
 
@@ -131,7 +176,7 @@ MainWindow::MainWindow(QWidget* parent)
     connect(m_vpnPage, &VpnPage::connectRequested, m_manager,
             [this](const QString& country, const QString& city)
             {
-                if (!country.isEmpty() && !city.isEmpty())
+                if (country.isEmpty() == false && city.isEmpty() == false)
                 {
                     const QString name = GeoUtils::countryCodeToName(country);
                     ConnectionHistory::instance().record(country, name, city);
@@ -155,7 +200,7 @@ MainWindow::MainWindow(QWidget* parent)
             [this](const QString& country, const QString& city)
             {
                 m_vpnPage->notifyExternalConnect(city);
-                if (!country.isEmpty() && !city.isEmpty())
+                if (country.isEmpty() == false && city.isEmpty() == false)
                 {
                     const QString name = GeoUtils::countryCodeToName(country);
                     ConnectionHistory::instance().record(country, name, city);
@@ -206,7 +251,7 @@ MainWindow::MainWindow(QWidget* parent)
 
     connect(m_manager, &VpnManager::installedResult, this, [this](bool installed)
     {
-        if (!installed)
+        if (installed == false)
         {
             m_sidebar->setEnabled(false);
             showPage(Page::NotInstalled);
@@ -226,8 +271,10 @@ MainWindow::MainWindow(QWidget* parent)
             showPage(Page::Vpn);
             m_manager->fetchCountries();
             // Mark that we should auto-connect once the initial status check resolves.
-            if (AppConfig::instance().autoConnect())
+            if (AppConfig::instance().autoConnect() == true)
+            {
                 m_startupAutoConnectPending = true;
+            }
         }
         else
         {
@@ -235,7 +282,7 @@ MainWindow::MainWindow(QWidget* parent)
             showPage(Page::Login);
         }
         // Delay slightly so the page transition is visible before the dialog pops.
-        QTimer::singleShot(400, this, &MainWindow::maybeShowWhatsNew);
+        QTimer::singleShot(WHATS_NEW_DELAY_MS, this, &MainWindow::maybeShowWhatsNew);
     });
 
     connect(m_manager, &VpnManager::twoFactorRequired, this, [this]()
@@ -326,9 +373,13 @@ MainWindow::MainWindow(QWidget* parent)
     {
         const VpnState state = m_manager->currentState();
         if (state == VpnState::Connected)
+        {
             m_manager->disconnectVpn();
+        }
         else if (state == VpnState::Disconnected || state == VpnState::Error)
+        {
             m_manager->connectVpn();
+        }
     });
     trayMenu->addSeparator();
     trayMenu->addAction(tr("Quit"), this, [this]()
@@ -345,11 +396,11 @@ MainWindow::MainWindow(QWidget* parent)
         dlg->setWindowTitle(tr("Quit ProtonVPN"));
         dlg->setAttribute(Qt::WA_DeleteOnClose);
         dlg->setModal(true);
-        dlg->setMinimumWidth(440);
+        dlg->setMinimumWidth(QUIT_DIALOG_MIN_WIDTH);
 
         auto* layout = new QVBoxLayout(dlg);
-        layout->setSpacing(16);
-        layout->setContentsMargins(24, 24, 24, 20);
+        layout->setSpacing(QUIT_DIALOG_SPACING);
+        layout->setContentsMargins(QUIT_DIALOG_MARGIN, QUIT_DIALOG_MARGIN, QUIT_DIALOG_MARGIN, QUIT_DIALOG_BOTTOM_MARGIN);
 
         auto* msgLabel = new QLabel(
             QStringLiteral("%1<br>%2").arg(
@@ -374,7 +425,7 @@ MainWindow::MainWindow(QWidget* parent)
         }
 
         auto* btnRow = new QHBoxLayout();
-        btnRow->setSpacing(8);
+        btnRow->setSpacing(QUIT_DIALOG_BTN_ROW_SPACING);
 
         auto* cancelBtn = new QPushButton(tr("Cancel"), dlg);
         cancelBtn->setObjectName(QStringLiteral("secondaryButton"));
@@ -410,21 +461,23 @@ MainWindow::MainWindow(QWidget* parent)
         connect(leaveOnBtn,   &QPushButton::clicked, dlg, &QDialog::accept);
         connect(disconnectBtn, &QPushButton::clicked, dlg, [dlg]()
         {
-            dlg->done(2); // custom result code for "disconnect then quit"
+            dlg->done(QUIT_DIALOG_RESULT_DISCONNECT); // custom result code for "disconnect then quit"
         });
 
         const int result = dlg->exec();
         if (result == QDialog::Rejected)
-            return; // user canceled — do nothing
+            return; // user canceled - do nothing
 
-        if (result == 2)
+        if (result == QUIT_DIALOG_RESULT_DISCONNECT)
+        {
             m_manager->disconnectVpnSync(); // blocks until protonvpn disconnect finishes
+        }
 
         QApplication::quit();
     });
     m_trayIcon->setContextMenu(trayMenu);
     connect(m_trayIcon, &QSystemTrayIcon::activated, this,
-            [this](QSystemTrayIcon::ActivationReason reason)
+            [this](const QSystemTrayIcon::ActivationReason reason)
             {
                 if (reason == QSystemTrayIcon::Trigger)
                 {
@@ -444,8 +497,8 @@ MainWindow::MainWindow(QWidget* parent)
 void MainWindow::setupSidebar()
 {
     auto* layout = new QVBoxLayout(m_sidebar);
-    layout->setContentsMargins(0, 8, 0, 8);
-    layout->setSpacing(4);
+    layout->setContentsMargins(0, SIDEBAR_MARGIN, 0, SIDEBAR_MARGIN);
+    layout->setSpacing(SIDEBAR_LAYOUT_SPACING);
     layout->setAlignment(Qt::AlignHCenter);
 
     auto* btnGroup = new QButtonGroup(m_sidebar);
@@ -454,9 +507,9 @@ void MainWindow::setupSidebar()
     // Logo button is part of the exclusive group so clicking it automatically
     // clears the checked state on all nav buttons.
     m_logoBtn = new QToolButton(m_sidebar);
-    m_logoBtn->setIcon(svgNavIcon(QStringLiteral(":/assets/proton-vpn-sign.svg"), {40, 40}, false));
-    m_logoBtn->setIconSize({40, 40});
-    m_logoBtn->setFixedSize(56, 56);
+    m_logoBtn->setIcon(svgNavIcon(QStringLiteral(":/assets/proton-vpn-sign.svg"), {LOGO_BTN_ICON_SIZE, LOGO_BTN_ICON_SIZE}, false));
+    m_logoBtn->setIconSize({LOGO_BTN_ICON_SIZE, LOGO_BTN_ICON_SIZE});
+    m_logoBtn->setFixedSize(LOGO_BTN_SIZE, LOGO_BTN_SIZE);
     m_logoBtn->setToolTip(tr("VPN"));
     m_logoBtn->setCursor(Qt::PointingHandCursor);
     m_logoBtn->setObjectName(QStringLiteral("logoButton"));
@@ -465,15 +518,15 @@ void MainWindow::setupSidebar()
     layout->addWidget(m_logoBtn, 0, Qt::AlignHCenter);
     connect(m_logoBtn, &QToolButton::clicked, this, [this]() { showPage(Page::Vpn); });
 
-    layout->addSpacing(12);
+    layout->addSpacing(SIDEBAR_LOGO_SPACING);
 
     auto makeNavBtn = [&](const QString& tooltip, const QString& iconPath) -> QToolButton*
     {
         QToolButton* btn = new QToolButton(m_sidebar);
         btn->setToolTip(tooltip);
-        btn->setIcon(svgNavIcon(iconPath, {24, 24}));
-        btn->setIconSize({24, 24});
-        btn->setFixedSize(48, 48);
+        btn->setIcon(svgNavIcon(iconPath, {NAV_ICON_SIZE, NAV_ICON_SIZE}));
+        btn->setIconSize({NAV_ICON_SIZE, NAV_ICON_SIZE});
+        btn->setFixedSize(NAV_BTN_SIZE, NAV_BTN_SIZE);
         btn->setCheckable(true);
         btn->setObjectName(QStringLiteral("navButton"));
         btn->setCursor(Qt::PointingHandCursor);
@@ -549,17 +602,17 @@ void MainWindow::startupCheck() const
 
 void MainWindow::refreshIcons()
 {
-    // Logo button: render with original SVG colors (no tinting) — it's a branded icon.
-    setWindowIcon(svgNavIcon(QStringLiteral(":/assets/proton-vpn-sign.svg"), {64, 64}, false));
-    m_logoBtn->setIcon(svgNavIcon(QStringLiteral(":/assets/proton-vpn-sign.svg"), {40, 40}, false));
-    // Nav icons: monochrome utility icons — tint for legibility.
-    m_countriesNavBtn->setIcon(svgNavIcon(QStringLiteral(":/assets/server-smart-routing.svg"), {24, 24}));
-    m_accountNavBtn->setIcon(svgNavIcon(QStringLiteral(":/assets/person-lines-fill.svg"), {24, 24}));
-    m_settingsNavBtn->setIcon(svgNavIcon(QStringLiteral(":/assets/gear.svg"), {24, 24}));
+    // Logo button: render with original SVG colors (no tinting) - it's a branded icon.
+    setWindowIcon(svgNavIcon(QStringLiteral(":/assets/proton-vpn-sign.svg"), {WINDOW_ICON_SIZE, WINDOW_ICON_SIZE}, false));
+    m_logoBtn->setIcon(svgNavIcon(QStringLiteral(":/assets/proton-vpn-sign.svg"), {LOGO_BTN_ICON_SIZE, LOGO_BTN_ICON_SIZE}, false));
+    // Nav icons: monochrome utility icons - tint for legibility.
+    m_countriesNavBtn->setIcon(svgNavIcon(QStringLiteral(":/assets/server-smart-routing.svg"), {NAV_ICON_SIZE, NAV_ICON_SIZE}));
+    m_accountNavBtn->setIcon(svgNavIcon(QStringLiteral(":/assets/person-lines-fill.svg"), {NAV_ICON_SIZE, NAV_ICON_SIZE}));
+    m_settingsNavBtn->setIcon(svgNavIcon(QStringLiteral(":/assets/gear.svg"), {NAV_ICON_SIZE, NAV_ICON_SIZE}));
 #ifdef QT_DEBUG
     if (m_debugNavBtn != nullptr)
     {
-        m_debugNavBtn->setIcon(svgNavIcon(QStringLiteral(":/assets/bug.svg"), {24, 24}));
+        m_debugNavBtn->setIcon(svgNavIcon(QStringLiteral(":/assets/bug.svg"), {NAV_ICON_SIZE, NAV_ICON_SIZE}));
     }
 #endif
 }
@@ -595,18 +648,18 @@ void MainWindow::keyPressEvent(QKeyEvent* event)
 
 void MainWindow::sendNotification(const QString& title, const QString& message) const
 {
-    if (!AppConfig::instance().notifications())
+    if (AppConfig::instance().notifications() == false)
         return;
 
     // Render the ProtonVPN sign SVG into a pixmap to use as the notification icon.
-    QPixmap iconPix(64, 64);
+    QPixmap iconPix(NOTIFICATION_ICON_SIZE, NOTIFICATION_ICON_SIZE);
     iconPix.fill(Qt::transparent);
     QPainter p(&iconPix);
     QSvgRenderer renderer(QStringLiteral(":/assets/proton-vpn-sign.svg"));
     renderer.render(&p);
     p.end();
 
-    m_trayIcon->showMessage(title, message, QIcon(iconPix), 4000 /*ms*/);
+    m_trayIcon->showMessage(title, message, QIcon(iconPix), NOTIFICATION_DURATION_MS);
 }
 
 void MainWindow::updateTrayIcon(VpnState state)
@@ -640,7 +693,7 @@ void MainWindow::updateTrayIcon(VpnState state)
         return QIcon(pix);
     };
 
-    m_trayIcon->setIcon(makeIcon(22));
+    m_trayIcon->setIcon(makeIcon(TRAY_ICON_SIZE));
 
     switch (state)
     {
@@ -669,7 +722,7 @@ void MainWindow::updateTrayIcon(VpnState state)
         m_trayConnectAction->setText(tr("Connect"));
         m_trayConnectAction->setEnabled(true);
         break;
-    default: // Unknown — still checking
+    default: // Unknown - still checking
         m_trayIcon->setToolTip(tr("ProtonVPN \u2013 Checking\u2026"));
         m_trayConnectAction->setText(tr("Connect"));
         m_trayConnectAction->setEnabled(false);

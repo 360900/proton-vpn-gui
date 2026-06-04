@@ -16,9 +16,8 @@
 #include <QSvgRenderer>
 #include <QToolButton>
 
-// ============================================================
 // Feature metadata shared by wide + narrow city rows
-// ============================================================
+
 // kServerFeatures is defined in uihelpers.h
 
 // Helper: does a feature string contain a keyword?
@@ -201,7 +200,7 @@ CountriesPage::CountriesPage(VpnManager* manager, QWidget* parent)
     mainLayout->setContentsMargins(16, 16, 16, 16);
     mainLayout->setSpacing(10);
 
-    // ── Header row ───────────────────────────────────────────────────────
+    //  Header row
     auto* headerRow = new QHBoxLayout();
 
     m_countriesLabel = new QLabel(tr("Countries"), this);
@@ -216,14 +215,14 @@ CountriesPage::CountriesPage(VpnManager* manager, QWidget* parent)
     headerRow->addWidget(m_refreshBtn);
     mainLayout->addLayout(headerRow);
 
-    // ── Search ───────────────────────────────────────────────────────────
+    //  Search
     m_searchEdit = new QLineEdit(this);
     m_searchEdit->setObjectName(QStringLiteral("inputField"));
     m_searchEdit->setPlaceholderText(tr("Search countries\u2026"));
     connect(m_searchEdit, &QLineEdit::textChanged, this, [this](const QString&){ applyFilter(); });
     mainLayout->addWidget(m_searchEdit);
 
-    // ── Filter bubbles ────────────────────────────────────────────────────
+    //  Filter bubbles
     auto* bubblesRow = new QHBoxLayout();
     bubblesRow->setSpacing(6);
 
@@ -301,7 +300,7 @@ CountriesPage::CountriesPage(VpnManager* manager, QWidget* parent)
         applyFilter();
     });
 
-    // ── Sync P2P filter with port forwarding setting ──────────────────────
+    //  Sync P2P filter with port forwarding setting
     connect(m_manager, &VpnManager::settingsReady,
             this, [this](const QMap<QString, QString>& settings)
     {
@@ -336,21 +335,21 @@ CountriesPage::CountriesPage(VpnManager* manager, QWidget* parent)
     // Seed the initial port-forwarding state.
     m_manager->fetchSettings();
 
-    // ── Free-user lock state ──────────────────────────────────────────────
+    //  Free-user lock state
     m_isFreeUser = (m_manager->accountType() == AccountType::Free);
     connect(m_manager, &VpnManager::accountTypeReady, this, [this](AccountType type) {
         m_isFreeUser = (type == AccountType::Free);
         updateConnectBtnLockState();
     });
 
-    // ── Wide / narrow container ───────────────────────────────────────────
+    //  Wide / narrow container
     buildWideLayout(mainLayout);
     buildNarrowLayout(mainLayout);
 
     // Apply initial lock state now that buttons exist.
     updateConnectBtnLockState();
 
-    // ── Spinners ──────────────────────────────────────────────────────────
+    //  Spinners
     m_spinnerTimer = new QTimer(this);
     m_spinnerTimer->setInterval(200);
     connect(m_spinnerTimer, &QTimer::timeout, this, [this]() {
@@ -373,7 +372,7 @@ CountriesPage::CountriesPage(VpnManager* manager, QWidget* parent)
                 tr("%1 Loading countries\u2026").arg(frame));
     });
 
-    // ── VpnManager signals ────────────────────────────────────────────────
+    //  VpnManager signals
     connect(m_manager, &VpnManager::countriesReady,
             this, &CountriesPage::onCountriesReady);
     connect(m_manager, &VpnManager::citiesReady, this,
@@ -516,7 +515,7 @@ void CountriesPage::buildNarrowLayout(QVBoxLayout* parent)
             emit connectRequested(m_selectedCode, m_selectedCity);
         }
     });
-    // Store as the narrow connect button — we'll sync text/enabled with m_connectBtn
+    // Store as the narrow connect button - we'll sync text/enabled with m_connectBtn
     narrowOuterLayout->addWidget(narrowConnectBtn);
 
     // Keep the narrow connect button pointer for sync
@@ -880,7 +879,7 @@ void CountriesPage::updateBubbleStyles() const
 // ============================================================
 void CountriesPage::updateConnectBtnLockState() const
 {
-    // Locked style: muted dark button with a subtle purple tint — looks
+    // Locked style: muted dark button with a subtle purple tint - looks
     // "disabled" but stays interactive so the hover tooltip is reachable.
     static const QString kLockedStyle = QStringLiteral(
         "QPushButton {"
@@ -1109,7 +1108,7 @@ void CountriesPage::onCitiesReady(const QString& code,
         applyFilter();
     }
 
-    // ── Wide mode: fill cities list if this is the selected country ───────
+    //  Wide mode: fill cities list if this is the selected country
     if (!m_narrowMode && code.compare(m_selectedCode, Qt::CaseInsensitive) == 0)
     {
         m_spinnerTimer->stop();
@@ -1158,7 +1157,7 @@ void CountriesPage::onCitiesReady(const QString& code,
         }
     }
 
-    // ── Narrow mode: fill the accordion for this country ──────────────────
+    //  Narrow mode: fill the accordion for this country
     if (m_narrowMode && m_accordion.contains(code))
     {
         const AccordionItem& acc = m_accordion[code];
@@ -1184,7 +1183,7 @@ void CountriesPage::onCitiesReady(const QString& code,
             ++added;
         }
 
-        // "Fastest server" row — always shown unless ALL cities were filtered out.
+        // "Fastest server" row - always shown unless ALL cities were filtered out.
         if (added > 0 || !(m_filterP2P || m_filterSecureCore || m_filterTor))
         {
             addNarrowCityItem(acc.citiesLayout, QString(), QString(), code);
@@ -1340,7 +1339,7 @@ void CountriesPage::addNarrowCityItem(QVBoxLayout* layout, const QString& city,
         hbox->addWidget(iconLabel, 0, Qt::AlignVCenter);
     }
 
-    // Star button (favorites) — narrow mode
+    // Star button (favorites) - narrow mode
     if (AppConfig::instance().favoritesEnabled())
     {
         const QString countryName = GeoUtils::countryCodeToName(code);

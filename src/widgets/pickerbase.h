@@ -9,7 +9,6 @@
 #include <QListWidget>
 #include <QMouseEvent>
 #include <QVBoxLayout>
-
 #include "elidalabel.h"
 
 // ============================================================
@@ -17,7 +16,7 @@
 //
 // Provides:
 //   • The floating Qt::Popup frame + QListWidget plumbing.
-//   • installOnRowWidget() — recursively enables hover tracking.
+//   • installOnRowWidget() - recursively enables hover tracking.
 //   • Row hover / leave event-filter logic.
 //   • togglePopup() / closePopup() / resizeList() helpers.
 // ============================================================
@@ -25,8 +24,12 @@ class PickerBase : public QFrame
 {
     Q_OBJECT
 public:
-    static constexpr int kCollapsedPickerW = 48;
-    static constexpr int kExpandedPickerW  = 260;
+    static constexpr int COLLAPSED_PICKER_WIDTH  = 48;
+    static constexpr int EXPANDED_PICKER_WIDTH   = 260;
+    static constexpr int PICKER_MARGIN           = 10;
+    static constexpr int PICKER_EXPANDED_V_MARGIN = 8;
+    static constexpr int POPUP_MAX_VISIBLE_ROWS  = 8;
+    static constexpr int POPUP_LIST_BORDER       = 2;
 
     explicit PickerBase(QWidget* parent = nullptr) : QFrame(parent) {}
 
@@ -34,18 +37,32 @@ public:
     void setCollapsed(bool c)
     {
         m_collapsed = c;
-        if (m_topLine)    m_topLine->setVisible(!c);
-        if (m_bottomLine) m_bottomLine->setVisible(!c);
-        if (m_chevron)    m_chevron->setVisible(!c && m_list && m_list->count() > 0);
-        if (m_header) {
-            if (auto* hl = qobject_cast<QHBoxLayout*>(m_header->layout())) {
+        if (m_topLine != nullptr)
+        {
+            m_topLine->setVisible(c == false);
+        }
+        if (m_bottomLine != nullptr)
+        {
+            m_bottomLine->setVisible(c == false);
+        }
+        if (m_chevron != nullptr)
+        {
+            m_chevron->setVisible(c == false && m_list != nullptr && m_list->count() > 0);
+        }
+        if (m_header != nullptr)
+        {
+            QHBoxLayout* hl = qobject_cast<QHBoxLayout*>(m_header->layout());
+            if (hl != nullptr)
+            {
                 // Collapsed: 16 px each side of the 28 px icon fills the full 60 px button.
                 // No inter-item spacing so hidden stretch items steal nothing.
-                hl->setContentsMargins(10, c ? 10 : 8, 10, c ? 10 : 8);
-                hl->setSpacing(c ? 0 : 10);
+                const int vMargin = (c == true) ? PICKER_MARGIN : PICKER_EXPANDED_V_MARGIN;
+                const int spacing = (c == true) ? 0 : PICKER_MARGIN;
+                hl->setContentsMargins(PICKER_MARGIN, vMargin, PICKER_MARGIN, vMargin);
+                hl->setSpacing(spacing);
             }
         }
-        setFixedWidth(c ? kCollapsedPickerW : kExpandedPickerW);
+        setFixedWidth(c == true ? COLLAPSED_PICKER_WIDTH : EXPANDED_PICKER_WIDTH);
     }
 
 protected:
@@ -75,28 +92,38 @@ protected:
     void togglePopup() const
     {
         if (m_list->count() == 0) return;
-        if (m_popup->isVisible()) { closePopup(); return; }
+        if (m_popup->isVisible())
+        {
+            closePopup();
+            return;
+        }
         resizeList();
         const QPoint globalBottomLeft = mapToGlobal(QPoint(0, height()));
         // Always open popup at full expanded width so it's readable even when collapsed.
-        m_popup->setFixedWidth(qMax(width(), kExpandedPickerW));
+        m_popup->setFixedWidth(qMax(width(), EXPANDED_PICKER_WIDTH));
         m_popup->move(globalBottomLeft);
         m_popup->show();
-        if (m_chevron != nullptr) m_chevron->setText(QStringLiteral("▴"));
+        if (m_chevron != nullptr)
+        {
+            m_chevron->setText(QStringLiteral("▴"));
+        }
     }
 
     void closePopup() const
     {
         m_popup->hide();
-        if (m_chevron != nullptr) m_chevron->setText(QStringLiteral("▾"));
+        if (m_chevron != nullptr)
+        {
+            m_chevron->setText(QStringLiteral("▾"));
+        }
     }
 
     void resizeList() const
     {
         const int count = m_list->count();
         if (count == 0) return;
-        const int rowH = m_list->sizeHintForRow(0);
-        const int listH = qMin(count, 8) * rowH + 2;
+        const int rowH  = m_list->sizeHintForRow(0);
+        const int listH = qMin(count, POPUP_MAX_VISIBLE_ROWS) * rowH + POPUP_LIST_BORDER;
         m_list->setFixedHeight(listH);
         m_popup->setFixedHeight(listH);
     }
@@ -104,31 +131,39 @@ protected:
     void installOnRowWidget(QWidget* w)
     {
         // Skip buttons so they can handle their own click events (e.g. star buttons).
-        if (qobject_cast<QAbstractButton*>(w)) return;
+        if (qobject_cast<QAbstractButton*>(w) != nullptr) return;
         w->setMouseTracking(true);
         w->installEventFilter(this);
         for (QObject* child : w->children())
-            if (QWidget* cw = qobject_cast<QWidget*>(child))
+        {
+            QWidget* cw = qobject_cast<QWidget*>(child);
+            if (cw != nullptr)
+            {
                 installOnRowWidget(cw);
+            }
+        }
     }
 
     // Handles:
-    //   • Popup Hide → reset chevron
-    //   • Header click → togglePopup
-    //   • Row Enter/Leave/Click → hover highlight + item selection callback
+    //   • Popup Hide -> reset chevron
+    //   • Header click -> togglePopup
+    //   • Row Enter/Leave/Click -> hover highlight + item selection callback
     //
     // Subclasses override eventFilter, call this first, and if it returns false
     // they handle any extra cases themselves.
     bool handleCommonEvents(QObject* obj, QEvent* ev)
     {
-        // Popup hidden by Qt (outside click auto-dismiss) → reset chevron
+        // Popup hidden by Qt (outside click auto-dismiss) -> reset chevron
         if (obj == m_popup && ev->type() == QEvent::Hide)
         {
-            if (m_chevron != nullptr) m_chevron->setText(QStringLiteral("▾"));
+            if (m_chevron != nullptr)
+            {
+                m_chevron->setText(QStringLiteral("▾"));
+            }
             return false;
         }
 
-        // Header click → toggle
+        // Header click -> toggle
         if (obj->isWidgetType() && ev->type() == QEvent::MouseButtonRelease)
         {
             const QWidget* w = dynamic_cast<QWidget*>(obj);
@@ -137,20 +172,29 @@ protected:
                 const QWidget* p = w;
                 while (p != nullptr)
                 {
-                    if (p == this) { togglePopup(); return true; }
+                    if (p == this)
+                    {
+                        togglePopup();
+                        return true;
+                    }
                     p = p->parentWidget();
                 }
             }
         }
 
         // Row hover / click
-        if (QWidget* w = qobject_cast<QWidget*>(obj))
+        QWidget* w = qobject_cast<QWidget*>(obj);
+        if (w != nullptr)
         {
             QWidget* rowRoot = nullptr;
             QWidget* cur = w;
             while (cur != nullptr)
             {
-                if (cur->parent() == m_list->viewport()) { rowRoot = cur; break; }
+                if (cur->parent() == m_list->viewport())
+                {
+                    rowRoot = cur;
+                    break;
+                }
                 cur = qobject_cast<QWidget*>(cur->parent());
             }
 
@@ -185,7 +229,8 @@ protected:
                     QListWidgetItem* item = m_list->itemAt(vp);
                     if (item != nullptr)
                     {
-                        onRowClicked(item); return true;
+                        onRowClicked(item);
+                        return true;
                     }
                 }
             }

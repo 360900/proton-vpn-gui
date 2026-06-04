@@ -1,5 +1,3 @@
-#include "favoritesmanager.h"
-
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
@@ -8,13 +6,17 @@
 #include <QJsonObject>
 #include <QStandardPaths>
 #include <ranges>
+#include "favoritesmanager.h"
 
-static QString favoritesFilePath()
+namespace
+{
+QString favoritesFilePath()
 {
     const QString dir = QStandardPaths::writableLocation(QStandardPaths::GenericDataLocation)
                         + QStringLiteral("/ProtonVPN-Qt");
     return dir + QStringLiteral("/favorites.json");
 }
+} // namespace
 
 FavoritesManager& FavoritesManager::instance()
 {
@@ -79,9 +81,13 @@ void FavoritesManager::toggle(const QString& countryCode,
                                const QString& city)
 {
     if (isFavorite(countryCode, city))
+    {
         remove(countryCode, city);
+    }
     else
+    {
         add(countryCode, countryName, city);
+    }
 }
 
 void FavoritesManager::clear()
@@ -96,7 +102,7 @@ void FavoritesManager::clear()
 void FavoritesManager::load()
 {
     QFile f(favoritesFilePath());
-    if (!f.open(QIODevice::ReadOnly))
+    if (f.open(QIODevice::ReadOnly) == false)
         return;
 
     const QJsonArray arr = QJsonDocument::fromJson(f.readAll()).array();
@@ -110,8 +116,10 @@ void FavoritesManager::load()
         e.countryCode = obj.value(QStringLiteral("country_code")).toString();
         e.countryName = obj.value(QStringLiteral("country_name")).toString();
         e.city        = obj.value(QStringLiteral("city")).toString();
-        if (!e.countryCode.isEmpty())
+        if (e.countryCode.isEmpty() == false)
+        {
             m_entries.append(e);
+        }
     }
 }
 
@@ -132,6 +140,8 @@ void FavoritesManager::save() const
 
     QFile f(path);
     if (f.open(QIODevice::WriteOnly | QIODevice::Text))
+    {
         f.write(QJsonDocument(arr).toJson(QJsonDocument::Indented));
+    }
 }
 

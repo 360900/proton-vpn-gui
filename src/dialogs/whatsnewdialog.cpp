@@ -1,47 +1,59 @@
 #include "whatsnewdialog.h"
 
-#include <QVBoxLayout>
+#include <QDesktopServices>
+#include <QFrame>
 #include <QHBoxLayout>
 #include <QLabel>
-#include <QTextBrowser>
 #include <QPushButton>
-#include <QFrame>
-#include <QDesktopServices>
+#include <QTextBrowser>
 #include <QUrl>
+#include <QVBoxLayout>
+
+namespace
+{
+constexpr int WHATS_NEW_MIN_WIDTH   = 480;
+constexpr int WHATS_NEW_MIN_HEIGHT  = 280;
+constexpr int WHATS_NEW_SPACING     = 12;
+constexpr int WHATS_NEW_H_MARGIN    = 24;
+constexpr int WHATS_NEW_TOP_MARGIN  = 20;
+constexpr int WHATS_NEW_BOT_MARGIN  = 16;
+constexpr int WHATS_NEW_BTN_SPACING = 8;
+constexpr int BROWSER_STRETCH       = 1;
+} // namespace
 
 WhatsNewDialog::WhatsNewDialog(const QString& version, QWidget* parent)
     : QDialog(parent)
 {
     setWindowTitle(tr("What's New in ProtonVPN Qt App"));
-    setMinimumSize(480, 280);
+    setMinimumSize(WHATS_NEW_MIN_WIDTH, WHATS_NEW_MIN_HEIGHT);
     setAttribute(Qt::WA_DeleteOnClose);
 
-    auto* layout = new QVBoxLayout(this);
-    layout->setSpacing(12);
-    layout->setContentsMargins(24, 20, 24, 16);
+    QVBoxLayout* layout = new QVBoxLayout(this);
+    layout->setSpacing(WHATS_NEW_SPACING);
+    layout->setContentsMargins(WHATS_NEW_H_MARGIN, WHATS_NEW_TOP_MARGIN, WHATS_NEW_H_MARGIN, WHATS_NEW_BOT_MARGIN);
 
-    // ── Header ───────────────────────────────────────────────────────────────
-    auto* titleLabel = new QLabel(
+    //  Header
+    QLabel* titleLabel = new QLabel(
         QStringLiteral("<h2 style=\"margin-bottom:2px;\">%1</h2>")
             .arg(tr("What\u2019s New").toHtmlEscaped()),
         this);
     titleLabel->setTextFormat(Qt::RichText);
     layout->addWidget(titleLabel);
 
-    auto* versionLabel = new QLabel(
+    QLabel* versionLabel = new QLabel(
         QStringLiteral("<span style=\"color:#888;\">%1</span>")
             .arg(tr("Version %1").arg(version).toHtmlEscaped()),
         this);
     versionLabel->setTextFormat(Qt::RichText);
     layout->addWidget(versionLabel);
 
-    auto* divider = new QFrame(this);
+    QFrame* divider = new QFrame(this);
     divider->setFrameShape(QFrame::HLine);
     divider->setObjectName(QStringLiteral("sidebarDivider"));
     layout->addWidget(divider);
 
-    // ── Release notes ────────────────────────────────────────────────────────
-    auto* browser = new QTextBrowser(this);
+    //  Release notes
+    QTextBrowser* browser = new QTextBrowser(this);
     browser->setOpenExternalLinks(true);
     browser->setFrameShape(QFrame::NoFrame);
     browser->setHtml(
@@ -50,13 +62,13 @@ WhatsNewDialog::WhatsNewDialog(const QString& version, QWidget* parent)
                 "For the full list of changes, bug fixes, and new features, visit the release page on GitHub: "
                 "<a href='https://github.com/wheat32/proton-vpn-qt-app/releases'>"
                 "github.com/wheat32/proton-vpn-qt-app/releases</a>.")));
-    layout->addWidget(browser, 1);
+    layout->addWidget(browser, BROWSER_STRETCH);
 
-    // ── Buttons ──────────────────────────────────────────────────────────────
-    auto* btnLayout = new QHBoxLayout();
-    btnLayout->setSpacing(8);
+    //  Buttons
+    QHBoxLayout* btnLayout = new QHBoxLayout();
+    btnLayout->setSpacing(WHATS_NEW_BTN_SPACING);
 
-    auto* releasePageBtn = new QPushButton(tr("View Release Notes"), this);
+    QPushButton* releasePageBtn = new QPushButton(tr("View Release Notes"), this);
     releasePageBtn->setObjectName(QStringLiteral("secondaryButton"));
     connect(releasePageBtn, &QPushButton::clicked, this, []()
     {
@@ -64,7 +76,7 @@ WhatsNewDialog::WhatsNewDialog(const QString& version, QWidget* parent)
             QUrl(QStringLiteral("https://github.com/wheat32/proton-vpn-qt-app/releases")));
     });
 
-    auto* closeBtn = new QPushButton(tr("Got It!"), this);
+    QPushButton* closeBtn = new QPushButton(tr("Got It!"), this);
     closeBtn->setDefault(true);
     connect(closeBtn, &QPushButton::clicked, this, &QDialog::accept);
 
@@ -73,5 +85,3 @@ WhatsNewDialog::WhatsNewDialog(const QString& version, QWidget* parent)
     btnLayout->addWidget(closeBtn);
     layout->addLayout(btnLayout);
 }
-
-

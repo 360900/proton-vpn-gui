@@ -193,7 +193,7 @@ private:
     QWidget*          m_logoRow              = nullptr;
     QWidget*          m_topContentWidget     = nullptr;
     QScrollArea*      m_scrollArea           = nullptr;
-    // Narrow-mode scroll offset wrapper — carries the kCollapsedW left margin so
+    // Narrow-mode scroll offset wrapper - carries the kCollapsedW left margin so
     // only the scroll area is pushed right (logo/power remain full-width centred).
     QWidget*          m_scrollOffsetWidget   = nullptr;
     QVBoxLayout*      m_scrollOffsetLayout   = nullptr;

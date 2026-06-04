@@ -1,27 +1,27 @@
-#include "appconfig.h"
-#include "debug.h"
-
 #include <QDir>
 #include <QFile>
 // ReSharper disable once CppUnusedIncludeDirective
 #include <QJsonDocument> // Ignore unused include warning; we do use QJsonDocument
 #include <QJsonObject>
 #include <QStandardPaths>
+#include "appconfig.h"
+#include "debug.h"
 
-// ── Easy-to-change config location ──────────────────────────────────────────
+namespace
+{
+// Easy-to-change config location
 // QStandardPaths::GenericConfigLocation resolves to:
 //   - Native install : ~/.config/ProtonVPN-Qt/
 //   - Flatpak sandbox: ~/.var/app/io.github.wheat32.ProtonVPNQt/config/ProtonVPN-Qt/
-// Using this instead of a hardcoded QDir::homePath() path means the Flatpak
-// sandbox XDG remapping is honoured automatically with no extra --filesystem
-// permission required.
-static QString configDir()
+QString configDir()
 {
     return QStandardPaths::writableLocation(QStandardPaths::GenericConfigLocation)
            + QStringLiteral("/ProtonVPN-Qt");
 }
-static QString configFile() { return configDir() + QStringLiteral("/app.json"); }
-// ────────────────────────────────────────────────────────────────────────────
+QString configFile() { return configDir() + QStringLiteral("/app.json"); }
+
+constexpr int DEFAULT_RECENT_CONNECTIONS_COUNT = 5;
+} // namespace
 
 AppConfig& AppConfig::instance()
 {
@@ -37,8 +37,8 @@ AppConfig::AppConfig()
 void AppConfig::load()
 {
     QFile f(configFile());
-    if (!f.open(QIODevice::ReadOnly))
-        return; // file doesn't exist yet — all values stay at defaults
+    if (f.open(QIODevice::ReadOnly) == false)
+        return; // file doesn't exist yet - all values stay at defaults
 
     const QJsonObject obj = QJsonDocument::fromJson(f.readAll()).object();
     f.close();
@@ -46,7 +46,7 @@ void AppConfig::load()
     m_autoConnect = obj.value(QStringLiteral("auto_connect")).toBool(false);
     m_autoConnectServer = obj.value(QStringLiteral("auto_connect_server")).toString();
     m_notifications = obj.value(QStringLiteral("notifications")).toBool(true);
-    m_recentConnectionsCount = obj.value(QStringLiteral("recent_connections_count")).toInt(5);
+    m_recentConnectionsCount = obj.value(QStringLiteral("recent_connections_count")).toInt(DEFAULT_RECENT_CONNECTIONS_COUNT);
     m_startHidden = obj.value(QStringLiteral("start_hidden")).toBool(false);
     m_showLocationPicker = obj.value(QStringLiteral("show_location_picker")).toBool(true);
     m_showFavoritesDropdown = obj.value(QStringLiteral("show_favorites_dropdown")).toBool(true);
@@ -79,13 +79,15 @@ void AppConfig::load()
 bool AppConfig::save() const
 {
     const QDir dir;
-    if (!dir.mkpath(configDir()))
+    if (dir.mkpath(configDir()) == false)
         return false;
 
     QJsonObject obj;
     obj[QStringLiteral("auto_connect")] = m_autoConnect;
-    if (!m_autoConnectServer.isEmpty())
+    if (m_autoConnectServer.isEmpty() == false)
+    {
         obj[QStringLiteral("auto_connect_server")] = m_autoConnectServer;
+    }
     obj[QStringLiteral("notifications")] = m_notifications;
     obj[QStringLiteral("recent_connections_count")] = m_recentConnectionsCount;
     obj[QStringLiteral("start_hidden")] = m_startHidden;
@@ -113,7 +115,7 @@ bool AppConfig::save() const
     obj[QStringLiteral("theme")] = themeStr;
 
     QFile f(configFile());
-    if (!f.open(QIODevice::WriteOnly | QIODevice::Text))
+    if (f.open(QIODevice::WriteOnly | QIODevice::Text) == false)
         return false;
 
     f.write(QJsonDocument(obj).toJson(QJsonDocument::Indented));
@@ -124,7 +126,7 @@ bool AppConfig::autoConnect() const { return m_autoConnect; }
 
 QString AppConfig::autoConnectServer() const { return m_autoConnectServer; }
 
-void AppConfig::setAutoConnect(bool value)
+void AppConfig::setAutoConnect(const bool value)
 {
     if (m_autoConnect == value) return;
     DBG_SETTINGS(QStringLiteral("Setting changed: auto_connect = ") + (value ? QStringLiteral("true") : QStringLiteral("false")));
@@ -221,7 +223,7 @@ void AppConfig::setLastSeenVersion(const QString& value)
 
 void AppConfig::resetToDefaults()
 {
-    DBG_SETTINGS(QStringLiteral("AppConfig::resetToDefaults() — deleting config file and resetting all values"));
+    DBG_SETTINGS(QStringLiteral("AppConfig::resetToDefaults() - deleting config file and resetting all values"));
 
     // Delete the persisted file first so no stale data remains on disk.
     QFile::remove(configFile());
@@ -230,7 +232,7 @@ void AppConfig::resetToDefaults()
     m_autoConnect            = false;
     m_autoConnectServer      = QString();
     m_notifications          = true;
-    m_recentConnectionsCount = 5;
+    m_recentConnectionsCount = DEFAULT_RECENT_CONNECTIONS_COUNT;
     m_startHidden            = false;
     m_theme                  = Theme::System;
     m_showLocationPicker     = true;

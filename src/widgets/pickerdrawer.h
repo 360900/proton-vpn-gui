@@ -1,8 +1,8 @@
 #pragma once
 
 #include <QFrame>
-#include <QPropertyAnimation>
 #include <QGraphicsDropShadowEffect>
+#include <QPropertyAnimation>
 #include <QVBoxLayout>
 #include "pickerbase.h"
 
@@ -18,8 +18,8 @@ class PickerDrawer : public QFrame
     Q_PROPERTY(int drawerW READ drawerW WRITE setDrawerW)
 
 public:
-    static constexpr int kCollapsedW = 60;   // width when collapsed (icon-only)
-    static constexpr int kExpandedW  = 292;  // 16px pad + 260px picker + 16px pad
+    static constexpr int COLLAPSED_DRAWER_WIDTH = 60;   // width when collapsed (icon-only)
+    static constexpr int EXPANDED_DRAWER_WIDTH  = 292;  // 16px pad + 260px picker + 16px pad
 
     explicit PickerDrawer(PickerBase* loc, PickerBase* rec,
                           PickerBase* fav, QWidget* parent = nullptr);
@@ -57,6 +57,5 @@ private:
     bool          m_pickersReleased    = false;
     QPropertyAnimation* m_anim        = nullptr;
 
-    void setAllCollapsed(bool c);
+    void setAllCollapsed(bool c) const;
 };
-

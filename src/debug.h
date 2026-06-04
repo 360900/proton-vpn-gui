@@ -1,6 +1,6 @@
 #pragma once
 
-// debug.h — Lightweight diagnostic logging helpers.
+// debug.h - Lightweight diagnostic logging helpers.
 // Prints to stdout when the app is started from a terminal.
 // All output is prefixed with a tag for easy grepping.
 
@@ -8,7 +8,7 @@
 #include <QDateTime>
 #include <cstdio>
 
-// ── Core print function ──────────────────────────────────────────────────────
+//  Core print function
 
 inline void dbgPrint(const char* tag, const QString& message)
 {
@@ -20,7 +20,7 @@ inline void dbgPrint(const char* tag, const QString& message)
     fflush(stdout);
 }
 
-// ── Convenience macros ───────────────────────────────────────────────────────
+//  Convenience macros
 
 #define DBG_APP(msg)      dbgPrint("APP     ", (msg))
 #define DBG_CLI(msg)      dbgPrint("CLI     ", (msg))
