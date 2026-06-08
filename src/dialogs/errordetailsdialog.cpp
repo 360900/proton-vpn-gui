@@ -31,6 +31,7 @@ ErrorDetailsDialog::ErrorDetailsDialog(const QString& errorText, QWidget* parent
     textEdit->setReadOnly(true);
     textEdit->setPlainText(errorText);
     textEdit->setFont(QFont(QStringLiteral("Monospace"), MONO_FONT_SIZE));
+    layout->addWidget(textEdit, 1);
 
     QHBoxLayout* btnRow = new QHBoxLayout();
     QPushButton* copyBtn = new QPushButton(tr("Copy to Clipboard"), this);
