@@ -1,6 +1,7 @@
 #include "debugpage.h"
 
 #include "../appconfig.h"
+#include "../dialogs/errordetailsdialog.h"
 #include "../dialogs/whatsnewdialog.h"
 
 #include <QFile>
@@ -129,6 +130,35 @@ DebugPage::DebugPage(QWidget* parent)
         dlg->show();
     });
     layout->addWidget(whatsNewBtn, 0, Qt::AlignLeft);
+
+    QPushButton* errorDialogBtn = new QPushButton(tr("Test Error Details Dialog (overflow)"), content);
+    errorDialogBtn->setObjectName(QStringLiteral("secondaryButton"));
+    errorDialogBtn->setCursor(Qt::PointingHandCursor);
+    connect(errorDialogBtn, &QPushButton::clicked, this, [this]()
+    {
+        // Long text designed to stress both vertical (many lines) and horizontal
+        // (very long single line) overflow handling in the dialog.
+        const QString loremLine = tr(
+            "This is a very long error line intended to trigger horizontal scrollbar / wrapping behaviour "
+            "inside the ErrorDetailsDialog — it just keeps going and going without any newline break whatsoever. "
+            "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore "
+            "et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi.");
+
+        constexpr int ERROR_BODY_LINES = 38;
+        QStringList lines;
+        lines.reserve(ERROR_BODY_LINES + 2);
+        lines << loremLine;  // first line: horizontal overflow
+        for (int i = 1; i <= ERROR_BODY_LINES; ++i)
+        {
+            lines << tr("[line %1] Error: something went wrong in module %1 — details follow here.").arg(i);
+        }
+        lines << loremLine;  // last line: horizontal overflow again
+
+        ErrorDetailsDialog* dlg = new ErrorDetailsDialog(lines.join(QLatin1Char('\n')), this);
+        dlg->setModal(true);
+        dlg->show();
+    });
+    layout->addWidget(errorDialogBtn, 0, Qt::AlignLeft);
 
     layout->addWidget(makeDivider(content));
 
