@@ -154,6 +154,9 @@ MainWindow::MainWindow(QWidget* parent)
     m_stack->addWidget(m_loginPage); // index 2
     connect(m_loginPage, &LoginPage::loginRequested, this, [this](const QString& u, const QString& p)
     {
+        m_loginUsername = u;
+        m_loginPassword = p;
+        m_pending2FAToken.clear();
         m_loginPage->setLoading(true);
         m_loginPage->setError(QString());
         m_manager->login(u, p);
@@ -162,11 +165,25 @@ MainWindow::MainWindow(QWidget* parent)
     {
         m_loginPage->setLoading(true);
         m_loginPage->setError(QString());
-        m_manager->submit2FA(token);
+        if (m_manager->isLoginInProgress())
+        {
+            m_manager->submit2FA(token);
+        }
+        else
+        {
+            // The signin process died after a failed 2FA attempt. Restart login
+            // with the saved credentials and auto-submit the new token once the
+            // password prompt is cleared and the 2FA prompt appears again.
+            m_pending2FAToken = token;
+            m_manager->login(m_loginUsername, m_loginPassword);
+        }
     });
     connect(m_loginPage, &LoginPage::loginCancelRequested, this, [this]()
     {
         m_manager->cancelLogin();
+        m_loginUsername.clear();
+        m_loginPassword.clear();
+        m_pending2FAToken.clear();
         m_loginPage->reset();
     });
 
@@ -287,8 +304,18 @@ MainWindow::MainWindow(QWidget* parent)
 
     connect(m_manager, &VpnManager::twoFactorRequired, this, [this]()
     {
-        m_loginPage->setLoading(false);
-        m_loginPage->show2FAPrompt();
+        if (m_pending2FAToken.isEmpty() == false)
+        {
+            // Retry path: automatically submit the token the user already typed
+            // without bouncing the UI back to the 2FA input screen.
+            m_manager->submit2FA(m_pending2FAToken);
+            m_pending2FAToken.clear();
+        }
+        else
+        {
+            m_loginPage->setLoading(false);
+            m_loginPage->show2FAPrompt();
+        }
     });
 
     connect(m_manager, &VpnManager::loginFinished, this, [this](bool ok, const QString& error)
@@ -296,6 +323,9 @@ MainWindow::MainWindow(QWidget* parent)
         m_loginPage->setLoading(false);
         if (ok)
         {
+            m_loginUsername.clear();
+            m_loginPassword.clear();
+            m_pending2FAToken.clear();
             m_loginPage->reset();
             m_sidebar->setEnabled(true);
             showPage(Page::Vpn);

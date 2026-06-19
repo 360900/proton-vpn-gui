@@ -209,7 +209,10 @@ void VpnManager::login(const QString& username, const QString& password)
                             && l.startsWith(QStringLiteral("Password:")) == false
                             && l.startsWith(QStringLiteral("2FA")) == false
                             && l.startsWith(QStringLiteral("Warning:")) == false
-                            && l.contains(QStringLiteral(".py:")) == false)
+                            && l.startsWith(QStringLiteral("Traceback")) == false
+                            && l.contains(QStringLiteral(".py:")) == false
+                            && line.front() != QLatin1Char(' ')
+                            && line.front() != QLatin1Char('\t'))
                         {
                             errorLines.append(l);
                         }

@@ -57,6 +57,7 @@ public:
     void fetchAccountType();
 
     VpnState    currentState()       const { return m_state; }
+    bool        isLoginInProgress()  const { return m_signinProcess != nullptr && m_signinProcess->state() == QProcess::Running; }
     AccountType accountType()        const { return m_accountType; }
     // Last country / city passed to connectVpn() - empty if connected via CLI.
     QString     lastConnectCountry() const { return m_lastConnectCountry; }

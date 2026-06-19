@@ -86,7 +86,7 @@ LoginPage::LoginPage(QWidget* parent)
     m_errorScrollArea = new QScrollArea(m_errorContainer);
     m_errorScrollArea->setWidget(m_errorLabel);
     m_errorScrollArea->setWidgetResizable(true);
-    m_errorScrollArea->setFixedHeight(ERROR_SCROLL_HEIGHT);
+    m_errorScrollArea->setMaximumHeight(ERROR_SCROLL_HEIGHT);
     m_errorScrollArea->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     m_errorScrollArea->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
     m_errorScrollArea->setObjectName(QStringLiteral("errorLabel"));
@@ -283,6 +283,15 @@ void LoginPage::setError(const QString& error) const
     {
         m_rawError = error;
         m_errorLabel->setText(error);
+
+        // Size the scroll area to the label's natural wrapped height, capped at
+        // ERROR_SCROLL_HEIGHT (where a scrollbar kicks in for very long errors).
+        const int vpWidth = m_errorScrollArea->viewport()->width();
+        const int labelH  = (vpWidth > 0)
+            ? m_errorLabel->heightForWidth(vpWidth)
+            : m_errorLabel->sizeHint().height();
+        const int frameH  = m_errorScrollArea->frameWidth() * 2;
+        m_errorScrollArea->setFixedHeight(qMin(labelH + frameH, ERROR_SCROLL_HEIGHT));
 
         m_errorContainer->setVisible(true);
     }

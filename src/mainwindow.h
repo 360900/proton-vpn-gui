@@ -81,4 +81,10 @@ private:
     bool m_startupAutoConnectPending = false; // fire auto-connect once on first Disconnected state
     VpnState m_lastNotifiedState = VpnState::Unknown;
     bool m_whatsNewShown = false; // guard so we only show the dialog once per launch
+
+    // Credentials held in memory only while a login is in progress or retrying 2FA.
+    // Wiped on successful login or when the user cancels back to the credentials page.
+    QString m_loginUsername;
+    QString m_loginPassword;
+    QString m_pending2FAToken; // set when re-running login to auto-submit a 2FA retry
 };
