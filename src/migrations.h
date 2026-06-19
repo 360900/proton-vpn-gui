@@ -21,4 +21,11 @@ namespace Migrations
     // Removes the legacy systemd user service file and, if auto-start was
     // active, creates an equivalent XDG autostart .desktop entry.
     void migrateSystemdToXdgAutostart(const QString& previousVersion);
+
+#ifdef QT_DEBUG
+    // Debug-only test helpers: simulate a migration dry-run and return a
+    // human-readable log of every condition checked and action that would fire.
+    QString testMigrateSystemdToXdgAutostart(const QString& simulatedPreviousVersion);
+    QString testAll(const QString& simulatedPreviousVersion);
+#endif
 }

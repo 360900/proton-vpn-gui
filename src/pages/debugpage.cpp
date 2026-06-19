@@ -3,6 +3,7 @@
 #include "../appconfig.h"
 #include "../dialogs/errordetailsdialog.h"
 #include "../dialogs/whatsnewdialog.h"
+#include "../migrations.h"
 
 #include <QFile>
 #include <QFrame>
@@ -24,15 +25,17 @@ constexpr int DEBUG_TITLE_FONT_SIZE  = 14;
 constexpr int DEBUG_H_MARGIN         = 24;
 constexpr int DEBUG_V_MARGIN         = 20;
 constexpr int DEBUG_LAYOUT_SPACING   = 12;
-constexpr int CLEAR_BTN_WIDTH        = 160;
-constexpr int CLEAR_ROW_SPACING      = 12;
-constexpr int GRID_V_MARGIN          = 4;
-constexpr int GRID_H_SPACING         = 12;
-constexpr int GRID_V_SPACING         = 6;
-constexpr int KEY_LABEL_MIN_WIDTH    = 180;
-constexpr int RESET_BTN_WIDTH        = 64;
-constexpr int DEFAULT_RECENT_COUNT   = 5;
-constexpr int VALUE_COL_STRETCH      = 1;
+constexpr int CLEAR_BTN_WIDTH           = 160;
+constexpr int CLEAR_ROW_SPACING         = 12;
+constexpr int GRID_V_MARGIN             = 4;
+constexpr int GRID_H_SPACING            = 12;
+constexpr int GRID_V_SPACING            = 6;
+constexpr int KEY_LABEL_MIN_WIDTH       = 180;
+constexpr int RESET_BTN_WIDTH           = 64;
+constexpr int DEFAULT_RECENT_COUNT      = 5;
+constexpr int VALUE_COL_STRETCH         = 1;
+constexpr int MIGRATION_VERSION_WIDTH   = 90;
+constexpr int MIGRATION_BTN_WIDTH       = 80;
 
 QLabel* makeSectionHeader(const QString& text, QWidget* parent)
 {
@@ -278,6 +281,76 @@ DebugPage::DebugPage(QWidget* parent)
         []() { AppConfig::instance().setLastSeenVersion(QString()); });
 
     layout->addWidget(gridWidget);
+
+#ifdef QT_DEBUG
+    layout->addWidget(makeDivider(content));
+
+    // Migrations section
+    layout->addWidget(makeSectionHeader(tr("Migrations"), content));
+
+    QLabel* migrDesc = new QLabel(
+        tr("Dry-run tests for one-time upgrade migrations. "
+           "Set the simulated previous version to control which migrations would fire."),
+        content);
+    migrDesc->setWordWrap(true);
+    migrDesc->setStyleSheet(QStringLiteral("color: #888;"));
+    layout->addWidget(migrDesc);
+
+    // Version input row + Run All button
+    QHBoxLayout* versionRow = new QHBoxLayout();
+    versionRow->setSpacing(CLEAR_ROW_SPACING);
+    versionRow->addWidget(new QLabel(tr("Simulate previous version:"), content));
+
+    m_migrationVersionInput = new QLineEdit(QStringLiteral("1.0.0"), content);
+    m_migrationVersionInput->setObjectName(QStringLiteral("inputField"));
+    m_migrationVersionInput->setFixedWidth(MIGRATION_VERSION_WIDTH);
+    versionRow->addWidget(m_migrationVersionInput);
+
+    versionRow->addStretch();
+
+    QPushButton* runAllBtn = new QPushButton(tr("Run All"), content);
+    runAllBtn->setObjectName(QStringLiteral("secondaryButton"));
+    runAllBtn->setCursor(Qt::PointingHandCursor);
+    runAllBtn->setFixedWidth(MIGRATION_BTN_WIDTH);
+    connect(runAllBtn, &QPushButton::clicked, this, [this]()
+    {
+        const QString result = Migrations::testAll(m_migrationVersionInput->text().trimmed());
+        QMessageBox::information(this, tr("Migration Test: Run All"), result);
+    });
+    versionRow->addWidget(runAllBtn);
+    layout->addLayout(versionRow);
+
+    // One row per migration: [name in code font] [Run Test button]
+    auto addMigrationRow = [&](const QString& name, std::function<QString()> runTest)
+    {
+        QHBoxLayout* row = new QHBoxLayout();
+        QLabel* lbl = new QLabel(
+            QStringLiteral("<code>%1</code>").arg(name.toHtmlEscaped()), content);
+        lbl->setTextFormat(Qt::RichText);
+        row->addWidget(lbl, 1);
+
+        QPushButton* btn = new QPushButton(tr("Run Test"), content);
+        btn->setObjectName(QStringLiteral("secondaryButton"));
+        btn->setCursor(Qt::PointingHandCursor);
+        btn->setFixedWidth(MIGRATION_BTN_WIDTH);
+        connect(btn, &QPushButton::clicked, this, [this, name, runTest]()
+        {
+            QMessageBox::information(this,
+                tr("Migration Test: %1").arg(name),
+                runTest());
+        });
+        row->addWidget(btn);
+        layout->addLayout(row);
+    };
+
+    addMigrationRow(
+        QStringLiteral("migrateSystemdToXdgAutostart"),
+        [this]()
+        {
+            return Migrations::testMigrateSystemdToXdgAutostart(
+                m_migrationVersionInput->text().trimmed());
+        });
+#endif // QT_DEBUG
 
     layout->addStretch();
 
