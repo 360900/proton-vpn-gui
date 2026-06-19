@@ -19,46 +19,46 @@ macro(add_qt_test name)
 endmacro()
 
 #  GeoUtils
-add_qt_test(tst_geoutils
-    tst_geoutils.cpp
-    ../geoutils.h
-    ../geoutils.cpp
+add_qt_test(tst_geoUtils
+    tst_geoUtils.cpp
+    ../geoUtils.h
+    ../geoUtils.cpp
 )
-target_link_libraries(tst_geoutils Qt6::Gui Qt6::Svg Qt6::SvgWidgets)
+target_link_libraries(tst_geoUtils Qt6::Gui Qt6::Svg Qt6::SvgWidgets)
 
 #  AppConfig
-add_qt_test(tst_appconfig
-    tst_appconfig.cpp
-    ../appconfig.h
-    ../appconfig.cpp
+add_qt_test(tst_appConfig
+    tst_appConfig.cpp
+    ../appConfig.h
+    ../appConfig.cpp
 )
 
 #  ConnectionHistory
-add_qt_test(tst_connectionhistory
-    tst_connectionhistory.cpp
-    ../connectionhistory.h
-    ../connectionhistory.cpp
-    ../appconfig.h
-    ../appconfig.cpp
+add_qt_test(tst_connectionHistory
+    tst_connectionHistory.cpp
+    ../connectionHistory.h
+    ../connectionHistory.cpp
+    ../appConfig.h
+    ../appConfig.cpp
 )
 
 #  StatusMonitor (static parsing helpers only - no subprocess spawned)
-add_qt_test(tst_statusmonitor
-    tst_statusmonitor.cpp
-    ../cli/statusmonitor.h
-    ../cli/statusmonitor.cpp
-    ../cli/flatpakutils.h
+add_qt_test(tst_statusMonitor
+    tst_statusMonitor.cpp
+    ../cli/statusMonitor.h
+    ../cli/statusMonitor.cpp
+    ../cli/flatpakUtils.h
 )
 
 #  UiHelpers
-add_qt_test(tst_uihelpers
-    tst_uihelpers.cpp
-    ../uihelpers.h
+add_qt_test(tst_uiHelpers
+    tst_uiHelpers.cpp
+    ../uiHelpers.h
 )
 
 #  FlatpakUtils
-add_qt_test(tst_flatpakutils
-    tst_flatpakutils.cpp
-    ../cli/flatpakutils.h
+add_qt_test(tst_flatpakUtils
+    tst_flatpakUtils.cpp
+    ../cli/flatpakUtils.h
 )
 

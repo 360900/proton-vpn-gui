@@ -12,13 +12,13 @@
 #include <QStyleFactory>
 #include <QSysInfo>
 #include <QTranslator>
-#include "appconfig.h"
-#include "cli/flatpakutils.h"
-#include "dbus/vpnstatusadaptor.h"
+#include "appConfig.h"
+#include "cli/flatpakUtils.h"
+#include "dbus/vpnStatusAdaptor.h"
 #include "debug.h"
-#include "mainwindow.h"
+#include "mainWindow.h"
 #include "migrations.h"
-#include "thememanager.h"
+#include "themeManager.h"
 
 int main(int argc, char* argv[])
 {

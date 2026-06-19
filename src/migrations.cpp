@@ -1,5 +1,5 @@
 #include "migrations.h"
-#include "cli/flatpakutils.h"
+#include "cli/flatpakUtils.h"
 #include "debug.h"
 
 #include <QCoreApplication>
