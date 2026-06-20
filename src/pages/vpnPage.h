@@ -1,6 +1,7 @@
 #pragma once
 
 #include <optional>
+#include <QPushButton>
 #include <QTimer>
 #include <QPropertyAnimation>
 #include <QScrollArea>
@@ -210,6 +211,15 @@ private:
     static constexpr int kWideThreshold = 700;
     static constexpr int kWideSidebarW  = 300;
     bool            m_showFavoritesDropdown = true; // cached from AppConfig
+    // Container that holds all warning banners (prerelease, Flatpak, AppImage).
+    // Moved between the scroll layout and the picker sidebar when switching modes.
+    QWidget*      m_vpnBannerArea        = nullptr;
+    QWidget*      m_vpnBannerContent     = nullptr;  // direct child in narrow, scroll child in wide
+    QVBoxLayout*  m_vpnBannerLayout      = nullptr;
+    QScrollArea*  m_vpnBannerScroll      = nullptr;  // created lazily on first wide-mode entry
+    QLabel*       m_warningsHeaderLabel  = nullptr;
+    QPushButton*  m_clearAllBannersBtn   = nullptr;
+
     InfoBanner*     m_versionBanner = nullptr;
     InfoBanner*     m_prereleaseBanner = nullptr;
     FlatpakBetaBanner*  m_flatpakBetaBanner  = nullptr;
@@ -252,6 +262,7 @@ private:
     void checkPrereleaseBanner();
     void checkFlatpakBetaBanner();
     void checkAppImageBetaBanner();
+    void updateBannerAreaVisibility();
     void applyFreeUserMode() const;
     void startNatPmpLoop();
     void stopNatPmpLoop();

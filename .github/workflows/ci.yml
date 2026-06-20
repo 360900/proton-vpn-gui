@@ -37,6 +37,13 @@ jobs:
       - name: Confirm binary exists
         run: test -f build/proton_vpn_qt
 
+      - name: Upload binary artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: native-binary-ci
+          path: build/proton_vpn_qt
+          retention-days: 7
+
   build-flatpak:
     name: Build Flatpak (Ubuntu)
     runs-on: ubuntu-latest
@@ -100,9 +107,16 @@ jobs:
       - name: Confirm bundle exists
         run: test -f io.github.wheat32.ProtonVPNQt.flatpak
 
-  build-appimage:
-    name: Build AppImage (Ubuntu)
-    runs-on: ubuntu-latest
+      - name: Upload Flatpak artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: flatpak-ci
+          path: io.github.wheat32.ProtonVPNQt.flatpak
+          retention-days: 7
+
+  build-appimage-standalone:
+    name: Build AppImage Standalone (Ubuntu)
+    runs-on: ubuntu-26.04
 
     steps:
       - name: Checkout
@@ -113,17 +127,59 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y \
             cmake ninja-build \
-            qt6-base-dev qt6-svg-dev libqt6svg6-dev \
+            qt6-base-dev qt6-svg-dev libqt6svg6-dev qt6-wayland \
             libgl1-mesa-dev \
-            python3 python3-venv \
+            python3 python3-venv python3-gi python3-gi-cairo \
             wget
 
-      - name: Build AppImage
+      - name: Build AppImage (Standalone)
         run: |
-          chmod +x build-appimage.sh
-          APPIMAGE_EXTRACT_AND_RUN=1 ./build-appimage.sh
+          chmod +x build-appimage_standalone.sh
+          ./build-appimage_standalone.sh
         env:
           APPIMAGE_EXTRACT_AND_RUN: "1"
 
       - name: Confirm AppImage exists
-        run: ls dist/*.AppImage
+        run: ls dist/*-standalone-*.AppImage
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: appimage-standalone-ci
+          path: dist/*-standalone-*.AppImage
+          retention-days: 7
+
+  build-appimage-lite:
+    name: Build AppImage Lite (Ubuntu)
+    runs-on: ubuntu-26.04
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            cmake ninja-build \
+            qt6-base-dev qt6-svg-dev libqt6svg6-dev qt6-wayland \
+            libgl1-mesa-dev \
+            python3 \
+            wget
+
+      - name: Build AppImage (Lite)
+        run: |
+          chmod +x build-appimage_lite.sh
+          ./build-appimage_lite.sh
+        env:
+          APPIMAGE_EXTRACT_AND_RUN: "1"
+
+      - name: Confirm AppImage exists
+        run: ls dist/*-lite-*.AppImage
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: appimage-lite-ci
+          path: dist/*-lite-*.AppImage
+          retention-days: 7

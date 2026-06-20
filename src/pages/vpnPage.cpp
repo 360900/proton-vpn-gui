@@ -93,6 +93,7 @@ constexpr int   PORT_COPY_BTN_MIN_H        = 30;
 constexpr int   SIDEBAR_L_MARGIN           = 20;
 constexpr int   SIDEBAR_B_MARGIN           = 24;
 constexpr int   SIDEBAR_SPACING            = 8;
+constexpr int   BANNER_SCROLL_MAX_HEIGHT_WIDE = 260;
 constexpr int   DRAWER_NOTCH_W             = 28;
 constexpr int   DRAWER_NOTCH_H             = 64;
 constexpr int   DRAWER_NOTCH_BTN_H         = 60;
@@ -1133,6 +1134,55 @@ VpnPage::VpnPage(VpnManager* manager, QWidget* parent)
 
     scrollLayout->addStretch(1);
 
+    // Banner area: starts at the bottom of the scroll content (narrow mode).
+    // applyWideMode() moves it above the picker dropdowns in the sidebar.
+    m_vpnBannerArea = new QWidget();
+    QVBoxLayout* bannerAreaLayout = new QVBoxLayout(m_vpnBannerArea);
+    bannerAreaLayout->setContentsMargins(0, SCROLL_SECTION_SPACING, 0, 0);
+    bannerAreaLayout->setSpacing(SIDEBAR_SPACING);
+
+    // Header: "Warnings" label + "Clear All" button
+    QWidget* bannerHeader = new QWidget(m_vpnBannerArea);
+    QHBoxLayout* bannerHeaderLayout = new QHBoxLayout(bannerHeader);
+    bannerHeaderLayout->setContentsMargins(0, 0, 0, 0);
+    bannerHeaderLayout->setSpacing(SIDEBAR_SPACING);
+    m_warningsHeaderLabel = new QLabel(tr("Warnings"), bannerHeader);
+    m_warningsHeaderLabel->setObjectName(QStringLiteral("appSectionHeader"));
+    m_clearAllBannersBtn = new QPushButton(tr("Clear All"), bannerHeader);
+    m_clearAllBannersBtn->setObjectName(QStringLiteral("secondaryButton"));
+    m_clearAllBannersBtn->setCursor(Qt::PointingHandCursor);
+    connect(m_clearAllBannersBtn, &QPushButton::clicked, this, [this]()
+    {
+        if (m_prereleaseBanner != nullptr)
+        {
+            m_prereleaseBanner->dismiss();
+        }
+        if (m_flatpakBetaBanner != nullptr)
+        {
+            m_flatpakBetaBanner->dismiss();
+        }
+        if (m_appImageBetaBanner != nullptr)
+        {
+            m_appImageBetaBanner->dismiss();
+        }
+    });
+    bannerHeaderLayout->addWidget(m_warningsHeaderLabel);
+    bannerHeaderLayout->addStretch();
+    bannerHeaderLayout->addWidget(m_clearAllBannersBtn);
+    bannerAreaLayout->addWidget(bannerHeader);
+
+    // Banner content — added directly in narrow mode (outer scroll area handles
+    // overflow).  applyWideMode() wraps it in m_vpnBannerScroll for wide mode.
+    m_vpnBannerContent = new QWidget();
+    m_vpnBannerLayout = new QVBoxLayout(m_vpnBannerContent);
+    m_vpnBannerLayout->setContentsMargins(0, 0, 0, 0);
+    m_vpnBannerLayout->setSpacing(0);
+    bannerAreaLayout->addWidget(m_vpnBannerContent);
+
+    m_vpnBannerArea->setVisible(false);
+    // Insert before the final stretch so banners sit below the status content.
+    scrollLayout->insertWidget(scrollLayout->count() - 1, m_vpnBannerArea);
+
     m_scrollArea = new QScrollArea(this);
     m_scrollArea->setObjectName(QStringLiteral("vpnScrollArea"));
     m_scrollArea->setWidget(scrollContent);
@@ -1541,7 +1591,40 @@ void VpnPage::applyWideMode(bool wide)
     {
         //  Switch to wide mode
         // 1. Release pickers from the drawer and place them in the sidebar.
+        //    Banners move to the sidebar above the pickers.
         m_drawer->releasePickers();
+        if (m_vpnBannerArea != nullptr)
+        {
+            QVBoxLayout* sl = qobject_cast<QVBoxLayout*>(m_scrollArea->widget()->layout());
+            if (sl != nullptr)
+            {
+                sl->removeWidget(m_vpnBannerArea);
+            }
+            // Wrap banner content in a scroll area for the sidebar (created once).
+            if (m_vpnBannerContent != nullptr)
+            {
+                QVBoxLayout* bal = qobject_cast<QVBoxLayout*>(m_vpnBannerArea->layout());
+                if (bal != nullptr)
+                {
+                    bal->removeWidget(m_vpnBannerContent);
+                }
+                if (m_vpnBannerScroll == nullptr)
+                {
+                    m_vpnBannerScroll = new QScrollArea(m_vpnBannerArea);
+                    m_vpnBannerScroll->setWidgetResizable(true);
+                    m_vpnBannerScroll->setFrameShape(QFrame::NoFrame);
+                    m_vpnBannerScroll->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+                    m_vpnBannerScroll->setMaximumHeight(BANNER_SCROLL_MAX_HEIGHT_WIDE);
+                }
+                m_vpnBannerScroll->setWidget(m_vpnBannerContent);
+                if (bal != nullptr)
+                {
+                    bal->addWidget(m_vpnBannerScroll);
+                }
+            }
+            // Insert at position 1: after the stretch at 0, before the pickers.
+            m_pickerSidebarLayout->insertWidget(1, m_vpnBannerArea);
+        }
         m_pickerSidebarLayout->addWidget(m_locationPicker, 0, Qt::AlignLeft);
         m_pickerSidebarLayout->addWidget(m_recentPicker, 0, Qt::AlignLeft);
         if (m_favoritesPicker != nullptr)
@@ -1582,6 +1665,7 @@ void VpnPage::applyWideMode(bool wide)
     {
         //  Switch to narrow mode
         // 1. Remove pickers from sidebar and reclaim them into the drawer.
+        //    Banners move back to the bottom of the scroll content.
         m_pickerSidebarLayout->removeWidget(m_locationPicker);
         m_pickerSidebarLayout->removeWidget(m_recentPicker);
         if (m_favoritesPicker != nullptr)
@@ -1601,10 +1685,34 @@ void VpnPage::applyWideMode(bool wide)
         }
 
         // 2. Move topContentWidget and scrollArea back to the narrow wrapper.
+        //    Return the banner area to the scroll content (before the stretch).
         m_rightContentLayout->removeWidget(m_topContentWidget);
         m_rightContentLayout->removeWidget(m_scrollArea);
         m_narrowContentLayout->insertWidget(0, m_topContentWidget);
         m_scrollOffsetLayout->addWidget(m_scrollArea, 1);
+        if (m_vpnBannerArea != nullptr)
+        {
+            m_pickerSidebarLayout->removeWidget(m_vpnBannerArea);
+            // Unwrap banner content from the scroll area back to direct placement.
+            if (m_vpnBannerScroll != nullptr && m_vpnBannerContent != nullptr)
+            {
+                QVBoxLayout* bal = qobject_cast<QVBoxLayout*>(m_vpnBannerArea->layout());
+                if (bal != nullptr)
+                {
+                    bal->removeWidget(m_vpnBannerScroll);
+                }
+                m_vpnBannerScroll->takeWidget();  // releases m_vpnBannerContent
+                if (bal != nullptr)
+                {
+                    bal->addWidget(m_vpnBannerContent);
+                }
+            }
+            QVBoxLayout* sl = qobject_cast<QVBoxLayout*>(m_scrollArea->widget()->layout());
+            if (sl != nullptr)
+            {
+                sl->insertWidget(sl->count() - 1, m_vpnBannerArea);
+            }
+        }
         // Restore the scroll offset: only push right when the drawer is present.
         const int leftMargin = m_drawer->hasAnyVisiblePicker() ? PickerDrawer::COLLAPSED_DRAWER_WIDTH : 0;
         m_scrollOffsetLayout->setContentsMargins(leftMargin, 0, leftMargin, 0);
@@ -1698,57 +1806,53 @@ void VpnPage::checkPrereleaseBanner()
         "It may contain bugs or incomplete features. Use with caution.")
         .arg(appVersion.toHtmlEscaped());
 
-    const QScrollArea* scrollArea = findChild<QScrollArea*>(QStringLiteral("vpnScrollArea"));
-    if (scrollArea == nullptr || scrollArea->widget() == nullptr) return;
-    QVBoxLayout* scrollLayout = qobject_cast<QVBoxLayout*>(scrollArea->widget()->layout());
-    if (scrollLayout == nullptr) return;
-
     m_prereleaseBanner = new InfoBanner(msg, this);
     connect(m_prereleaseBanner, &InfoBanner::dismissed, this, [this]()
     {
         m_prereleaseBanner = nullptr;
+        updateBannerAreaVisibility();
     });
-    scrollLayout->insertWidget(0, m_prereleaseBanner);
+    m_vpnBannerLayout->addWidget(m_prereleaseBanner);
+    updateBannerAreaVisibility();
 }
 
 void VpnPage::checkFlatpakBetaBanner()
 {
     m_flatpakBetaBanner = FlatpakBetaBanner::createIfFlatpak(this);
     if (m_flatpakBetaBanner == nullptr) return;
-
-    const QScrollArea* scrollArea = findChild<QScrollArea*>(QStringLiteral("vpnScrollArea"));
-    if (scrollArea == nullptr || scrollArea->widget() == nullptr) return;
-    QVBoxLayout* scrollLayout = qobject_cast<QVBoxLayout*>(scrollArea->widget()->layout());
-    if (scrollLayout == nullptr) return;
-
     connect(m_flatpakBetaBanner, &FlatpakBetaBanner::dismissed, this, [this]()
     {
         m_flatpakBetaBanner = nullptr;
+        updateBannerAreaVisibility();
     });
-    // Insert below the prerelease banner if present, otherwise at the top
-    const int pos = (m_prereleaseBanner != nullptr) ? 1 : 0;
-    scrollLayout->insertWidget(pos, m_flatpakBetaBanner);
+    m_vpnBannerLayout->addWidget(m_flatpakBetaBanner);
+    updateBannerAreaVisibility();
 }
 
 void VpnPage::checkAppImageBetaBanner()
 {
     m_appImageBetaBanner = AppImageBetaBanner::createIfAppImage(this);
     if (m_appImageBetaBanner == nullptr) return;
-
-    const QScrollArea* scrollArea = findChild<QScrollArea*>(QStringLiteral("vpnScrollArea"));
-    if (scrollArea == nullptr || scrollArea->widget() == nullptr) return;
-    QVBoxLayout* scrollLayout = qobject_cast<QVBoxLayout*>(scrollArea->widget()->layout());
-    if (scrollLayout == nullptr) return;
-
     connect(m_appImageBetaBanner, &AppImageBetaBanner::dismissed, this, [this]()
     {
         m_appImageBetaBanner = nullptr;
+        updateBannerAreaVisibility();
     });
-    // Insert below any pre-release or Flatpak banner already present
-    int pos = 0;
-    if (m_prereleaseBanner != nullptr) { ++pos; }
-    if (m_flatpakBetaBanner != nullptr) { ++pos; }
-    scrollLayout->insertWidget(pos, m_appImageBetaBanner);
+    m_vpnBannerLayout->addWidget(m_appImageBetaBanner);
+    updateBannerAreaVisibility();
+}
+
+void VpnPage::updateBannerAreaVisibility()
+{
+    const int count = (m_prereleaseBanner   != nullptr ? 1 : 0)
+                    + (m_flatpakBetaBanner  != nullptr ? 1 : 0)
+                    + (m_appImageBetaBanner != nullptr ? 1 : 0);
+    const bool hasAny = count > 0;
+    m_vpnBannerArea->setVisible(hasAny);
+    if (m_warningsHeaderLabel != nullptr)
+    {
+        m_warningsHeaderLabel->setText(tr("Warnings (%1)").arg(count));
+    }
 }
 
 void VpnPage::onCliVersionReady(const QString& version)
