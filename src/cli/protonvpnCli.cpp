@@ -410,8 +410,10 @@ void VpnManager::applyConfigValueAndReconnect(const QString& key, const QString&
 void VpnManager::fetchCountries()
 {
     runCommand({QStringLiteral("countries"), QStringLiteral("list")},
-               [this](int, const QString& out, const QString& err)
+               [this](int exitCode, const QString& out, const QString& err)
     {
+        if (exitCode != 0)
+            return;
         const QString combined = out + QLatin1Char('\n') + err;
         QMap<QString, QString> countries;
         const QStringList lines = combined.split(QLatin1Char('\n'));
@@ -443,8 +445,10 @@ void VpnManager::fetchCountries()
 void VpnManager::fetchCities(const QString& countryCode)
 {
     runCommand({QStringLiteral("cities"), QStringLiteral("list"), countryCode},
-               [this, countryCode](int, const QString& out, const QString& err)
+               [this, countryCode](int exitCode, const QString& out, const QString& err)
                {
+                   if (exitCode != 0)
+                       return; // not authenticated or other error — don't overwrite with an empty list
                    const QString combined = out + QLatin1Char('\n') + err;
                    QList<QPair<QString, QString>> cities;
                    const QStringList lines = combined.split(QLatin1Char('\n'));
@@ -476,8 +480,10 @@ void VpnManager::fetchCityFeatures(const QString& countryCode, const QString& ci
                                    const std::function<void(const QString& features)>& callback)
 {
     runCommand({QStringLiteral("cities"), QStringLiteral("list"), countryCode},
-               [city, callback](int, const QString& out, const QString& err)
+               [city, callback](int exitCode, const QString& out, const QString& err)
                {
+                   if (exitCode != 0)
+                       return;
                    const QString combined = out + QLatin1Char('\n') + err;
                    const QStringList lines = combined.split(QLatin1Char('\n'));
                    bool pastSeparator = false;

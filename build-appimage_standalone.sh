@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# build-appimage.sh
+# build-appimage_standalone.sh
 # Builds a self-contained AppImage bundling the ProtonVPN Qt App and CLI.
 #
 # Uses python-build-standalone to embed a portable Python 3.12 interpreter,
@@ -44,7 +44,7 @@ APP_ID="io.github.wheat32.ProtonVPNQt"
 
 # -- Read version --------------------------------------------------------------
 VERSION=$(python3 -c "import json; print(json.load(open('${SCRIPT_DIR}/src/version.json'))['app_version'])")
-OUTPUT="${OUTPUT_DIR}/ProtonVPN-Qt-${VERSION}-x86_64.AppImage"
+OUTPUT="${OUTPUT_DIR}/ProtonVPN-Qt-${VERSION}-standalone-x86_64.AppImage"
 
 # -- Color helpers -------------------------------------------------------------
 GREEN='\033[0;32m'; YELLOW='\033[1;33m'; RED='\033[0;31m'; NC='\033[0m'
