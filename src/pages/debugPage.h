@@ -30,6 +30,7 @@ private:
     QLabel* m_valShowPicker         = nullptr;
     QLabel* m_valTheme              = nullptr;
     QLabel* m_valLastSeenVersion    = nullptr;
+    QLabel* m_valCheckForUpdates    = nullptr;
 
 #ifdef QT_DEBUG
     QLineEdit* m_migrationVersionInput = nullptr;

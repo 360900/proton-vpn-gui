@@ -52,6 +52,7 @@ void AppConfig::load()
     m_showFavoritesDropdown = obj.value(QStringLiteral("show_favorites_dropdown")).toBool(true);
     m_favoritesEnabled = obj.value(QStringLiteral("favorites_enabled")).toBool(true);
     m_lastSeenVersion = obj.value(QStringLiteral("last_seen_version")).toString();
+    m_checkForUpdates = obj.value(QStringLiteral("check_for_updates")).toBool(true);
 
     const QString themeStr = obj.value(QStringLiteral("theme")).toString(QStringLiteral("system"));
     if (themeStr == QStringLiteral("dark"))
@@ -98,6 +99,7 @@ bool AppConfig::save() const
     {
         obj[QStringLiteral("last_seen_version")] = m_lastSeenVersion;
     }
+    obj[QStringLiteral("check_for_updates")] = m_checkForUpdates;
 
     QString themeStr;
     switch (m_theme)
@@ -221,6 +223,16 @@ void AppConfig::setLastSeenVersion(const QString& value)
     (void)save();
 }
 
+bool AppConfig::checkForUpdates() const { return m_checkForUpdates; }
+
+void AppConfig::setCheckForUpdates(const bool value)
+{
+    if (m_checkForUpdates == value) return;
+    DBG_SETTINGS(QStringLiteral("Setting changed: check_for_updates = ") + (value ? QStringLiteral("true") : QStringLiteral("false")));
+    m_checkForUpdates = value;
+    (void)save();
+}
+
 void AppConfig::resetToDefaults()
 {
     DBG_SETTINGS(QStringLiteral("AppConfig::resetToDefaults() - deleting config file and resetting all values"));
@@ -239,5 +251,6 @@ void AppConfig::resetToDefaults()
     m_showFavoritesDropdown  = true;
     m_favoritesEnabled       = true;
     m_lastSeenVersion        = QString();
+    m_checkForUpdates        = true;
 }
 

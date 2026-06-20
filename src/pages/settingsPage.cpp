@@ -698,6 +698,27 @@ SettingsPage::SettingsPage(VpnManager* manager, NatPmpManager* natPmpManager, QW
             notifLayout->addWidget(row);
         }
 
+        {
+            addDivider(notifLayout, notifCard);
+            QWidget* row = new QWidget(notifCard);
+            QHBoxLayout* rl = new QHBoxLayout(row);
+            rl->setContentsMargins(SETTING_ROW_H_MARGIN, SETTING_ROW_V_MARGIN,
+                                   SETTING_ROW_H_MARGIN, SETTING_ROW_V_MARGIN);
+            rl->setSpacing(SETTING_ROW_SPACING);
+            rl->addWidget(makeTextCol(row,
+                                      tr("Check for Updates on Startup"),
+                                      tr("Automatically check for a newer version of the app "
+                                         "each time it starts.")), 1);
+            ToggleWithStatus* updateToggle = new ToggleWithStatus(row);
+            updateToggle->setOn(AppConfig::instance().checkForUpdates(), false);
+            connect(updateToggle, &ToggleWithStatus::toggled, this, [](const bool on)
+            {
+                AppConfig::instance().setCheckForUpdates(on);
+            });
+            rl->addWidget(updateToggle);
+            notifLayout->addWidget(row);
+        }
+
         //  Plus Members Only divider
         m_appPlusDivider = makePlusDivider(appContent);
         appContentLayout->addWidget(m_appPlusDivider);

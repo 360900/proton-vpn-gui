@@ -7,6 +7,7 @@
 #include <QStackedWidget>
 #include <QVBoxLayout>
 #include "../widgets/infoBanner.h"
+#include "../widgets/appImageBetaBanner.h"
 #include "../widgets/flatpakBetaBanner.h"
 #include "../dialogs/errorDetailsDialog.h"
 
@@ -23,6 +24,7 @@ public:
     void reset() const; // return to username/password view
     void checkPrereleaseBanner();
     void checkFlatpakBetaBanner();
+    void checkAppImageBetaBanner();
 
 public slots:
     void onCliVersionReady(const QString& version);
@@ -56,7 +58,8 @@ private:
     QVBoxLayout* m_outerLayout = nullptr;
     InfoBanner* m_versionBanner = nullptr;
     InfoBanner* m_prereleaseBanner = nullptr;
-    FlatpakBetaBanner* m_flatpakBetaBanner = nullptr;
+    FlatpakBetaBanner*   m_flatpakBetaBanner   = nullptr;
+    AppImageBetaBanner*  m_appImageBetaBanner  = nullptr;
 
     bool m_passwordVisible = false;
     void togglePasswordVisibility() const;

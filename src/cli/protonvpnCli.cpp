@@ -13,6 +13,7 @@
 #include <QRegularExpression>
 #include <functional>
 #include <ranges>
+#include <unistd.h>
 
 // ---------------------------------------------------------------------------
 // Flatpak helper - when running inside a Flatpak sandbox, all CLI calls must
@@ -137,6 +138,18 @@ void VpnManager::login(const QString& username, const QString& password)
 
     m_signinProcess = new QProcess(this);
     QProcess* process = m_signinProcess;
+
+    // When the Qt app is launched from a terminal, child processes inherit the
+    // controlling terminal.  Python's getpass.getpass() then opens /dev/tty
+    // directly, bypassing the QProcess stdin pipe — the password prompt appears
+    // on the user's terminal rather than being captured here.
+    // setsid() in the child (between fork and exec) creates a new session with
+    // no controlling terminal, so getpass falls back to writing the prompt to
+    // stderr and reading the answer from stdin, both of which QProcess pipes.
+    m_signinProcess->setChildProcessModifier([]()
+    {
+        ::setsid();
+    });
 
     struct State
     {

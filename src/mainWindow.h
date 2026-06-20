@@ -8,6 +8,8 @@
 #include <QMenu>
 #include "vpnManager.h"
 
+class QNetworkAccessManager;
+
 class VpnPage;
 class LoginPage;
 class CountriesPage;
@@ -70,12 +72,14 @@ private:
     void refreshIcons();
     void setNavActive(const QToolButton* btn);
     void startupCheck() const;
+    void checkForUpdates();
     void updateTrayIcon(VpnState state);
     void sendNotification(const QString& title, const QString& message) const;
     void changeEvent(QEvent* event) override;
     void keyPressEvent(QKeyEvent* event) override;
     void maybeShowWhatsNew();
 
+    QNetworkAccessManager* m_networkManager = nullptr;
     QSystemTrayIcon* m_trayIcon;
     QAction* m_trayConnectAction;
     bool m_startupAutoConnectPending = false; // fire auto-connect once on first Disconnected state

@@ -26,6 +26,7 @@ public:
     bool showFavoritesDropdown() const;
     bool favoritesEnabled() const;
     QString lastSeenVersion() const;
+    bool checkForUpdates() const;
 
     void setAutoConnect(bool value);
     void setAutoConnectServer(const QString& value);
@@ -37,6 +38,7 @@ public:
     void setShowFavoritesDropdown(bool value);
     void setFavoritesEnabled(bool value);
     void setLastSeenVersion(const QString& value);
+    void setCheckForUpdates(bool value);
 
     // Resets every setting to its compile-time default and deletes the config
     // file. The in-memory state is usable immediately; the file will not be
@@ -58,4 +60,5 @@ private:
     bool m_showFavoritesDropdown = true;
     bool m_favoritesEnabled = true;
     QString m_lastSeenVersion;
+    bool m_checkForUpdates = true;
 };

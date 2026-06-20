@@ -13,6 +13,7 @@ set(CMAKE_AUTOUIC ON)
 find_package(Qt6 COMPONENTS
         Core
         Gui
+        Network
         Widgets
         Svg
         SvgWidgets
@@ -45,11 +46,13 @@ set(SOURCES
         cli/natpmpManager.cpp
         cli/statusMonitor.h
         cli/statusMonitor.cpp
+        cli/appImageUtils.h
         cli/flatpakUtils.h
         mainWindow.h
         mainWindow.cpp
         widgets/elidaLabel.h
         widgets/infoBanner.h
+        widgets/appImageBetaBanner.h
         widgets/flatpakBetaBanner.h
         widgets/numberSpinner.h
         widgets/pickerBase.h
@@ -78,6 +81,8 @@ set(SOURCES
         dialogs/aboutDialog.cpp
         dialogs/errorDetailsDialog.h
         dialogs/errorDetailsDialog.cpp
+        dialogs/updateAvailableDialog.h
+        dialogs/updateAvailableDialog.cpp
         dialogs/whatsNewDialog.h
         dialogs/whatsNewDialog.cpp
         resources.qrc
@@ -100,6 +105,7 @@ endif()
 target_link_libraries(proton_vpn_qt
         Qt6::Core
         Qt6::Gui
+        Qt6::Network
         Qt6::Widgets
         Qt6::Svg
         Qt6::SvgWidgets

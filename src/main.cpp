@@ -13,6 +13,7 @@
 #include <QSysInfo>
 #include <QTranslator>
 #include "appConfig.h"
+#include "cli/appImageUtils.h"
 #include "cli/flatpakUtils.h"
 #include "dbus/vpnStatusAdaptor.h"
 #include "debug.h"
@@ -64,7 +65,10 @@ int main(int argc, char* argv[])
     DBG_APP(QStringLiteral("CLI tested min     : ") + cliVersionTestedMin);
     DBG_APP(QStringLiteral("CLI tested max     : ") + cliVersionTestedMax);
     DBG_APP(QStringLiteral("Qt version         : ") + QString::fromLatin1(qVersion()));
-    DBG_APP(QStringLiteral("Package type       : ") + (isRunningAsFlatpak() ? QStringLiteral("Flatpak") : QStringLiteral("System")));
+    const QString packageType = isRunningAsFlatpak()  ? QStringLiteral("Flatpak")
+                              : isRunningAsAppImage() ? QStringLiteral("AppImage")
+                                                      : QStringLiteral("System");
+    DBG_APP(QStringLiteral("Package type       : ") + packageType);
     DBG_APP(QStringLiteral("OS                 : ") + QSysInfo::prettyProductName());
     DBG_APP(QStringLiteral("Kernel             : ") + QSysInfo::kernelVersion());
     DBG_APP(QStringLiteral("CPU arch           : ") + QSysInfo::currentCpuArchitecture());

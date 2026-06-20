@@ -2,6 +2,7 @@
 
 #include "../appConfig.h"
 #include "../dialogs/errorDetailsDialog.h"
+#include "../dialogs/updateAvailableDialog.h"
 #include "../dialogs/whatsNewDialog.h"
 #include "../migrations.h"
 
@@ -163,6 +164,25 @@ DebugPage::DebugPage(QWidget* parent)
     });
     layout->addWidget(errorDialogBtn, 0, Qt::AlignLeft);
 
+    QPushButton* updateDialogBtn = new QPushButton(tr("Test \u201cUpdate Available\u201d Dialog"), content);
+    updateDialogBtn->setObjectName(QStringLiteral("secondaryButton"));
+    updateDialogBtn->setCursor(Qt::PointingHandCursor);
+    connect(updateDialogBtn, &QPushButton::clicked, this, [this]()
+    {
+        QString currentVersion = QStringLiteral("?.?.?");
+        QFile vf(QStringLiteral(":/version.json"));
+        if (vf.open(QIODevice::ReadOnly))
+        {
+            const QJsonObject obj = QJsonDocument::fromJson(vf.readAll()).object();
+            vf.close();
+            currentVersion = obj.value(QStringLiteral("app_version")).toString(currentVersion);
+        }
+        UpdateAvailableDialog* dlg = new UpdateAvailableDialog(currentVersion, QStringLiteral("99.0.0"), this);
+        dlg->setModal(true);
+        dlg->show();
+    });
+    layout->addWidget(updateDialogBtn, 0, Qt::AlignLeft);
+
     layout->addWidget(makeDivider(content));
 
     //  Settings section
@@ -280,6 +300,11 @@ DebugPage::DebugPage(QWidget* parent)
         QStringLiteral("(empty)"),
         []() { AppConfig::instance().setLastSeenVersion(QString()); });
 
+    m_valCheckForUpdates = addRow(
+        QStringLiteral("check_for_updates"),
+        QStringLiteral("true"),
+        []() { AppConfig::instance().setCheckForUpdates(true); });
+
     layout->addWidget(gridWidget);
 
 #ifdef QT_DEBUG
@@ -371,4 +396,5 @@ void DebugPage::refreshValues() const
 
     const QString lsv = cfg.lastSeenVersion();
     m_valLastSeenVersion->setText(lsv.isEmpty() ? QStringLiteral("(empty)") : lsv);
+    m_valCheckForUpdates->setText(boolStr(cfg.checkForUpdates()));
 }

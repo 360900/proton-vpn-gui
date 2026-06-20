@@ -43,3 +43,8 @@ build/
 
 # Binaries
 dist/
+
+# AppImage Building
+.appimage-build/
+appimage/
+squashfs-root/

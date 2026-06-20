@@ -5,15 +5,22 @@
 // ReSharper disable once CppUnusedIncludeDirective
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QNetworkAccessManager>
+#include <QNetworkReply>
+#include <QNetworkRequest>
 #include <QPainter>
 #include <QPixmap>
 #include <QSvgRenderer>
 #include <QSvgWidget>
 #include <QTimer>
 #include <QToolButton>
+#include <QUrl>
+#include <QVersionNumber>
 #include <utility>
 #include "appConfig.h"
 #include "connectionHistory.h"
+#include "debug.h"
+#include "dialogs/updateAvailableDialog.h"
 #include "dialogs/whatsNewDialog.h"
 #include "geoUtils.h"
 #include "mainWindow.h"
@@ -70,6 +77,12 @@ constexpr int NOTIFICATION_ICON_SIZE   = 64;
 constexpr int NOTIFICATION_DURATION_MS = 4000;
 constexpr int TRAY_ICON_SIZE           = 22;
 
+// Update check
+constexpr int UPDATE_CHECK_DELAY_MS   = 3000;
+constexpr int UPDATE_CHECK_TIMEOUT_MS = 10000;
+constexpr const char* UPDATE_VERSION_URL =
+    "https://raw.githubusercontent.com/wheat32/proton-vpn-qt-app/main/src/version.json";
+
 // Startup
 constexpr int WHATS_NEW_DELAY_MS = 400;
 
@@ -110,7 +123,7 @@ MainWindow::MainWindow(QWidget* parent)
     resize(INITIAL_WINDOW_WIDTH, INITIAL_WINDOW_HEIGHT);
 
     m_manager = new VpnManager(this);
-
+    m_networkManager = new QNetworkAccessManager(this);
 
     // Root layout: sidebar + content
     auto* rootLayout = new QHBoxLayout(this);
@@ -522,6 +535,7 @@ MainWindow::MainWindow(QWidget* parent)
     // Start
     showPage(Page::Loading);
     startupCheck();
+    QTimer::singleShot(UPDATE_CHECK_DELAY_MS, this, &MainWindow::checkForUpdates);
 }
 
 void MainWindow::setupSidebar()
@@ -628,6 +642,59 @@ void MainWindow::setNavActive(const QToolButton* btn)
 void MainWindow::startupCheck() const
 {
     m_manager->checkInstalled();
+}
+
+void MainWindow::checkForUpdates()
+{
+    if (AppConfig::instance().checkForUpdates() == false)
+        return;
+
+    DBG_APP(QStringLiteral("Checking for updates..."));
+    QNetworkRequest request(QUrl(QString::fromLatin1(UPDATE_VERSION_URL)));
+    request.setTransferTimeout(UPDATE_CHECK_TIMEOUT_MS);
+
+    QNetworkReply* reply = m_networkManager->get(request);
+    connect(reply, &QNetworkReply::finished, this, [this, reply]()
+    {
+        reply->deleteLater();
+
+        if (reply->error() != QNetworkReply::NoError)
+        {
+            DBG_APP(QStringLiteral("Update check failed: ") + reply->errorString());
+            return;
+        }
+
+        const QJsonObject remoteObj = QJsonDocument::fromJson(reply->readAll()).object();
+        const QString remoteVersion = remoteObj.value(QStringLiteral("app_version")).toString();
+        if (remoteVersion.isEmpty())
+            return;
+
+        QString localVersion;
+        QFile vf(QStringLiteral(":/version.json"));
+        if (vf.open(QIODevice::ReadOnly))
+        {
+            localVersion = QJsonDocument::fromJson(vf.readAll())
+                               .object().value(QStringLiteral("app_version")).toString();
+        }
+        if (localVersion.isEmpty())
+            return;
+
+        const QVersionNumber remote = QVersionNumber::fromString(remoteVersion);
+        const QVersionNumber local  = QVersionNumber::fromString(localVersion);
+
+        if (remote > local)
+        {
+            DBG_APP(QStringLiteral("Update available: v") + localVersion
+                    + QStringLiteral(" → v") + remoteVersion);
+            UpdateAvailableDialog* dlg = new UpdateAvailableDialog(localVersion, remoteVersion, this);
+            dlg->setModal(true);
+            dlg->show();
+        }
+        else
+        {
+            DBG_APP(QStringLiteral("Up to date (v") + localVersion + QStringLiteral(")"));
+        }
+    });
 }
 
 void MainWindow::refreshIcons()

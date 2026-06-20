@@ -2,7 +2,8 @@
 // flatpakUtils.h
 // Shared utilities for detecting and adapting to a Flatpak sandbox environment.
 
-#include <QProcessEnvironment>
+#include "appImageUtils.h"
+
 #include <QString>
 #include <QStringList>
 #include <utility>
@@ -15,11 +16,11 @@ inline bool isRunningAsFlatpak()
 }
 
 // Returns {program, fullArgs} to run an arbitrary host command via QProcess.
-// When running inside a Flatpak sandbox, the command is forwarded to the host
-//  via flatpak-spawn --host. Outside of Flatpak, it is returned unchanged.
-
+// - Inside Flatpak: forwards to the host via flatpak-spawn --host.
+// - Otherwise (native or AppImage): returned unchanged; the system PATH is used.
+//
 // Example:
-//   auto [prog, args] = buildHostCommand("systemctl", {"--user", "enable", "foo"});
+//   auto [prog, args] = buildHostCommand("protonvpn", {"connect"});
 //   process.start(prog, args);
 inline std::pair<QString, QStringList> buildHostCommand(const QString& program,
                                                         const QStringList& args = {})
