@@ -3,6 +3,7 @@
 #include "../widgets/svgBanner.h"
 
 #include <QFile>
+#include <QFrame>
 #include <QHBoxLayout>
 // ReSharper disable once CppUnusedIncludeDirective
 #include <QJsonDocument> // Ignore unused include warning; we do use QJsonDocument
@@ -16,6 +17,7 @@
 namespace
 {
 constexpr int LOGIN_CARD_WIDTH          = 360;
+constexpr int BANNER_AREA_MAX_HEIGHT    = 150;
 constexpr int LOGIN_LAYOUT_SPACING      = 16;
 constexpr int LOGIN_H_MARGIN            = 32;
 constexpr int LOGIN_TOP_MARGIN          = 32;
@@ -106,6 +108,23 @@ LoginPage::LoginPage(QWidget* parent)
     cardLayout->addWidget(m_errorContainer);
 
     m_outerLayout->addWidget(card, 0, Qt::AlignCenter);
+
+    // Banner scroll area — holds warning banners below the card.
+    // Capped at BANNER_AREA_MAX_HEIGHT so banners can never squish the
+    // login/2FA input fields when multiple warnings are visible at once.
+    QWidget* bannerContainer = new QWidget(this);
+    m_bannerLayout = new QVBoxLayout(bannerContainer);
+    m_bannerLayout->setContentsMargins(0, 0, 0, 0);
+    m_bannerLayout->setSpacing(0);
+
+    m_bannerScrollArea = new QScrollArea(this);
+    m_bannerScrollArea->setWidget(bannerContainer);
+    m_bannerScrollArea->setWidgetResizable(true);
+    m_bannerScrollArea->setFrameShape(QFrame::NoFrame);
+    m_bannerScrollArea->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    m_bannerScrollArea->setMaximumHeight(BANNER_AREA_MAX_HEIGHT);
+    m_bannerScrollArea->setVisible(false);
+    m_outerLayout->addWidget(m_bannerScrollArea);
 
     // Show a banner if this is a pre-release build
     checkPrereleaseBanner();
@@ -351,7 +370,8 @@ void LoginPage::checkPrereleaseBanner()
     connect(m_prereleaseBanner, &InfoBanner::dismissed, this, [this]() {
         m_prereleaseBanner = nullptr;
     });
-    m_outerLayout->addWidget(m_prereleaseBanner);
+    m_bannerLayout->addWidget(m_prereleaseBanner);
+    m_bannerScrollArea->setVisible(true);
 }
 
 void LoginPage::checkFlatpakBetaBanner()
@@ -362,7 +382,8 @@ void LoginPage::checkFlatpakBetaBanner()
     {
         m_flatpakBetaBanner = nullptr;
     });
-    m_outerLayout->addWidget(m_flatpakBetaBanner);
+    m_bannerLayout->addWidget(m_flatpakBetaBanner);
+    m_bannerScrollArea->setVisible(true);
 }
 
 void LoginPage::checkAppImageBetaBanner()
@@ -373,7 +394,8 @@ void LoginPage::checkAppImageBetaBanner()
     {
         m_appImageBetaBanner = nullptr;
     });
-    m_outerLayout->addWidget(m_appImageBetaBanner);
+    m_bannerLayout->addWidget(m_appImageBetaBanner);
+    m_bannerScrollArea->setVisible(true);
 }
 
 void LoginPage::onCliVersionReady(const QString& version)

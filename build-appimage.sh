@@ -142,6 +142,14 @@ python3 -m venv "${VENV}"
     aiohttp bcrypt python-gnupg pyOpenSSL requests "importlib-metadata" \
     keyring secretstorage cryptography distro fido2 Jinja2 PyNaCl sentry-sdk
 
+# Remove compiled C extensions (.so files) from the venv site-packages.
+# They were compiled against the CI machine's Python ABI and will fail to
+# load on distributions with a differently built Python (e.g. Arch vs Ubuntu).
+# Python falls back to the system package for native modules; the key ones
+# needed are: python3-cffi, python3-cryptography, python3-nacl, python3-bcrypt.
+find "${VENV}/lib" -path "*/site-packages/*" -name "*.so" -delete
+find "${VENV}/lib" -path "*/site-packages/*" -name "*.so.*" -delete
+
 PY_VER=$("${VENV}/bin/python3" -c \
     "import sys; print(f'python{sys.version_info.major}.{sys.version_info.minor}')")
 
@@ -244,10 +252,12 @@ export PATH="${TOOLS_DIR}:${PATH}"
 # NO_STRIP=1 prevents linuxdeploy's bundled strip from choking on modern
 # ELF libraries that use .relr.dyn (requires binutils 2.38+).
 NO_STRIP=1 APPIMAGE_EXTRACT_AND_RUN=1 "${LINUXDEPLOY}" \
-    --appdir       "${APPDIR}" \
-    --executable   "${APPDIR}/usr/bin/proton_vpn_qt" \
-    --desktop-file "${DESKTOP_DST}" \
-    --icon-file    "${ICON_DIR}/${APP_ID}.svg"
+    --appdir          "${APPDIR}" \
+    --executable      "${APPDIR}/usr/bin/proton_vpn_qt" \
+    --desktop-file    "${DESKTOP_DST}" \
+    --icon-file       "${ICON_DIR}/${APP_ID}.svg" \
+    --exclude-library "libssl*" \
+    --exclude-library "libcrypto*"
 
 # Step 2 -- deploy Qt plugins (platform, imageformats, etc.).
 # The linuxdeploy-plugin-qt AppImage wrapper resets $QMAKE before calling the
