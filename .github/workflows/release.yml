@@ -124,7 +124,7 @@ jobs:
             cmake ninja-build \
             qt6-base-dev qt6-svg-dev libqt6svg6-dev \
             libgl1-mesa-dev \
-            python3 python3-venv \
+            python3 python3-venv python3-gi python3-gi-cairo \
             wget
 
       - name: Build AppImage

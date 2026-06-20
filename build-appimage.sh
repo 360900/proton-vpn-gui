@@ -10,13 +10,22 @@
 # Its packages are downloaded from the ProtonVPN public apt repository; PyPI
 # supplies the remaining Python dependencies in a venv.
 #
+# Build-order rationale:
+#   1. ProtonVPN .deb packages + gi module are placed in AppDir first so that
+#      linuxdeploy can scan their ELF deps and bundle libgirepository, GLib, etc.
+#   2. python-build-standalone is copied AFTER linuxdeploy.  Its own libssl.so.3
+#      lives under python/lib/ and is found by the Python binary via RPATH.
+#      If it were present during linuxdeploy, linuxdeploy might copy a different
+#      libssl version to usr/lib/, conflicting with the Qt SSL backend.
+#
 # Usage:
-#   ./build-appimage_ubuntu.sh          # build only
-#   ./build-appimage_ubuntu.sh --run    # build, then launch the resulting AppImage
+#   ./build-appimage.sh          # build only
+#   ./build-appimage.sh --run    # build, then launch the resulting AppImage
 #
 # Requirements (install with your package manager before running):
 #   cmake, ninja-build, Qt 6 dev headers (qt6-base-dev / qt6-base),
-#   python3, python3-venv, wget, binutils (ar), gcc
+#   python3, python3-gi, python3-gi-cairo,
+#   wget, binutils (ar), gcc
 #
 # linuxdeploy and appimagetool are downloaded automatically on first run
 # and cached in .appimage-build/tools/.
@@ -61,15 +70,9 @@ info "Installing into AppDir..."
 rm -rf "${APPDIR}"
 cmake --install "${BUILD_ROOT}/native" --prefix "${APPDIR}/usr"
 
-# -- Bundle ProtonVPN CLI ------------------------------------------------------
-# The CLI is NOT on PyPI, but its .deb packages are publicly available from the
-# ProtonVPN apt repository.  We download the exact version from version.json,
-# extract the .deb files (no dpkg required — just ar + tar), drop the Python
-# packages into AppDir, and install the remaining deps from PyPI in a venv.
-#
-# The system still needs proton-vpn-daemon + NetworkManager for actual VPN
-# connections (that daemon manages kernel-level networking and cannot be bundled).
-# Login, status, and server listing work without it.
+# -- Bundle ProtonVPN CLI packages ---------------------------------------------
+# Download from the ProtonVPN public apt repository and extract (no dpkg needed).
+# The system still needs proton-vpn-daemon + NetworkManager for VPN connections.
 
 CLI_VERSION=$(python3 -c "
 import json
@@ -82,13 +85,10 @@ DEB_CACHE="${BUILD_ROOT}/protonvpn-debs"
 DEB_EXTRACT="${BUILD_ROOT}/protonvpn-extracted"
 mkdir -p "${CLI_DIR}" "${DEB_CACHE}" "${DEB_EXTRACT}"
 
-# Query the ProtonVPN apt repo to get the exact .deb URLs for this CLI version
-# and all its ProtonVPN Python dependencies.
 DEB_URLS="${BUILD_ROOT}/protonvpn-deb-urls.txt"
 info "Resolving package URLs from ProtonVPN apt repo..."
 python3 "${SCRIPT_DIR}/appimage/fetch-cli-debs.py" "${CLI_VERSION}" > "${DEB_URLS}"
 
-# Download each .deb (cached — skip if already present)
 while IFS= read -r url; do
     dest="${DEB_CACHE}/$(basename "${url}")"
     if [[ ! -f "${dest}" ]]; then
@@ -97,8 +97,6 @@ while IFS= read -r url; do
     fi
 done < "${DEB_URLS}"
 
-# Extract .deb files using ar + tar (works on any distro without dpkg).
-# A .deb is an ar archive containing debian-binary, control.tar.*, data.tar.*.
 extract_deb() {
     local deb="$1" dest="$2"
     local work
@@ -112,11 +110,7 @@ extract_deb() {
     rm -rf "${work}"
 }
 
-# Extract packages in two passes:
-# 1. All packages except proton-vpn-api-core first.
-# 2. api-core last — it also ships files into proton/vpn/session/ that must
-#    take precedence over the separate proton-vpn-session package's versions
-#    (api-core bundles newer session helpers its own code depends on).
+# Extract in two passes: api-core last so its session helpers take precedence.
 while IFS= read -r url; do
     name=$(basename "${url}")
     if [[ "${name}" != python3-proton-vpn-api-core* ]]; then
@@ -130,25 +124,111 @@ while IFS= read -r url; do
     fi
 done < "${DEB_URLS}"
 
-# Copy extracted Python packages into the CLI bundle directory
 if [[ -d "${DEB_EXTRACT}/usr/lib/python3/dist-packages" ]]; then
     mkdir -p "${CLI_DIR}/dist-packages"
     cp -r "${DEB_EXTRACT}/usr/lib/python3/dist-packages/." "${CLI_DIR}/dist-packages/"
 fi
 
-# -- Portable Python (python-build-standalone) ---------------------------------
-# We bundle a self-contained Python 3.12 from python-build-standalone rather
-# than using the system Python.  This eliminates two classes of cross-distro
-# failures:
-#   1. Python version mismatch — the venv is always Python 3.12 regardless of
-#      what the user has installed (Arch may ship 3.13, 3.14, …).
-#   2. OpenSSL mismatch — python-build-standalone includes a statically-linked
-#      OpenSSL, so the bundled Python's _ssl module never conflicts with the
-#      system or AppImage-bundled libcrypto.
-#
-# The bundled Python resolves its own stdlib and OpenSSL via RPATH, so no
-# LD_LIBRARY_PATH manipulation is required for the CLI launcher.
+# -- Bundle PyGObject (gi) from system Python ----------------------------------
+# The ProtonVPN CLI imports 'gi' at startup for its NetworkManager backend.
+# gi cannot be pip-installed portably; we copy it from the system's Python 3
+# package (python3-gi).  It must be in AppDir NOW so that linuxdeploy picks up
+# its native dependency: libgirepository-1.0.so.0.
+for gi_pkg in gi cairo; do
+    src="/usr/lib/python3/dist-packages/${gi_pkg}"
+    if [[ -d "${src}" ]]; then
+        info "Copying system Python package: ${gi_pkg}"
+        cp -r "${src}" "${CLI_DIR}/dist-packages/"
+    else
+        warn "System Python package not found: ${src} (install python3-gi / python3-gi-cairo)"
+    fi
+done
 
+# -- Desktop integration -------------------------------------------------------
+DESKTOP_DST="${APPDIR}/usr/share/applications/${APP_ID}.desktop"
+ICON_DIR="${APPDIR}/usr/share/icons/hicolor/scalable/apps"
+
+mkdir -p "$(dirname "${DESKTOP_DST}")" "${ICON_DIR}"
+
+cp "${SCRIPT_DIR}/proton-vpn-qt-app.desktop" "${DESKTOP_DST}"
+sed -i "s|^Exec=.*|Exec=proton_vpn_qt|"  "${DESKTOP_DST}"
+sed -i "s|^Icon=.*|Icon=${APP_ID}|"      "${DESKTOP_DST}"
+
+cp "${SCRIPT_DIR}/proton-vpn-sign.svg" "${ICON_DIR}/${APP_ID}.svg"
+cp "${DESKTOP_DST}"            "${APPDIR}/${APP_ID}.desktop"
+cp "${ICON_DIR}/${APP_ID}.svg" "${APPDIR}/${APP_ID}.svg"
+
+# -- Custom AppRun -------------------------------------------------------------
+info "Installing AppRun..."
+cp "${SCRIPT_DIR}/appimage/AppRun" "${APPDIR}/AppRun"
+chmod +x "${APPDIR}/AppRun"
+
+# -- Download linuxdeploy tools (cached after first run) -----------------------
+LINUXDEPLOY="${TOOLS_DIR}/linuxdeploy-x86_64.AppImage"
+LINUXDEPLOY_QT="${TOOLS_DIR}/linuxdeploy-plugin-qt-x86_64.AppImage"
+APPIMAGETOOL="${TOOLS_DIR}/appimagetool-x86_64.AppImage"
+
+mkdir -p "${TOOLS_DIR}"
+
+declare -A TOOL_URLS=(
+    ["${LINUXDEPLOY}"]="https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-x86_64.AppImage"
+    ["${LINUXDEPLOY_QT}"]="https://github.com/linuxdeploy/linuxdeploy-plugin-qt/releases/download/continuous/linuxdeploy-plugin-qt-x86_64.AppImage"
+    ["${APPIMAGETOOL}"]="https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage"
+)
+
+for dest in "${!TOOL_URLS[@]}"; do
+    if [[ ! -f "${dest}" ]]; then
+        info "Downloading $(basename "${dest}")..."
+        wget -q --show-progress -O "${dest}" "${TOOL_URLS[${dest}]}"
+        chmod +x "${dest}"
+    fi
+done
+
+# -- Bundle Qt + gi shared libraries via linuxdeploy --------------------------
+# python-build-standalone is NOT yet in AppDir.  That is deliberate: its own
+# libssl.so.3 (newer than Ubuntu's) must not overwrite the libssl that Qt was
+# compiled against.  linuxdeploy will bundle Ubuntu's libssl.so.3 here; the
+# bundled Python later uses its own copy found via RPATH.
+info "Bundling Qt and gi libraries..."
+
+QMAKE=$(command -v qmake6 2>/dev/null || command -v qmake 2>/dev/null || true)
+[[ -n "${QMAKE}" ]] || die "qmake6/qmake not found — install Qt 6 development tools"
+export QMAKE
+
+FAKE_LIBS="${BUILD_ROOT}/fake-libs"
+mkdir -p "${FAKE_LIBS}"
+gcc -shared -Wl,-soname,libjxrglue.so.0 -x c /dev/null \
+    -o "${FAKE_LIBS}/libjxrglue.so.0" 2>/dev/null || true
+
+export PATH="${TOOLS_DIR}:${PATH}"
+
+NO_STRIP=1 APPIMAGE_EXTRACT_AND_RUN=1 "${LINUXDEPLOY}" \
+    --appdir       "${APPDIR}" \
+    --executable   "${APPDIR}/usr/bin/proton_vpn_qt" \
+    --desktop-file "${DESKTOP_DST}" \
+    --icon-file    "${ICON_DIR}/${APP_ID}.svg"
+
+LINUXDEPLOY_QT_EXTRACTED="${BUILD_ROOT}/linuxdeploy-plugin-qt-extracted"
+if [[ ! -d "${LINUXDEPLOY_QT_EXTRACTED}" ]]; then
+    info "Extracting linuxdeploy-plugin-qt..."
+    (cd "${BUILD_ROOT}" && APPIMAGE_EXTRACT_AND_RUN=1 "${LINUXDEPLOY_QT}" \
+        --appimage-extract 2>/dev/null)
+    mv "${BUILD_ROOT}/squashfs-root" "${LINUXDEPLOY_QT_EXTRACTED}"
+fi
+
+info "Deploying Qt plugins..."
+LD_LIBRARY_PATH="${FAKE_LIBS}${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}" \
+NO_STRIP=1 \
+    "${LINUXDEPLOY_QT_EXTRACTED}/usr/bin/linuxdeploy-plugin-qt" \
+    --appdir "${APPDIR}"
+
+rm -f "${APPDIR}/usr/plugins/imageformats/kimg_jxr.so"
+rm -f "${APPDIR}/usr/lib/libjxrglue.so.0"
+
+# -- Portable Python (python-build-standalone) ---------------------------------
+# Copied AFTER linuxdeploy so its libssl.so.3 stays in python/lib/ and does not
+# replace the Ubuntu libssl.so.3 that linuxdeploy placed in usr/lib/ for Qt.
+# The Python binary finds its own libs via RPATH ($ORIGIN/../lib).
 PYTHON_STANDALONE_DIR="${CLI_DIR}/python"
 PYTHON_CACHE="${BUILD_ROOT}/python-standalone"
 
@@ -186,8 +266,7 @@ PY_VER=$("${BUNDLED_PYTHON}" -c \
     "import sys; print(f'python{sys.version_info.major}.{sys.version_info.minor}')")
 info "Bundled $("${BUNDLED_PYTHON}" --version)"
 
-# Create a venv using the bundled Python so all pip packages are compiled for
-# the same interpreter and bundled OpenSSL version.
+# -- Create venv with PyPI dependencies ----------------------------------------
 VENV="${CLI_DIR}/venv"
 "${BUNDLED_PYTHON}" -m venv "${VENV}"
 "${VENV}/bin/pip" install --quiet --upgrade pip
@@ -196,17 +275,17 @@ VENV="${CLI_DIR}/venv"
     aiohttp bcrypt python-gnupg pyOpenSSL requests "importlib-metadata" \
     keyring secretstorage cryptography distro fido2 Jinja2 PyNaCl sentry-sdk
 
-# Patch the venv entry-point shebang
 VENV_PROTONVPN="${VENV}/bin/protonvpn"
 if [[ -f "${VENV_PROTONVPN}" ]]; then
     mv "${VENV_PROTONVPN}" "${VENV_PROTONVPN}.orig"
 fi
 
-# Create the protonvpn launcher script.
-# PYTHONHOME tells the bundled Python where to find its standard library.
-# PYTHONPATH adds the ProtonVPN .deb packages and the PyPI venv site-packages.
-# No LD_LIBRARY_PATH tricks needed: the bundled Python resolves libssl and
-# libffi via its own RPATH, independently of the AppImage's Qt libraries.
+# -- Create protonvpn launcher -------------------------------------------------
+# PYTHONHOME: bundled Python finds its own stdlib.
+# PYTHONPATH: ProtonVPN .deb packages + PyPI venv site-packages + system
+#             Python dist-packages (for gi, which was bundled from the system).
+# The bundled Python uses its own RPATH-resolved OpenSSL; no LD_LIBRARY_PATH
+# manipulation is needed.
 cat > "${CLI_DIR}/protonvpn" << EOF
 #!/bin/bash
 PROTON_DIR="\${APPDIR}/usr/share/protonvpn"
@@ -220,103 +299,7 @@ chmod +x "${CLI_DIR}/protonvpn"
 
 info "ProtonVPN CLI v${CLI_VERSION} bundled (${CLI_DIR})"
 
-# -- Desktop integration -------------------------------------------------------
-DESKTOP_DST="${APPDIR}/usr/share/applications/${APP_ID}.desktop"
-ICON_DIR="${APPDIR}/usr/share/icons/hicolor/scalable/apps"
-
-mkdir -p "$(dirname "${DESKTOP_DST}")" "${ICON_DIR}"
-
-# Patch the desktop file: Exec must be the bare binary name; Icon is the app-id.
-cp "${SCRIPT_DIR}/proton-vpn-qt-app.desktop" "${DESKTOP_DST}"
-sed -i "s|^Exec=.*|Exec=proton_vpn_qt|"  "${DESKTOP_DST}"
-sed -i "s|^Icon=.*|Icon=${APP_ID}|"      "${DESKTOP_DST}"
-
-# Icon
-cp "${SCRIPT_DIR}/proton-vpn-sign.svg" "${ICON_DIR}/${APP_ID}.svg"
-
-# appimagetool also looks for the desktop file and icon at the AppDir root.
-cp "${DESKTOP_DST}"          "${APPDIR}/${APP_ID}.desktop"
-cp "${ICON_DIR}/${APP_ID}.svg" "${APPDIR}/${APP_ID}.svg"
-
-# -- Custom AppRun -------------------------------------------------------------
-info "Installing AppRun..."
-cp "${SCRIPT_DIR}/appimage/AppRun" "${APPDIR}/AppRun"
-chmod +x "${APPDIR}/AppRun"
-
-# -- Download linuxdeploy tools (cached after first run) -----------------------
-LINUXDEPLOY="${TOOLS_DIR}/linuxdeploy-x86_64.AppImage"
-LINUXDEPLOY_QT="${TOOLS_DIR}/linuxdeploy-plugin-qt-x86_64.AppImage"
-APPIMAGETOOL="${TOOLS_DIR}/appimagetool-x86_64.AppImage"
-
-mkdir -p "${TOOLS_DIR}"
-
-declare -A TOOL_URLS=(
-    ["${LINUXDEPLOY}"]="https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-x86_64.AppImage"
-    ["${LINUXDEPLOY_QT}"]="https://github.com/linuxdeploy/linuxdeploy-plugin-qt/releases/download/continuous/linuxdeploy-plugin-qt-x86_64.AppImage"
-    ["${APPIMAGETOOL}"]="https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage"
-)
-
-for dest in "${!TOOL_URLS[@]}"; do
-    if [[ ! -f "${dest}" ]]; then
-        info "Downloading $(basename "${dest}")..."
-        wget -q --show-progress -O "${dest}" "${TOOL_URLS[${dest}]}"
-        chmod +x "${dest}"
-    fi
-done
-
-# -- Bundle Qt libraries -------------------------------------------------------
-info "Bundling Qt libraries..."
-
-QMAKE=$(command -v qmake6 2>/dev/null || command -v qmake 2>/dev/null || true)
-[[ -n "${QMAKE}" ]] || die "qmake6/qmake not found — install Qt 6 development tools"
-export QMAKE
-
-# linuxdeploy-plugin-qt may try to deploy kimg_jxr.so (KDE JPEG XR plugin),
-# which requires libjxrglue — an optional library not installed on all systems.
-# We create a minimal stub so the dep check passes, then remove both the stub
-# and the plugin from AppDir afterward (we don't need JPEG XR support).
-FAKE_LIBS="${BUILD_ROOT}/fake-libs"
-mkdir -p "${FAKE_LIBS}"
-gcc -shared -Wl,-soname,libjxrglue.so.0 -x c /dev/null \
-    -o "${FAKE_LIBS}/libjxrglue.so.0" 2>/dev/null || true
-
-# linuxdeploy finds its Qt plugin by searching PATH for
-# linuxdeploy-plugin-qt-x86_64.AppImage.
-export PATH="${TOOLS_DIR}:${PATH}"
-
-# Step 1 -- deploy ELF shared-library dependencies via linuxdeploy.
-# APPIMAGE_EXTRACT_AND_RUN=1 avoids the need for FUSE (required in CI).
-# NO_STRIP=1 prevents linuxdeploy's bundled strip from choking on modern
-# ELF libraries that use .relr.dyn (requires binutils 2.38+).
-NO_STRIP=1 APPIMAGE_EXTRACT_AND_RUN=1 "${LINUXDEPLOY}" \
-    --appdir       "${APPDIR}" \
-    --executable   "${APPDIR}/usr/bin/proton_vpn_qt" \
-    --desktop-file "${DESKTOP_DST}" \
-    --icon-file    "${ICON_DIR}/${APP_ID}.svg"
-
-# Step 2 -- deploy Qt plugins (platform, imageformats, etc.).
-# The linuxdeploy-plugin-qt AppImage wrapper resets $QMAKE before calling the
-# plugin binary, so we extract it and run the binary directly instead.
-LINUXDEPLOY_QT_EXTRACTED="${BUILD_ROOT}/linuxdeploy-plugin-qt-extracted"
-if [[ ! -d "${LINUXDEPLOY_QT_EXTRACTED}" ]]; then
-    info "Extracting linuxdeploy-plugin-qt..."
-    (cd "${BUILD_ROOT}" && APPIMAGE_EXTRACT_AND_RUN=1 "${LINUXDEPLOY_QT}" \
-        --appimage-extract 2>/dev/null)
-    mv "${BUILD_ROOT}/squashfs-root" "${LINUXDEPLOY_QT_EXTRACTED}"
-fi
-
-info "Deploying Qt plugins..."
-LD_LIBRARY_PATH="${FAKE_LIBS}${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}" \
-NO_STRIP=1 \
-    "${LINUXDEPLOY_QT_EXTRACTED}/usr/bin/linuxdeploy-plugin-qt" \
-    --appdir "${APPDIR}"
-
-# Remove the JXR plugin and stub dep — the stub is non-functional and
-# kimg_jxr.so would fail to load without the real library.
-rm -f "${APPDIR}/usr/plugins/imageformats/kimg_jxr.so"
-rm -f "${APPDIR}/usr/lib/libjxrglue.so.0"
-
-# linuxdeploy may generate a default AppRun — restore ours.
+# linuxdeploy may have overwritten AppRun — restore ours.
 cp "${SCRIPT_DIR}/appimage/AppRun" "${APPDIR}/AppRun"
 chmod +x "${APPDIR}/AppRun"
 
