@@ -13,6 +13,7 @@ set(CMAKE_AUTOUIC ON)
 find_package(Qt6 COMPONENTS
         Core
         Gui
+        Network
         Widgets
         Svg
         SvgWidgets
@@ -23,63 +24,67 @@ find_package(Qt6 COMPONENTS LinguistTools QUIET)
 
 set(SOURCES
         main.cpp
-        appconfig.h
-        appconfig.cpp
+        appConfig.h
+        appConfig.cpp
         migrations.h
         migrations.cpp
-        thememanager.h
-        thememanager.cpp
-        connectionhistory.h
-        connectionhistory.cpp
-        favoritesmanager.h
-        favoritesmanager.cpp
-        geoutils.h
-        geoutils.cpp
-        uihelpers.h
-        vpnmanager.h
-        vpnmanager.cpp
-        dbus/vpnstatusadaptor.h
-        dbus/vpnstatusadaptor.cpp
-        cli/protonvpncli.cpp
-        cli/natpmpmanager.h
-        cli/natpmpmanager.cpp
-        cli/statusmonitor.h
-        cli/statusmonitor.cpp
-        cli/flatpakutils.h
-        mainwindow.h
-        mainwindow.cpp
-        widgets/elidalabel.h
-        widgets/infobanner.h
-        widgets/flatpakbetabanner.h
-        widgets/numberspinner.h
-        widgets/pickerbase.h
-        widgets/pickerdrawer.h
-        widgets/pickerdrawer.cpp
-        widgets/svgbanner.h
-        widgets/toastnotification.h
-        widgets/toggleswitch.h
-        widgets/toggleswitch.cpp
-        widgets/togglewithstatus.h
-        pages/notinstalledpage.h
-        pages/notinstalledpage.cpp
-        pages/loginpage.h
-        pages/loginpage.cpp
-        pages/vpnpage.h
-        pages/vpnpage.cpp
-        pages/countriespage.h
-        pages/countriespage.cpp
-        pages/accountpage.h
-        pages/accountpage.cpp
-        pages/settingspage.h
-        pages/settingspage.cpp
-        pages/debugpage.h
-        pages/debugpage.cpp
-        dialogs/aboutdialog.h
-        dialogs/aboutdialog.cpp
-        dialogs/errordetailsdialog.h
-        dialogs/errordetailsdialog.cpp
-        dialogs/whatsnewdialog.h
-        dialogs/whatsnewdialog.cpp
+        themeManager.h
+        themeManager.cpp
+        connectionHistory.h
+        connectionHistory.cpp
+        favoritesManager.h
+        favoritesManager.cpp
+        geoUtils.h
+        geoUtils.cpp
+        uiHelpers.h
+        vpnManager.h
+        vpnManager.cpp
+        dbus/vpnStatusAdaptor.h
+        dbus/vpnStatusAdaptor.cpp
+        cli/protonvpnCli.cpp
+        cli/natpmpManager.h
+        cli/natpmpManager.cpp
+        cli/statusMonitor.h
+        cli/statusMonitor.cpp
+        cli/appImageUtils.h
+        cli/flatpakUtils.h
+        mainWindow.h
+        mainWindow.cpp
+        widgets/elidaLabel.h
+        widgets/infoBanner.h
+        widgets/appImageBetaBanner.h
+        widgets/flatpakBetaBanner.h
+        widgets/numberSpinner.h
+        widgets/pickerBase.h
+        widgets/pickerDrawer.h
+        widgets/pickerDrawer.cpp
+        widgets/svgBanner.h
+        widgets/toastNotification.h
+        widgets/toggleSwitch.h
+        widgets/toggleSwitch.cpp
+        widgets/toggleWithStatus.h
+        pages/notInstalledPage.h
+        pages/notInstalledPage.cpp
+        pages/loginPage.h
+        pages/loginPage.cpp
+        pages/vpnPage.h
+        pages/vpnPage.cpp
+        pages/countriesPage.h
+        pages/countriesPage.cpp
+        pages/accountPage.h
+        pages/accountPage.cpp
+        pages/settingsPage.h
+        pages/settingsPage.cpp
+        pages/debugPage.h
+        pages/debugPage.cpp
+        dialogs/aboutDialog.h
+        dialogs/aboutDialog.cpp
+        dialogs/errorDetailsDialog.h
+        dialogs/errorDetailsDialog.cpp
+        dialogs/updateAvailableDialog.h
+        dialogs/updateAvailableDialog.cpp
+        dialogs/whatsNewDialog.h
+        dialogs/whatsNewDialog.cpp
         resources.qrc
         flags.qrc
 )
@@ -100,6 +105,7 @@ endif()
 target_link_libraries(proton_vpn_qt
         Qt6::Core
         Qt6::Gui
+        Qt6::Network
         Qt6::Widgets
         Qt6::Svg
         Qt6::SvgWidgets

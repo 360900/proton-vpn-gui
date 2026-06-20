@@ -1,5 +1,5 @@
 #include "migrations.h"
-#include "cli/flatpakutils.h"
+#include "cli/flatpakUtils.h"
 #include "debug.h"
 
 #include <QCoreApplication>
@@ -91,3 +91,68 @@ void migrateSystemdToXdgAutostart(const QString& previousVersion)
 }
 
 } // namespace Migrations
+
+// ---------------------------------------------------------------------------
+// Debug-only test helpers
+// ---------------------------------------------------------------------------
+
+#ifdef QT_DEBUG
+
+QString Migrations::testMigrateSystemdToXdgAutostart(const QString& simulatedPreviousVersion)
+{
+    const QVersionNumber LAST_SYSTEMD_VERSION(1, 9, 0);
+    const QVersionNumber prev = QVersionNumber::fromString(simulatedPreviousVersion);
+
+    QStringList log;
+    auto logLine = [&log](const QString& line)
+    {
+        log << line;
+        DBG_APP(line);
+    };
+
+    DBG_APP(QStringLiteral("[TEST] migrateSystemdToXdgAutostart"));
+    logLine(QStringLiteral("Simulated previous version: '%1'  (parsed: %2)")
+            .arg(simulatedPreviousVersion,
+                 prev.isNull() ? QStringLiteral("(null/invalid)") : prev.toString()));
+
+    if (prev.isNull())
+    {
+        logLine(QStringLiteral("→ SKIP: null version treated as a fresh install"));
+        return log.join(QLatin1Char('\n'));
+    }
+    if (prev > LAST_SYSTEMD_VERSION)
+    {
+        logLine(QStringLiteral("→ SKIP: %1 > %2 (already past migration point)")
+                .arg(prev.toString(), LAST_SYSTEMD_VERSION.toString()));
+        return log.join(QLatin1Char('\n'));
+    }
+
+    const QString configDir   = QStandardPaths::writableLocation(QStandardPaths::ConfigLocation);
+    const QString serviceFile = configDir + QStringLiteral("/systemd/user/proton-vpn-qt.service");
+
+    logLine(QStringLiteral("Checking for service file: %1").arg(serviceFile));
+
+    if (QFileInfo::exists(serviceFile) == false)
+    {
+        logLine(QStringLiteral("→ SKIP: service file not found (auto-start was not enabled under old version)"));
+        return log.join(QLatin1Char('\n'));
+    }
+
+    logLine(QStringLiteral("Service file found."));
+    logLine(QStringLiteral("→ WOULD remove: %1").arg(serviceFile));
+    logLine(QStringLiteral("→ WOULD write XDG autostart entry: %1/autostart/proton-vpn-qt.desktop").arg(configDir));
+
+    return log.join(QLatin1Char('\n'));
+}
+
+QString Migrations::testAll(const QString& simulatedPreviousVersion)
+{
+    DBG_APP(QStringLiteral("[TEST] Running all migrations with simulated previous version: '%1'")
+            .arg(simulatedPreviousVersion));
+    QStringList parts;
+    parts << (QStringLiteral("=== migrateSystemdToXdgAutostart ===\n")
+              + testMigrateSystemdToXdgAutostart(simulatedPreviousVersion));
+    return parts.join(QStringLiteral("\n\n"));
+}
+
+#endif // QT_DEBUG
