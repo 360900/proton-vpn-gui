@@ -2,9 +2,9 @@
 # build-appimage_standalone.sh
 # Builds a self-contained AppImage bundling the ProtonVPN Qt App and CLI.
 #
-# Uses python-build-standalone to embed a portable Python 3.12 interpreter,
-# making the result independent of the host system's Python version and
-# OpenSSL.  Runs correctly on Arch, Ubuntu, Fedora, or any other Linux distro.
+# Uses python-build-standalone to embed a portable Python interpreter matching
+# the CI system's Python version, ensuring native extensions (e.g. gi._gi) are
+# ABI-compatible.  Runs correctly on Arch, Ubuntu, Fedora, or any other distro.
 #
 # The CLI version bundled is read from src/version.json (cli_version_tested_max).
 # Its packages are downloaded from the ProtonVPN public apt repository; PyPI
@@ -250,10 +250,17 @@ done
 PYTHON_STANDALONE_DIR="${CLI_DIR}/python"
 PYTHON_CACHE="${BUILD_ROOT}/python-standalone"
 
+# Match the python-build-standalone version to the CI system's Python.
+# python3-gi (and other native extensions) are compiled for the system Python;
+# the bundled interpreter must be the same major.minor so extensions load correctly.
+SYSTEM_PY_VER=$(python3 -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')")
+info "System Python: ${SYSTEM_PY_VER} — fetching matching python-build-standalone"
+
 if [[ ! -d "${PYTHON_CACHE}/python" ]]; then
     info "Resolving latest python-build-standalone release..."
     PBS_URL=$(python3 -c "
-import urllib.request, json
+import urllib.request, json, sys
+py_ver = f'{sys.version_info.major}.{sys.version_info.minor}'
 req = urllib.request.Request(
     'https://api.github.com/repos/indygreg/python-build-standalone/releases/latest',
     headers={'User-Agent': 'build-appimage'})
@@ -261,13 +268,13 @@ with urllib.request.urlopen(req, timeout=30) as r:
     data = json.loads(r.read())
 for asset in data['assets']:
     n = asset['name']
-    if ('cpython-3.12' in n and 'linux-gnu-install_only' in n and
+    if (f'cpython-{py_ver}' in n and 'linux-gnu-install_only' in n and
             ('x86_64-unknown' in n or 'x86_64_v1-unknown' in n) and
             n.endswith('.tar.gz')):
         print(asset['browser_download_url'])
         break
 ")
-    [[ -n "${PBS_URL}" ]] || die "Could not find python-build-standalone 3.12 asset"
+    [[ -n "${PBS_URL}" ]] || die "Could not find python-build-standalone ${SYSTEM_PY_VER} asset"
     info "Downloading portable Python: $(basename "${PBS_URL}")..."
     mkdir -p "${PYTHON_CACHE}"
     wget -q --show-progress -O "${PYTHON_CACHE}/python.tar.gz" "${PBS_URL}"
@@ -277,7 +284,7 @@ fi
 info "Installing portable Python into AppDir..."
 mkdir -p "${PYTHON_STANDALONE_DIR}"
 cp -r "${PYTHON_CACHE}/python/." "${PYTHON_STANDALONE_DIR}/"
-BUNDLED_PYTHON="${PYTHON_STANDALONE_DIR}/bin/python3.12"
+BUNDLED_PYTHON="${PYTHON_STANDALONE_DIR}/bin/python${SYSTEM_PY_VER}"
 [[ -x "${BUNDLED_PYTHON}" ]] || die "Bundled Python not found at ${BUNDLED_PYTHON}"
 
 PY_VER=$("${BUNDLED_PYTHON}" -c \
@@ -311,7 +318,7 @@ export PYTHONHOME="\${PROTON_DIR}/python"
 VENV_SITE="\${PROTON_DIR}/venv/lib/${PY_VER}/site-packages"
 PROTON_PKG="\${PROTON_DIR}/dist-packages"
 export PYTHONPATH="\${PROTON_PKG}:\${VENV_SITE}"
-exec "\${PROTON_DIR}/python/bin/python3.12" -c "from proton.vpn.cli import main; main()" "\$@"
+exec "\${PROTON_DIR}/python/bin/python${SYSTEM_PY_VER}" -c "from proton.vpn.cli import main; main()" "\$@"
 EOF
 chmod +x "${CLI_DIR}/protonvpn"
 
