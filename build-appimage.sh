@@ -1,18 +1,21 @@
 #!/usr/bin/env bash
 # build-appimage.sh
-# Builds a self-contained AppImage bundling the ProtonVPN Qt App and the
-# ProtonVPN CLI.
+# Builds a self-contained AppImage bundling the ProtonVPN Qt App and CLI.
+#
+# Uses python-build-standalone to embed a portable Python 3.12 interpreter,
+# making the result independent of the host system's Python version and
+# OpenSSL.  Runs correctly on Arch, Ubuntu, Fedora, or any other Linux distro.
 #
 # The CLI version bundled is read from src/version.json (cli_version_tested_max).
 # Its packages are downloaded from the ProtonVPN public apt repository; PyPI
 # supplies the remaining Python dependencies in a venv.
 #
 # Usage:
-#   ./build-appimage.sh          # build only
-#   ./build-appimage.sh --run    # build, then launch the resulting AppImage
+#   ./build-appimage_ubuntu.sh          # build only
+#   ./build-appimage_ubuntu.sh --run    # build, then launch the resulting AppImage
 #
 # Requirements (install with your package manager before running):
-#   cmake, ninja-build, Qt 6 dev headers (qt6-base-dev qt6-svg-dev),
+#   cmake, ninja-build, Qt 6 dev headers (qt6-base-dev / qt6-base),
 #   python3, python3-venv, wget, binutils (ar), gcc
 #
 # linuxdeploy and appimagetool are downloaded automatically on first run
@@ -133,51 +136,85 @@ if [[ -d "${DEB_EXTRACT}/usr/lib/python3/dist-packages" ]]; then
     cp -r "${DEB_EXTRACT}/usr/lib/python3/dist-packages/." "${CLI_DIR}/dist-packages/"
 fi
 
-# Create a venv for Python dependencies that ARE on PyPI
+# -- Portable Python (python-build-standalone) ---------------------------------
+# We bundle a self-contained Python 3.12 from python-build-standalone rather
+# than using the system Python.  This eliminates two classes of cross-distro
+# failures:
+#   1. Python version mismatch — the venv is always Python 3.12 regardless of
+#      what the user has installed (Arch may ship 3.13, 3.14, …).
+#   2. OpenSSL mismatch — python-build-standalone includes a statically-linked
+#      OpenSSL, so the bundled Python's _ssl module never conflicts with the
+#      system or AppImage-bundled libcrypto.
+#
+# The bundled Python resolves its own stdlib and OpenSSL via RPATH, so no
+# LD_LIBRARY_PATH manipulation is required for the CLI launcher.
+
+PYTHON_STANDALONE_DIR="${CLI_DIR}/python"
+PYTHON_CACHE="${BUILD_ROOT}/python-standalone"
+
+if [[ ! -d "${PYTHON_CACHE}/python" ]]; then
+    info "Resolving latest python-build-standalone release..."
+    PBS_URL=$(python3 -c "
+import urllib.request, json
+req = urllib.request.Request(
+    'https://api.github.com/repos/indygreg/python-build-standalone/releases/latest',
+    headers={'User-Agent': 'build-appimage'})
+with urllib.request.urlopen(req, timeout=30) as r:
+    data = json.loads(r.read())
+for asset in data['assets']:
+    n = asset['name']
+    if ('cpython-3.12' in n and 'linux-gnu-install_only' in n and
+            ('x86_64-unknown' in n or 'x86_64_v1-unknown' in n) and
+            n.endswith('.tar.gz')):
+        print(asset['browser_download_url'])
+        break
+")
+    [[ -n "${PBS_URL}" ]] || die "Could not find python-build-standalone 3.12 asset"
+    info "Downloading portable Python: $(basename "${PBS_URL}")..."
+    mkdir -p "${PYTHON_CACHE}"
+    wget -q --show-progress -O "${PYTHON_CACHE}/python.tar.gz" "${PBS_URL}"
+    tar -xzf "${PYTHON_CACHE}/python.tar.gz" -C "${PYTHON_CACHE}"
+fi
+
+info "Installing portable Python into AppDir..."
+mkdir -p "${PYTHON_STANDALONE_DIR}"
+cp -r "${PYTHON_CACHE}/python/." "${PYTHON_STANDALONE_DIR}/"
+BUNDLED_PYTHON="${PYTHON_STANDALONE_DIR}/bin/python3.12"
+[[ -x "${BUNDLED_PYTHON}" ]] || die "Bundled Python not found at ${BUNDLED_PYTHON}"
+
+PY_VER=$("${BUNDLED_PYTHON}" -c \
+    "import sys; print(f'python{sys.version_info.major}.{sys.version_info.minor}')")
+info "Bundled $("${BUNDLED_PYTHON}" --version)"
+
+# Create a venv using the bundled Python so all pip packages are compiled for
+# the same interpreter and bundled OpenSSL version.
 VENV="${CLI_DIR}/venv"
-python3 -m venv "${VENV}"
+"${BUNDLED_PYTHON}" -m venv "${VENV}"
 "${VENV}/bin/pip" install --quiet --upgrade pip
 "${VENV}/bin/pip" install --quiet \
     click dbus-fast tabulate packaging \
     aiohttp bcrypt python-gnupg pyOpenSSL requests "importlib-metadata" \
     keyring secretstorage cryptography distro fido2 Jinja2 PyNaCl sentry-sdk
 
-# Remove compiled C extensions (.so files) from the venv site-packages.
-# They were compiled against the CI machine's Python ABI and will fail to
-# load on distributions with a differently built Python (e.g. Arch vs Ubuntu).
-# Python falls back to the system package for native modules; the key ones
-# needed are: python3-cffi, python3-cryptography, python3-nacl, python3-bcrypt.
-find "${VENV}/lib" -path "*/site-packages/*" -name "*.so" -delete
-find "${VENV}/lib" -path "*/site-packages/*" -name "*.so.*" -delete
-
-PY_VER=$("${VENV}/bin/python3" -c \
-    "import sys; print(f'python{sys.version_info.major}.{sys.version_info.minor}')")
-
-# Patch the venv entry-point shebang (same issue as before: absolute build-time path)
+# Patch the venv entry-point shebang
 VENV_PROTONVPN="${VENV}/bin/protonvpn"
 if [[ -f "${VENV_PROTONVPN}" ]]; then
     mv "${VENV_PROTONVPN}" "${VENV_PROTONVPN}.orig"
 fi
 
 # Create the protonvpn launcher script.
-# AppRun puts ${CLI_DIR} on PATH so the Qt app finds this via QProcess.
-# PYTHONPATH is set to include both the extracted ProtonVPN .deb packages and
-# the PyPI venv site-packages.  System packages (python3-gi, pycairo, etc.)
-# are found automatically via Python's standard search path.
-#
-# LD_LIBRARY_PATH is cleared before invoking python3.  AppRun sets it to
-# prefer the bundled Qt libraries, but the bundled libcrypto.so.3 may differ
-# from the version the system Python's _ssl.cpython-*.so was compiled against,
-# causing an OpenSSL symbol-version mismatch.  Python is a system binary that
-# locates its own dependencies via RPATH and system library paths, so it does
-# not need LD_LIBRARY_PATH at all.
+# PYTHONHOME tells the bundled Python where to find its standard library.
+# PYTHONPATH adds the ProtonVPN .deb packages and the PyPI venv site-packages.
+# No LD_LIBRARY_PATH tricks needed: the bundled Python resolves libssl and
+# libffi via its own RPATH, independently of the AppImage's Qt libraries.
 cat > "${CLI_DIR}/protonvpn" << EOF
 #!/bin/bash
 PROTON_DIR="\${APPDIR}/usr/share/protonvpn"
+export PYTHONHOME="\${PROTON_DIR}/python"
 VENV_SITE="\${PROTON_DIR}/venv/lib/${PY_VER}/site-packages"
 PROTON_PKG="\${PROTON_DIR}/dist-packages"
-export PYTHONPATH="\${PROTON_PKG}:\${VENV_SITE}\${PYTHONPATH:+:\${PYTHONPATH}}"
-exec env LD_LIBRARY_PATH="" python3 -c "from proton.vpn.cli import main; main()" "\$@"
+export PYTHONPATH="\${PROTON_PKG}:\${VENV_SITE}"
+exec "\${PROTON_DIR}/python/bin/python3.12" -c "from proton.vpn.cli import main; main()" "\$@"
 EOF
 chmod +x "${CLI_DIR}/protonvpn"
 
@@ -252,12 +289,10 @@ export PATH="${TOOLS_DIR}:${PATH}"
 # NO_STRIP=1 prevents linuxdeploy's bundled strip from choking on modern
 # ELF libraries that use .relr.dyn (requires binutils 2.38+).
 NO_STRIP=1 APPIMAGE_EXTRACT_AND_RUN=1 "${LINUXDEPLOY}" \
-    --appdir          "${APPDIR}" \
-    --executable      "${APPDIR}/usr/bin/proton_vpn_qt" \
-    --desktop-file    "${DESKTOP_DST}" \
-    --icon-file       "${ICON_DIR}/${APP_ID}.svg" \
-    --exclude-library "libssl*" \
-    --exclude-library "libcrypto*"
+    --appdir       "${APPDIR}" \
+    --executable   "${APPDIR}/usr/bin/proton_vpn_qt" \
+    --desktop-file "${DESKTOP_DST}" \
+    --icon-file    "${ICON_DIR}/${APP_ID}.svg"
 
 # Step 2 -- deploy Qt plugins (platform, imageformats, etc.).
 # The linuxdeploy-plugin-qt AppImage wrapper resets $QMAKE before calling the
