@@ -136,6 +136,15 @@ for _wayland_dir in \
     if [[ -f "${_wayland_dir}/libqwayland.so" ]]; then
         cp "${_wayland_dir}/libqwayland.so" "${APPDIR}/usr/plugins/platforms/"
         info "Bundled Wayland platform plugin (${_wayland_dir})"
+        while IFS= read -r _dep; do
+            _dep_name=$(basename "${_dep}")
+            if [[ -f "${_dep}" && ! -f "${APPDIR}/usr/lib/${_dep_name}" ]]; then
+                cp "${_dep}" "${APPDIR}/usr/lib/"
+                info "  Bundled Wayland dep: ${_dep_name}"
+            fi
+        done < <(ldd "${_wayland_dir}/libqwayland.so" 2>/dev/null \
+                 | awk '/=>/ {print $3}' \
+                 | grep -v "not found")
         break
     fi
 done

@@ -227,7 +227,8 @@ rm -f "${APPDIR}/usr/lib/libjxrglue.so.0"
 
 # linuxdeploy-plugin-qt skips the Wayland platform plugin on headless CI runners.
 # EXTRA_PLATFORM_PLUGINS uses a naming convention that doesn't match Ubuntu's
-# libqwayland.so filename, so we copy it manually instead.
+# libqwayland.so filename, so we copy it manually instead along with any of its
+# shared library dependencies (e.g. libQt6WaylandClient) not already bundled.
 for _wayland_dir in \
     "/usr/lib/x86_64-linux-gnu/qt6/plugins/platforms" \
     "/usr/lib/qt6/plugins/platforms" \
@@ -235,6 +236,17 @@ for _wayland_dir in \
     if [[ -f "${_wayland_dir}/libqwayland.so" ]]; then
         cp "${_wayland_dir}/libqwayland.so" "${APPDIR}/usr/plugins/platforms/"
         info "Bundled Wayland platform plugin (${_wayland_dir})"
+        # Copy any shared library dependencies of the Wayland plugin that are
+        # not already present in the AppDir.
+        while IFS= read -r _dep; do
+            _dep_name=$(basename "${_dep}")
+            if [[ -f "${_dep}" && ! -f "${APPDIR}/usr/lib/${_dep_name}" ]]; then
+                cp "${_dep}" "${APPDIR}/usr/lib/"
+                info "  Bundled Wayland dep: ${_dep_name}"
+            fi
+        done < <(ldd "${_wayland_dir}/libqwayland.so" 2>/dev/null \
+                 | awk '/=>/ {print $3}' \
+                 | grep -v "not found")
         break
     fi
 done
