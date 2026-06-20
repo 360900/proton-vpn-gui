@@ -136,6 +136,7 @@ for _wayland_dir in \
     if [[ -f "${_wayland_dir}/libqwayland.so" ]]; then
         cp "${_wayland_dir}/libqwayland.so" "${APPDIR}/usr/plugins/platforms/"
         info "Bundled Wayland platform plugin (${_wayland_dir})"
+
         while IFS= read -r _dep; do
             _dep_name=$(basename "${_dep}")
             if [[ -f "${_dep}" && ! -f "${APPDIR}/usr/lib/${_dep_name}" ]]; then
@@ -145,6 +146,17 @@ for _wayland_dir in \
         done < <(ldd "${_wayland_dir}/libqwayland.so" 2>/dev/null \
                  | awk '/=>/ {print $3}' \
                  | grep -v "not found")
+
+        _qt_plugins_dir="$(dirname "${_wayland_dir}")"
+        for _sub in wayland-shell-integration wayland-graphics-integration-client \
+                    wayland-decoration-client; do
+            if [[ -d "${_qt_plugins_dir}/${_sub}" ]]; then
+                mkdir -p "${APPDIR}/usr/plugins/${_sub}"
+                cp "${_qt_plugins_dir}/${_sub}"/*.so \
+                   "${APPDIR}/usr/plugins/${_sub}/" 2>/dev/null || true
+                info "  Bundled Qt Wayland sub-plugin dir: ${_sub}"
+            fi
+        done
         break
     fi
 done

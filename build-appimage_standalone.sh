@@ -236,8 +236,8 @@ for _wayland_dir in \
     if [[ -f "${_wayland_dir}/libqwayland.so" ]]; then
         cp "${_wayland_dir}/libqwayland.so" "${APPDIR}/usr/plugins/platforms/"
         info "Bundled Wayland platform plugin (${_wayland_dir})"
-        # Copy any shared library dependencies of the Wayland plugin that are
-        # not already present in the AppDir.
+
+        # Copy shared library dependencies of libqwayland.so not already bundled.
         while IFS= read -r _dep; do
             _dep_name=$(basename "${_dep}")
             if [[ -f "${_dep}" && ! -f "${APPDIR}/usr/lib/${_dep_name}" ]]; then
@@ -247,6 +247,20 @@ for _wayland_dir in \
         done < <(ldd "${_wayland_dir}/libqwayland.so" 2>/dev/null \
                  | awk '/=>/ {print $3}' \
                  | grep -v "not found")
+
+        # Copy Wayland shell integration and graphics plugins.  These live in
+        # sibling directories of platforms/ and are required for the Wayland
+        # compositor to negotiate a display protocol (xdg-shell, etc.).
+        _qt_plugins_dir="$(dirname "${_wayland_dir}")"
+        for _sub in wayland-shell-integration wayland-graphics-integration-client \
+                    wayland-decoration-client; do
+            if [[ -d "${_qt_plugins_dir}/${_sub}" ]]; then
+                mkdir -p "${APPDIR}/usr/plugins/${_sub}"
+                cp "${_qt_plugins_dir}/${_sub}"/*.so \
+                   "${APPDIR}/usr/plugins/${_sub}/" 2>/dev/null || true
+                info "  Bundled Qt Wayland sub-plugin dir: ${_sub}"
+            fi
+        done
         break
     fi
 done
