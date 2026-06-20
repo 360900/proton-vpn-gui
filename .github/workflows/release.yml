@@ -111,7 +111,7 @@ jobs:
 
   build-appimage-standalone:
     name: Build AppImage Standalone (Ubuntu)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
 
     steps:
       - name: Checkout
@@ -142,7 +142,7 @@ jobs:
 
   build-appimage-lite:
     name: Build AppImage Lite (Ubuntu)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
 
     steps:
       - name: Checkout

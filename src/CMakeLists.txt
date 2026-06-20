@@ -48,6 +48,7 @@ set(SOURCES
         cli/statusMonitor.cpp
         cli/appImageUtils.h
         cli/flatpakUtils.h
+        cli/platformUtils.h
         mainWindow.h
         mainWindow.cpp
         widgets/elidaLabel.h

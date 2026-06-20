@@ -8,7 +8,7 @@
 #include <QJsonDocument> // Ignore unused include warning; we do use QJsonDocument
 #include <QJsonObject>
 #include <QLabel>
-#include <QProcessEnvironment>
+#include "../cli/platformUtils.h"
 #include <QTextBrowser>
 #include <QVersionNumber>
 #include <QVBoxLayout>
@@ -109,9 +109,8 @@ AboutDialog::AboutDialog(const QString& installedCliVersion, QWidget* parent)
     versionGrid->addWidget(makeKey(tr("Qt version:")),         2, 0);
     versionGrid->addWidget(new QLabel(QStringLiteral(QT_VERSION_STR),      versionWidget), 2, 1);
 
-    const bool isFlatpak = qEnvironmentVariableIsSet("FLATPAK_ID");
     versionGrid->addWidget(makeKey(tr("Package:")),            3, 0);
-    versionGrid->addWidget(new QLabel(isFlatpak == true ? tr("Flatpak") : tr("System"), versionWidget), 3, 1);
+    versionGrid->addWidget(new QLabel(packageTypeName(), versionWidget), 3, 1);
 
     // Installed CLI version – highlighted only when outside the tested range
     if (installedCliVersion.isEmpty() == false)
