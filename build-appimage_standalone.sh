@@ -225,6 +225,24 @@ NO_STRIP=1 \
 rm -f "${APPDIR}/usr/plugins/imageformats/kimg_jxr.so"
 rm -f "${APPDIR}/usr/lib/libjxrglue.so.0"
 
+# -- Explicitly bundle Qt SSL libraries ----------------------------------------
+# Qt loads libssl at runtime through its OpenSSL backend plugin
+# (libqopensslbackend.so), not as a link-time ELF dependency, so linuxdeploy
+# does not pick it up automatically.  We locate and copy both libraries here.
+# python-build-standalone's Python finds its own libssl via DT_RPATH
+# ($ORIGIN/../lib), which takes precedence over LD_LIBRARY_PATH, so there is
+# no conflict between the two copies.
+info "Bundling Qt SSL libraries..."
+for lib in libssl.so.3 libcrypto.so.3; do
+    src=$(ldconfig -p 2>/dev/null | grep " ${lib} " | awk '{print $NF}' | head -1 || true)
+    if [[ -n "${src}" && -f "${src}" ]]; then
+        cp -n "${src}" "${APPDIR}/usr/lib/"
+        info "  Bundled: ${lib} (${src})"
+    else
+        warn "  ${lib} not found via ldconfig — Qt TLS will not work"
+    fi
+done
+
 # -- Portable Python (python-build-standalone) ---------------------------------
 # Copied AFTER linuxdeploy so its libssl.so.3 stays in python/lib/ and does not
 # replace the Ubuntu libssl.so.3 that linuxdeploy placed in usr/lib/ for Qt.
