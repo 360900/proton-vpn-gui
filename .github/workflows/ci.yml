@@ -37,6 +37,13 @@ jobs:
       - name: Confirm binary exists
         run: test -f build/proton_vpn_qt
 
+      - name: Upload binary artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: native-binary-ci
+          path: build/proton_vpn_qt
+          retention-days: 7
+
   build-flatpak:
     name: Build Flatpak (Ubuntu)
     runs-on: ubuntu-latest
@@ -100,6 +107,13 @@ jobs:
       - name: Confirm bundle exists
         run: test -f io.github.wheat32.ProtonVPNQt.flatpak
 
+      - name: Upload Flatpak artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: flatpak-ci
+          path: io.github.wheat32.ProtonVPNQt.flatpak
+          retention-days: 7
+
   build-appimage:
     name: Build AppImage (Ubuntu)
     runs-on: ubuntu-latest
@@ -127,3 +141,10 @@ jobs:
 
       - name: Confirm AppImage exists
         run: ls dist/*.AppImage
+
+      - name: Upload AppImage artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: appimage-ci
+          path: dist/*.AppImage
+          retention-days: 7
