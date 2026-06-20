@@ -189,12 +189,12 @@ jobs:
 
             | File | Description |
             |------|-------------|
-            | `ProtonVPN-Qt-${{ steps.tag.outputs.VERSION }}-x86_64.AppImage` | AppImage (requires ProtonVPN CLI on host) |
+            | `ProtonVPN-Qt-${{ steps.tag.outputs.VERSION }}-x86_64.AppImage` | AppImage — bundles the ProtonVPN CLI, no extra install needed |
             | `proton-vpn-qt-app-linux-x86_64.tar.gz` | Native binary (requires ProtonVPN CLI on host) |
             | `io.github.wheat32.ProtonVPNQt.flatpak` | Flatpak bundle (requires ProtonVPN CLI on host) |
 
             ### AppImage
-            Requires the [Proton VPN Linux CLI](https://protonvpn.com/support/linux-vpn-tool/) installed on your system. Download, make executable, and run:
+            The AppImage bundles the ProtonVPN CLI — no separate install needed. Download, make executable, and run:
             ```bash
             chmod +x ProtonVPN-Qt-${{ steps.tag.outputs.VERSION }}-x86_64.AppImage
             ./ProtonVPN-Qt-${{ steps.tag.outputs.VERSION }}-x86_64.AppImage
@@ -208,7 +208,8 @@ jobs:
             ```
 
             ### Flatpak bundle
-            The Flatpak calls the host's `protonvpn` CLI via `flatpak-spawn --host`, so the CLI must be installed on your host system.
+            The Flatpak calls the host's `protonvpn` CLI via `flatpak-spawn --host`, so the [Proton VPN Linux CLI](https://protonvpn.com/support/linux-vpn-tool/) must be installed on your host system.
+
             ```bash
             flatpak install io.github.wheat32.ProtonVPNQt.flatpak
             flatpak run io.github.wheat32.ProtonVPNQt
