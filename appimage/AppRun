@@ -18,7 +18,11 @@ export PATH="${APPDIR}/usr/share/protonvpn:${PATH}"
 
 # ── Qt runtime ────────────────────────────────────────────────────────────────
 export LD_LIBRARY_PATH="${APPDIR}/usr/lib:${LD_LIBRARY_PATH:-}"
-export QT_PLUGIN_PATH="${APPDIR}/usr/plugins"
+
+# Bundled Qt plugins take priority.  System Qt6 plugin paths are appended so
+# the host desktop's style plugins (e.g. Breeze on KDE Plasma) are also
+# visible.  On desktops without Breeze the app falls back to Fusion as normal.
+export QT_PLUGIN_PATH="${APPDIR}/usr/plugins:/usr/lib/qt6/plugins:/usr/lib/x86_64-linux-gnu/qt6/plugins:/usr/lib64/qt6/plugins${QT_PLUGIN_PATH:+:${QT_PLUGIN_PATH}}"
 
 # ── Launch ────────────────────────────────────────────────────────────────────
 exec "${APPDIR}/usr/bin/proton_vpn_qt" "$@"
