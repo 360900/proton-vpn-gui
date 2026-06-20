@@ -122,12 +122,23 @@ fi
 
 info "Deploying Qt plugins..."
 LD_LIBRARY_PATH="${FAKE_LIBS}${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}" \
-EXTRA_PLATFORM_PLUGINS=wayland NO_STRIP=1 \
+NO_STRIP=1 \
     "${LINUXDEPLOY_QT_EXTRACTED}/usr/bin/linuxdeploy-plugin-qt" \
     --appdir "${APPDIR}"
 
 rm -f "${APPDIR}/usr/plugins/imageformats/kimg_jxr.so"
 rm -f "${APPDIR}/usr/lib/libjxrglue.so.0"
+
+for _wayland_dir in \
+    "/usr/lib/x86_64-linux-gnu/qt6/plugins/platforms" \
+    "/usr/lib/qt6/plugins/platforms" \
+    "/usr/lib64/qt6/plugins/platforms"; do
+    if [[ -f "${_wayland_dir}/libqwayland.so" ]]; then
+        cp "${_wayland_dir}/libqwayland.so" "${APPDIR}/usr/plugins/platforms/"
+        info "Bundled Wayland platform plugin (${_wayland_dir})"
+        break
+    fi
+done
 
 cp "${SCRIPT_DIR}/appimage/AppRun" "${APPDIR}/AppRun"
 chmod +x "${APPDIR}/AppRun"
