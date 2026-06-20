@@ -218,7 +218,7 @@ fi
 
 info "Deploying Qt plugins..."
 LD_LIBRARY_PATH="${FAKE_LIBS}${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}" \
-NO_STRIP=1 \
+EXTRA_PLATFORM_PLUGINS=wayland NO_STRIP=1 \
     "${LINUXDEPLOY_QT_EXTRACTED}/usr/bin/linuxdeploy-plugin-qt" \
     --appdir "${APPDIR}"
 
