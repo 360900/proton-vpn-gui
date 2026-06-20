@@ -24,6 +24,12 @@ export LD_LIBRARY_PATH="${APPDIR}/usr/lib:${LD_LIBRARY_PATH:-}"
 # visible.  On desktops without Breeze the app falls back to Fusion as normal.
 export QT_PLUGIN_PATH="${APPDIR}/usr/plugins:/usr/lib/qt6/plugins:/usr/lib/x86_64-linux-gnu/qt6/plugins:/usr/lib64/qt6/plugins${QT_PLUGIN_PATH:+:${QT_PLUGIN_PATH}}"
 
+# Qt reports QT_QPA_PLATFORM_PLUGIN_PATH in the "not found" warning and uses
+# it as the primary search path for platform plugins (wayland, xcb, etc.).
+# Point it exclusively at the bundled platforms dir so the version-matched
+# libqwayland.so (bundled from the CI's qt6-wayland package) is found.
+export QT_QPA_PLATFORM_PLUGIN_PATH="${APPDIR}/usr/plugins/platforms"
+
 
 # ── Launch ────────────────────────────────────────────────────────────────────
 exec "${APPDIR}/usr/bin/proton_vpn_qt" "$@"
