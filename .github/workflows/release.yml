@@ -129,8 +129,8 @@ jobs:
 
       - name: Build AppImage
         run: |
-          chmod +x build-appimage.sh
-          ./build-appimage.sh
+          chmod +x build-appimage_ubuntu.sh
+          ./build-appimage_ubuntu.sh
         env:
           APPIMAGE_EXTRACT_AND_RUN: "1"
 
