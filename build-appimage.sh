@@ -156,13 +156,20 @@ fi
 # PYTHONPATH is set to include both the extracted ProtonVPN .deb packages and
 # the PyPI venv site-packages.  System packages (python3-gi, pycairo, etc.)
 # are found automatically via Python's standard search path.
+#
+# LD_LIBRARY_PATH is cleared before invoking python3.  AppRun sets it to
+# prefer the bundled Qt libraries, but the bundled libcrypto.so.3 may differ
+# from the version the system Python's _ssl.cpython-*.so was compiled against,
+# causing an OpenSSL symbol-version mismatch.  Python is a system binary that
+# locates its own dependencies via RPATH and system library paths, so it does
+# not need LD_LIBRARY_PATH at all.
 cat > "${CLI_DIR}/protonvpn" << EOF
 #!/bin/bash
 PROTON_DIR="\${APPDIR}/usr/share/protonvpn"
 VENV_SITE="\${PROTON_DIR}/venv/lib/${PY_VER}/site-packages"
 PROTON_PKG="\${PROTON_DIR}/dist-packages"
 export PYTHONPATH="\${PROTON_PKG}:\${VENV_SITE}\${PYTHONPATH:+:\${PYTHONPATH}}"
-exec python3 -c "from proton.vpn.cli import main; main()" "\$@"
+exec env LD_LIBRARY_PATH="" python3 -c "from proton.vpn.cli import main; main()" "\$@"
 EOF
 chmod +x "${CLI_DIR}/protonvpn"
 
