@@ -1,5 +1,6 @@
 #pragma once
 
+#include <QVBoxLayout>
 #include <QWidget>
 #include <QLabel>
 #ifdef QT_DEBUG
@@ -17,11 +18,14 @@ class DebugPage : public QWidget
 
 public:
     explicit DebugPage(QWidget* parent = nullptr);
+    void setLeftPadding(int px);
 
 private slots:
     void refreshValues() const;
 
 private:
+    QVBoxLayout* m_outerLayout = nullptr;
+
     // Value labels in the per-key settings grid (kept for live refresh)
     QLabel* m_valAutoConnect        = nullptr;
     QLabel* m_valNotifications      = nullptr;
