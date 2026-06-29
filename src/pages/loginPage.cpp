@@ -446,4 +446,3 @@ void LoginPage::onCliVersionReady(const QString& version)
     });
     m_outerLayout->addWidget(m_versionBanner);
 }
-

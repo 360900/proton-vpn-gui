@@ -11,6 +11,7 @@
 
 #include <QProcess>
 #include <QRegularExpression>
+#include <QTimer>
 #include <functional>
 #include <ranges>
 #include <unistd.h>
@@ -24,6 +25,7 @@ namespace
 {
 constexpr int CLI_START_TIMEOUT_MS       = 2000;
 constexpr int DISCONNECT_SYNC_TIMEOUT_MS = 10000;
+constexpr int LOGIN_CHECK_RETRIES = 5;
 constexpr int MIN_COUNTRY_PARTS          = 2;
 
 // Returns {program, fullArgs} ready for QProcess::start.
@@ -95,30 +97,54 @@ void VpnManager::checkInstalled()
 
 void VpnManager::checkLoginStatus()
 {
-    runCommand({QStringLiteral("info")}, [this](int, const QString& out, const QString&)
-    {
-        bool loggedIn = false;
-        QString username;
+    checkLoginStatus(LOGIN_CHECK_RETRIES);
+}
 
+void VpnManager::checkLoginStatus(int retriesLeft)
+{
+    runCommand({QStringLiteral("info")}, [this, retriesLeft](int exitCode, const QString& out, const QString&)
+    {
         const QRegularExpression re(QStringLiteral(R"(Account:\s*'([^']+)')"));
         const QRegularExpressionMatch match = re.match(out);
+
         if (match.hasMatch())
         {
+            // CLI responded correctly — determine logged-in state from the value.
             const QString accountVal = match.captured(1).trimmed();
-            if (accountVal != QStringLiteral("None") && accountVal.isEmpty() == false)
+            const bool loggedIn = (accountVal != QStringLiteral("None") && accountVal.isEmpty() == false);
+            if (loggedIn)
             {
-                loggedIn = true;
-                username = accountVal;
+                startStatusMonitor();
+                fetchAccountType();
+                emit loginStatusResult(true, accountVal);
             }
+            else
+            {
+                // Explicit "Account: 'None'" — genuinely not logged in, no point retrying.
+                emit loginStatusResult(false, QString());
+            }
+            return;
         }
 
-        if (loggedIn == true)
+        // No "Account:" field in the output: the CLI didn't respond cleanly.
+        // This is the transient case (daemon/keyring not ready on autostart).
+        DBG_CLI(QStringLiteral("checkLoginStatus: no Account field (exitCode=%1), retries left: %2")
+                    .arg(exitCode).arg(retriesLeft));
+
+        if (retriesLeft > 0)
         {
-            startStatusMonitor();
-            fetchAccountType();
+            const int attempt = LOGIN_CHECK_RETRIES - retriesLeft + 1;
+            const int delayMs = attempt * 1000;
+            DBG_CLI(QStringLiteral("Retrying in %1 ms...").arg(delayMs));
+            QTimer::singleShot(delayMs, this, [this, retriesLeft]()
+            {
+                checkLoginStatus(retriesLeft - 1);
+            });
         }
-
-        emit loginStatusResult(loggedIn, username);
+        else
+        {
+            emit loginStatusResult(false, QString());
+        }
     });
 }
 

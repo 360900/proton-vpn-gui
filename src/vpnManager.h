@@ -101,6 +101,8 @@ private:
     void runCommand(const QStringList& args,
                     const std::function<void(int exitCode, const QString& output, const QString& errOutput)>& callback);
 
+    void checkLoginStatus(int retriesLeft);
+
     // Background status monitor (long-lived subprocess, every 15 s while logged in).
     void startStatusMonitor();
     void stopStatusMonitor();

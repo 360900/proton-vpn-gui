@@ -232,7 +232,7 @@ jobs:
 
             ### AppImage — Standalone vs Lite
 
-            The **Standalone** AppImage bundles a portable Python 3.12 interpreter and the ProtonVPN CLI packages, so no extra install is required. The **Lite** AppImage contains only the Qt frontend and relies on the [Proton VPN Linux CLI](https://protonvpn.com/support/linux-vpn-tool/) already being installed on your system — useful if you already have it set up and want a smaller download.
+            The **Standalone** AppImage bundles a portable Python interpreter and the ProtonVPN CLI packages, so no extra install is required. The **Lite** AppImage contains only the Qt frontend and relies on the [Proton VPN Linux CLI](https://protonvpn.com/support/linux-vpn-tool/) already being installed on your system — useful if you already have it set up and want a smaller download.
 
             ```bash
             chmod +x ProtonVPN-Qt-${{ steps.tag.outputs.VERSION }}-standalone-x86_64.AppImage

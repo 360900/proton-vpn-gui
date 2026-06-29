@@ -1,7 +1,9 @@
 #pragma once
 
 #include <QEvent>
+#include <QFrame>
 #include <QKeyEvent>
+#include <QResizeEvent>
 #include <QStackedWidget>
 #include <QToolButton>
 #include <QSystemTrayIcon>
@@ -47,6 +49,7 @@ private:
     VpnManager* m_manager;
 
     QWidget* m_sidebar;
+    QFrame* m_sidebarDivider;
     QStackedWidget* m_stack;
 
     QToolButton* m_logoBtn;
@@ -55,6 +58,7 @@ private:
     QToolButton* m_settingsNavBtn;
 #ifdef QT_DEBUG
     QToolButton* m_debugNavBtn = nullptr;
+    QToolButton* m_loginDebugBtn = nullptr;
 #endif
 
     NotInstalledPage* m_notInstalledPage;
@@ -67,7 +71,8 @@ private:
     DebugPage* m_debugPage;
 #endif
 
-    void showPage(Page page) const;
+    void showPage(Page page);
+    void repositionLoginDebugBtn();
     void setupSidebar();
     void refreshIcons();
     void setNavActive(const QToolButton* btn);
@@ -77,6 +82,7 @@ private:
     void sendNotification(const QString& title, const QString& message) const;
     void changeEvent(QEvent* event) override;
     void keyPressEvent(QKeyEvent* event) override;
+    void resizeEvent(QResizeEvent* event) override;
     void maybeShowWhatsNew();
 
     QNetworkAccessManager* m_networkManager = nullptr;
@@ -85,6 +91,9 @@ private:
     bool m_startupAutoConnectPending = false; // fire auto-connect once on first Disconnected state
     VpnState m_lastNotifiedState = VpnState::Unknown;
     bool m_whatsNewShown = false; // guard so we only show the dialog once per launch
+#ifdef QT_DEBUG
+    Page m_preDebugPage = Page::Login; // page to return to when leaving Debug
+#endif
 
     // Credentials held in memory only while a login is in progress or retrying 2FA.
     // Wiped on successful login or when the user cancels back to the credentials page.

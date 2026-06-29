@@ -78,14 +78,14 @@ DebugPage::DebugPage(QWidget* parent)
     : QWidget(parent)
 {
     // Outer layout holds only the scroll area so the page itself never clips.
-    QVBoxLayout* outerLayout = new QVBoxLayout(this);
-    outerLayout->setContentsMargins(0, 0, 0, 0);
-    outerLayout->setSpacing(0);
+    m_outerLayout = new QVBoxLayout(this);
+    m_outerLayout->setContentsMargins(0, 0, 0, 0);
+    m_outerLayout->setSpacing(0);
 
     QScrollArea* scroll = new QScrollArea(this);
     scroll->setWidgetResizable(true);
     scroll->setFrameShape(QFrame::NoFrame);
-    outerLayout->addWidget(scroll);
+    m_outerLayout->addWidget(scroll);
 
     QWidget* content = new QWidget(scroll);
     scroll->setWidget(content);
@@ -397,4 +397,11 @@ void DebugPage::refreshValues() const
     const QString lsv = cfg.lastSeenVersion();
     m_valLastSeenVersion->setText(lsv.isEmpty() ? QStringLiteral("(empty)") : lsv);
     m_valCheckForUpdates->setText(boolStr(cfg.checkForUpdates()));
+}
+
+void DebugPage::setLeftPadding(int px)
+{
+    auto m = m_outerLayout->contentsMargins();
+    m.setLeft(px);
+    m_outerLayout->setContentsMargins(m);
 }

@@ -139,11 +139,11 @@ MainWindow::MainWindow(QWidget* parent)
     rootLayout->addWidget(m_sidebar);
 
     // Vertical divider
-    auto* divider = new QFrame(this);
-    divider->setFrameShape(QFrame::VLine);
-    divider->setFixedWidth(SIDEBAR_DIVIDER_WIDTH);
-    divider->setObjectName(QStringLiteral("sidebarDivider"));
-    rootLayout->addWidget(divider);
+    m_sidebarDivider = new QFrame(this);
+    m_sidebarDivider->setFrameShape(QFrame::VLine);
+    m_sidebarDivider->setFixedWidth(SIDEBAR_DIVIDER_WIDTH);
+    m_sidebarDivider->setObjectName(QStringLiteral("sidebarDivider"));
+    rootLayout->addWidget(m_sidebarDivider);
 
     // Stacked content
     m_stack = new QStackedWidget(this);
@@ -265,6 +265,17 @@ MainWindow::MainWindow(QWidget* parent)
     // Debug page (index 7) – only present in debug builds
     m_debugPage = new DebugPage();
     m_stack->addWidget(m_debugPage); // index 7
+
+    // Floating debug button shown at bottom-left during login (sidebar is hidden then)
+    m_loginDebugBtn = new QToolButton(this);
+    m_loginDebugBtn->setIcon(svgNavIcon(QStringLiteral(":/assets/bug.svg"), {NAV_ICON_SIZE, NAV_ICON_SIZE}));
+    m_loginDebugBtn->setIconSize({NAV_ICON_SIZE, NAV_ICON_SIZE});
+    m_loginDebugBtn->setFixedSize(NAV_BTN_SIZE, NAV_BTN_SIZE);
+    m_loginDebugBtn->setToolTip(tr("Debug"));
+    m_loginDebugBtn->setObjectName(QStringLiteral("navButton"));
+    m_loginDebugBtn->setCursor(Qt::PointingHandCursor);
+    m_loginDebugBtn->setVisible(false);
+    // Click target is wired/rewired in showPage() depending on current context.
 #endif
 
     // Keep the recent picker in sync with any history change (record, clear, trim).
@@ -609,8 +620,26 @@ void MainWindow::setupSidebar()
 #endif
 }
 
-void MainWindow::showPage(Page page) const
+void MainWindow::showPage(Page page)
 {
+#ifdef QT_DEBUG
+    // Track where we came from so leaving Debug can return to the right page.
+    if (page == Page::Debug)
+    {
+        const Page current = static_cast<Page>(m_stack->currentIndex());
+        if (current != Page::Debug)
+            m_preDebugPage = current;
+    }
+
+    const bool onLoginPage = (page == Page::Login)
+        || (page == Page::Debug && m_preDebugPage == Page::Login);
+#else
+    const bool onLoginPage = (page == Page::Login);
+#endif
+
+    m_sidebar->setVisible(!onLoginPage);
+    m_sidebarDivider->setVisible(!onLoginPage);
+
     m_stack->setCurrentIndex(std::to_underlying(page));
 
     m_logoBtn->setChecked(page == Page::Vpn);
@@ -622,8 +651,40 @@ void MainWindow::showPage(Page page) const
     {
         m_debugNavBtn->setChecked(page == Page::Debug);
     }
+    if (m_loginDebugBtn != nullptr)
+    {
+        m_loginDebugBtn->setVisible(onLoginPage);
+        if (onLoginPage)
+        {
+            // Rewire: on login page → go to debug; on debug page (from login) → go back to login.
+            disconnect(m_loginDebugBtn, &QToolButton::clicked, nullptr, nullptr);
+            if (page == Page::Login)
+            {
+                connect(m_loginDebugBtn, &QToolButton::clicked, this, [this]() { showPage(Page::Debug); });
+            }
+            else // Page::Debug with m_preDebugPage == Page::Login
+            {
+                connect(m_loginDebugBtn, &QToolButton::clicked, this, [this]() { showPage(Page::Login); });
+            }
+            repositionLoginDebugBtn();
+            m_loginDebugBtn->raise();
+        }
+    }
+    // Apply left padding on the debug page so content stays clear of the floating debug button.
+    const bool debugFromLogin = (page == Page::Debug && m_preDebugPage == Page::Login);
+    m_debugPage->setLeftPadding(debugFromLogin ? (SIDEBAR_MARGIN + NAV_BTN_SIZE + SIDEBAR_MARGIN) : 0);
 #endif
 }
+
+#ifdef QT_DEBUG
+void MainWindow::repositionLoginDebugBtn()
+{
+    if (m_loginDebugBtn == nullptr)
+        return;
+    const int margin = SIDEBAR_MARGIN;
+    m_loginDebugBtn->move(margin, height() - m_loginDebugBtn->height() - margin);
+}
+#endif
 
 void MainWindow::setNavActive(const QToolButton* btn)
 {
@@ -711,6 +772,10 @@ void MainWindow::refreshIcons()
     {
         m_debugNavBtn->setIcon(svgNavIcon(QStringLiteral(":/assets/bug.svg"), {NAV_ICON_SIZE, NAV_ICON_SIZE}));
     }
+    if (m_loginDebugBtn != nullptr)
+    {
+        m_loginDebugBtn->setIcon(svgNavIcon(QStringLiteral(":/assets/bug.svg"), {NAV_ICON_SIZE, NAV_ICON_SIZE}));
+    }
 #endif
 }
 
@@ -721,6 +786,14 @@ void MainWindow::changeEvent(QEvent* event)
     {
         refreshIcons();
     }
+}
+
+void MainWindow::resizeEvent(QResizeEvent* event)
+{
+    QWidget::resizeEvent(event);
+#ifdef QT_DEBUG
+    repositionLoginDebugBtn();
+#endif
 }
 
 void MainWindow::keyPressEvent(QKeyEvent* event)
@@ -734,7 +807,7 @@ void MainWindow::keyPressEvent(QKeyEvent* event)
         if (m_debugNavBtn->isVisible() == false &&
             m_stack->currentIndex() == std::to_underlying(Page::Debug))
         {
-            showPage(Page::Vpn);
+            showPage(m_preDebugPage);
         }
         event->accept();
         return;
