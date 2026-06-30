@@ -14,6 +14,11 @@ public:
 
     static AppConfig &instance();
 
+    // Logs every loaded setting via DBG_SETTINGS. Split out from load() so
+    // callers can control exactly when it prints relative to other startup
+    // diagnostics (see main.cpp).
+    void logLoadedConfig() const;
+
     bool autoConnect() const;
     // Empty string means "Fastest Server"; "CC" means fastest in country;
     // "CC|city" means a specific city.  Stored as-is.
@@ -27,6 +32,7 @@ public:
     bool favoritesEnabled() const;
     QString lastSeenVersion() const;
     bool checkForUpdates() const;
+    bool logToFile() const;
 
     void setAutoConnect(bool value);
     void setAutoConnectServer(const QString& value);
@@ -39,6 +45,7 @@ public:
     void setFavoritesEnabled(bool value);
     void setLastSeenVersion(const QString& value);
     void setCheckForUpdates(bool value);
+    void setLogToFile(bool value);
 
     // Resets every setting to its compile-time default and deletes the config
     // file. The in-memory state is usable immediately; the file will not be
@@ -61,4 +68,5 @@ private:
     bool m_favoritesEnabled = true;
     QString m_lastSeenVersion;
     bool m_checkForUpdates = true;
+    bool m_logToFile = false;
 };

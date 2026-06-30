@@ -31,6 +31,8 @@ add_qt_test(tst_appConfig
     tst_appConfig.cpp
     ../appConfig.h
     ../appConfig.cpp
+    ../fileLogger.h
+    ../fileLogger.cpp
 )
 
 #  ConnectionHistory
@@ -40,6 +42,8 @@ add_qt_test(tst_connectionHistory
     ../connectionHistory.cpp
     ../appConfig.h
     ../appConfig.cpp
+    ../fileLogger.h
+    ../fileLogger.cpp
 )
 
 #  StatusMonitor (static parsing helpers only - no subprocess spawned)
@@ -48,6 +52,8 @@ add_qt_test(tst_statusMonitor
     ../cli/statusMonitor.h
     ../cli/statusMonitor.cpp
     ../cli/flatpakUtils.h
+    ../fileLogger.h
+    ../fileLogger.cpp
 )
 
 #  UiHelpers

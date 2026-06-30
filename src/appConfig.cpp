@@ -6,6 +6,7 @@
 #include <QStandardPaths>
 #include "appConfig.h"
 #include "debug.h"
+#include "fileLogger.h"
 
 namespace
 {
@@ -53,6 +54,7 @@ void AppConfig::load()
     m_favoritesEnabled = obj.value(QStringLiteral("favorites_enabled")).toBool(true);
     m_lastSeenVersion = obj.value(QStringLiteral("last_seen_version")).toString();
     m_checkForUpdates = obj.value(QStringLiteral("check_for_updates")).toBool(true);
+    m_logToFile = obj.value(QStringLiteral("log_to_file")).toBool(false);
 
     const QString themeStr = obj.value(QStringLiteral("theme")).toString(QStringLiteral("system"));
     if (themeStr == QStringLiteral("dark"))
@@ -67,13 +69,38 @@ void AppConfig::load()
     {
         m_theme = Theme::System;
     }
+}
+
+void AppConfig::logLoadedConfig() const
+{
+    QString themeStr;
+    switch (m_theme)
+    {
+        case Theme::Dark:
+            themeStr = QStringLiteral("dark");
+            break;
+
+        case Theme::Light:
+            themeStr = QStringLiteral("light");
+            break;
+
+        default:
+            themeStr = QStringLiteral("system");
+            break;
+    }
 
     DBG_SETTINGS(QStringLiteral("Config loaded from: ") + configFile());
     DBG_SETTINGS(QStringLiteral("  auto_connect             = ") + (m_autoConnect ? QStringLiteral("true") : QStringLiteral("false")));
+    DBG_SETTINGS(QStringLiteral("  auto_connect_server      = ") + m_autoConnectServer);
     DBG_SETTINGS(QStringLiteral("  notifications            = ") + (m_notifications ? QStringLiteral("true") : QStringLiteral("false")));
     DBG_SETTINGS(QStringLiteral("  recent_connections_count = ") + QString::number(m_recentConnectionsCount));
     DBG_SETTINGS(QStringLiteral("  start_hidden             = ") + (m_startHidden ? QStringLiteral("true") : QStringLiteral("false")));
     DBG_SETTINGS(QStringLiteral("  show_location_picker     = ") + (m_showLocationPicker ? QStringLiteral("true") : QStringLiteral("false")));
+    DBG_SETTINGS(QStringLiteral("  show_favorites_dropdown  = ") + (m_showFavoritesDropdown ? QStringLiteral("true") : QStringLiteral("false")));
+    DBG_SETTINGS(QStringLiteral("  favorites_enabled        = ") + (m_favoritesEnabled ? QStringLiteral("true") : QStringLiteral("false")));
+    DBG_SETTINGS(QStringLiteral("  last_seen_version        = ") + m_lastSeenVersion);
+    DBG_SETTINGS(QStringLiteral("  check_for_updates        = ") + (m_checkForUpdates ? QStringLiteral("true") : QStringLiteral("false")));
+    DBG_SETTINGS(QStringLiteral("  log_to_file              = ") + (m_logToFile ? QStringLiteral("true") : QStringLiteral("false")));
     DBG_SETTINGS(QStringLiteral("  theme                    = ") + themeStr);
 }
 
@@ -100,6 +127,7 @@ bool AppConfig::save() const
         obj[QStringLiteral("last_seen_version")] = m_lastSeenVersion;
     }
     obj[QStringLiteral("check_for_updates")] = m_checkForUpdates;
+    obj[QStringLiteral("log_to_file")] = m_logToFile;
 
     QString themeStr;
     switch (m_theme)
@@ -233,6 +261,17 @@ void AppConfig::setCheckForUpdates(const bool value)
     (void)save();
 }
 
+bool AppConfig::logToFile() const { return m_logToFile; }
+
+void AppConfig::setLogToFile(const bool value)
+{
+    if (m_logToFile == value) return;
+    DBG_SETTINGS(QStringLiteral("Setting changed: log_to_file = ") + (value ? QStringLiteral("true") : QStringLiteral("false")));
+    m_logToFile = value;
+    (void)save();
+    FileLogger::instance().setEnabled(value);
+}
+
 void AppConfig::resetToDefaults()
 {
     DBG_SETTINGS(QStringLiteral("AppConfig::resetToDefaults() - deleting config file and resetting all values"));
@@ -252,5 +291,7 @@ void AppConfig::resetToDefaults()
     m_favoritesEnabled       = true;
     m_lastSeenVersion        = QString();
     m_checkForUpdates        = true;
+    m_logToFile              = false;
+    FileLogger::instance().setEnabled(false);
 }
 

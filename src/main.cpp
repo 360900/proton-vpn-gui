@@ -17,6 +17,7 @@
 #include "cli/platformUtils.h"
 #include "dbus/vpnStatusAdaptor.h"
 #include "debug.h"
+#include "fileLogger.h"
 #include "mainWindow.h"
 #include "migrations.h"
 #include "themeManager.h"
@@ -59,6 +60,9 @@ int main(int argc, char* argv[])
     }
     QApplication::setApplicationVersion(appVersion);
 
+    // Mirror DBG_* output to a rotating log file if the user has enabled it.
+    FileLogger::instance().setEnabled(AppConfig::instance().logToFile());
+
     //  Startup diagnostics
     DBG_APP(QStringLiteral("=== ProtonVPN Qt App starting ==="));
     DBG_APP(QStringLiteral("App version        : ") + appVersion);
@@ -72,6 +76,8 @@ int main(int argc, char* argv[])
     DBG_APP(QStringLiteral("Locale             : ") + QLocale::system().name());
     DBG_APP(QStringLiteral("Config dir         : ") + QStandardPaths::writableLocation(QStandardPaths::AppConfigLocation));
     DBG_APP(QStringLiteral("================================="));
+
+    AppConfig::instance().logLoadedConfig();
 
     // Single-instance guard - prevent multiple copies running at the same time.
     const QString lockPath = QDir::tempPath() + QStringLiteral("/proton-vpn-qt-app.lock");

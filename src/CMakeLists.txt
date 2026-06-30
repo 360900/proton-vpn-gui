@@ -26,6 +26,8 @@ set(SOURCES
         main.cpp
         appConfig.h
         appConfig.cpp
+        fileLogger.h
+        fileLogger.cpp
         migrations.h
         migrations.cpp
         themeManager.h

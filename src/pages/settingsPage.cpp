@@ -3,6 +3,7 @@
 #include "../connectionHistory.h"
 #include "../debug.h"
 #include "../favoritesManager.h"
+#include "../fileLogger.h"
 #include "../geoUtils.h"
 #include "../themeManager.h"
 #include "../uiHelpers.h"
@@ -910,6 +911,31 @@ SettingsPage::SettingsPage(VpnManager* manager, NatPmpManager* natPmpManager, QW
             {
                 m_clearFavoritesRow->setVisible(FavoritesManager::instance().hasAnyEntries());
             });
+        }
+
+        //  Section: Logging
+        addHeader(tr("Logging"));
+        auto [loggingCard, loggingLayout] = makeAppCard();
+
+        {
+            QWidget* row = new QWidget(loggingCard);
+            QHBoxLayout* rl = new QHBoxLayout(row);
+            rl->setContentsMargins(SETTING_ROW_H_MARGIN, SETTING_ROW_V_MARGIN,
+                                   SETTING_ROW_H_MARGIN, SETTING_ROW_V_MARGIN);
+            rl->setSpacing(SETTING_ROW_SPACING);
+            rl->addWidget(makeTextCol(row,
+                                      tr("Write Logs to File"),
+                                      tr("Save diagnostic logs to disk for troubleshooting. "
+                                         "The %1 most recent log files are kept.")
+                                          .arg(FileLogger::MAX_ROTATED_LOGS)), 1);
+            ToggleWithStatus* logToFileToggle = new ToggleWithStatus(row);
+            logToFileToggle->setOn(AppConfig::instance().logToFile(), false);
+            connect(logToFileToggle, &ToggleWithStatus::toggled, this, [](const bool on)
+            {
+                AppConfig::instance().setLogToFile(on);
+            });
+            rl->addWidget(logToFileToggle);
+            loggingLayout->addWidget(row);
         }
 
         //  Section: About
