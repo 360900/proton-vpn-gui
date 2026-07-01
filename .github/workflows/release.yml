@@ -11,7 +11,7 @@ permissions:
 jobs:
   build-native:
     name: Build Native (Ubuntu)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
 
     steps:
       - name: Checkout
@@ -45,7 +45,7 @@ jobs:
 
   build-flatpak:
     name: Build Flatpak (Ubuntu)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
 
     steps:
       - name: Checkout
@@ -173,7 +173,7 @@ jobs:
 
   release:
     name: Create GitHub Release
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     needs: [build-native, build-flatpak, build-appimage-standalone, build-appimage-lite]
 
     steps:
