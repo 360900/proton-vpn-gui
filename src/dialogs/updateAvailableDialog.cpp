@@ -1,14 +1,14 @@
 #include "updateAvailableDialog.h"
 
-#include <QDesktopServices>
 #include <QFrame>
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QMessageBox>
+#include <QProcess>
 #include <QPushButton>
-#include <QUrl>
 #include <QVBoxLayout>
 
+#include "../cli/flatpakUtils.h"
 #include "../debug.h"
 
 namespace
@@ -72,8 +72,11 @@ UpdateAvailableDialog::UpdateAvailableDialog(const QString& currentVersion,
     downloadBtn->setDefault(true);
     connect(downloadBtn, &QPushButton::clicked, this, [this]()
     {
-        const bool ok = QDesktopServices::openUrl(QUrl(RELEASES_URL));
-        if (ok == false)
+        // QDesktopServices::openUrl() goes through the desktop portal and silently
+        // no-ops from a windowed app on some Wayland/KDE setups (returns true but
+        // never launches anything). Spawning xdg-open directly is reliable here.
+        const auto [program, args] = buildHostCommand(QStringLiteral("xdg-open"), {RELEASES_URL});
+        if (QProcess::startDetached(program, args) == false)
         {
             DBG_APP(QStringLiteral("Failed to open browser for update download: ") + RELEASES_URL);
             QMessageBox::information(
