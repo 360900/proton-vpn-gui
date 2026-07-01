@@ -401,14 +401,14 @@ MainWindow::MainWindow(QWidget* parent)
                     const QString serverKey = AppConfig::instance().autoConnectServer();
                     if (serverKey.isEmpty())
                     {
-                        m_manager->connectVpn();
+                        m_manager->startupAutoConnect();
                     }
                     else
                     {
                         const int sep = serverKey.indexOf(QLatin1Char('|'));
                         const QString country = (sep >= 0) ? serverKey.left(sep) : serverKey;
                         const QString city    = (sep >= 0) ? serverKey.mid(sep + 1) : QString();
-                        m_manager->connectVpn(country, city);
+                        m_manager->startupAutoConnect(country, city);
                     }
                 }
             });

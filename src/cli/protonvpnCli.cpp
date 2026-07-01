@@ -27,6 +27,8 @@ constexpr int CLI_START_TIMEOUT_MS       = 2000;
 constexpr int DISCONNECT_SYNC_TIMEOUT_MS = 10000;
 constexpr int LOGIN_CHECK_RETRIES = 5;
 constexpr int MIN_COUNTRY_PARTS          = 2;
+constexpr int NETWORK_READY_CHECK_RETRIES = 5;
+constexpr int AUTO_CONNECT_RETRIES        = 5;
 
 // Returns {program, fullArgs} ready for QProcess::start.
 std::pair<QString, QStringList> buildCliCommand(const QStringList& args)
@@ -315,6 +317,71 @@ void VpnManager::connectVpn(const QString& country, const QString& city)
     m_state = VpnState::Connecting;
     emit connectionStateChanged(m_state, QString());
 
+    issueConnect(country, city, 0);
+}
+
+void VpnManager::startupAutoConnect(const QString& country, const QString& city)
+{
+    DBG_CLI(QStringLiteral("Auto-connecting to VPN on startup - country: '") + (country.isEmpty() ? QStringLiteral("(fastest)") : country) +
+            QStringLiteral("'  city: '") + (city.isEmpty() ? QStringLiteral("(any)") : city) + QStringLiteral("'"));
+    m_lastConnectCountry = country;
+    m_lastConnectCity    = city;
+    m_connectedServer.clear();
+
+    m_state = VpnState::Connecting;
+    emit connectionStateChanged(m_state, QString());
+
+    checkNetworkReady(NETWORK_READY_CHECK_RETRIES, [this, country, city]()
+    {
+        issueConnect(country, city, AUTO_CONNECT_RETRIES);
+    });
+}
+
+void VpnManager::checkNetworkReady(int retriesLeft, const std::function<void()>& onReady)
+{
+    QProcess* process = new QProcess(this);
+    connect(process, &QProcess::finished, this,
+            [this, process, retriesLeft, onReady](int exitCode, QProcess::ExitStatus)
+    {
+        const QString out = QString::fromUtf8(process->readAllStandardOutput()).trimmed();
+        process->deleteLater();
+
+        // nmcli terse "STATE" is e.g. "connected", "connecting", "disconnected",
+        // "asleep" - only the "connected*" family means NetworkManager has a
+        // default route up. startsWith() (not contains()) so "disconnected"
+        // does not falsely match.
+        const bool ready = exitCode == 0 && out.startsWith(QStringLiteral("connected"));
+        if (ready || retriesLeft <= 0)
+        {
+            onReady();
+            return;
+        }
+
+        const int attempt = NETWORK_READY_CHECK_RETRIES - retriesLeft + 1;
+        const int delayMs = attempt * 1000;
+        DBG_CLI(QStringLiteral("Network not ready yet (nmcli state: '") + out +
+                QStringLiteral("'), retrying in ") + QString::number(delayMs) + QStringLiteral(" ms..."));
+        QTimer::singleShot(delayMs, this, [this, retriesLeft, onReady]()
+        {
+            checkNetworkReady(retriesLeft - 1, onReady);
+        });
+    });
+
+    auto [program, fullArgs] = buildHostCommand(QStringLiteral("nmcli"),
+        {QStringLiteral("-t"), QStringLiteral("-f"), QStringLiteral("STATE"),
+         QStringLiteral("general"), QStringLiteral("status")});
+    process->start(program, fullArgs);
+    if (process->waitForStarted(CLI_START_TIMEOUT_MS) == false)
+    {
+        // nmcli missing or failed to launch - fail open rather than block
+        // auto-connect indefinitely on a system without NetworkManager/nmcli.
+        process->deleteLater();
+        onReady();
+    }
+}
+
+void VpnManager::issueConnect(const QString& country, const QString& city, int retriesLeft)
+{
     QStringList args{QStringLiteral("connect")};
     if (country.isEmpty() == false)
     {
@@ -325,7 +392,7 @@ void VpnManager::connectVpn(const QString& country, const QString& city)
         args << QStringLiteral("--city") << city;
     }
 
-    runCommand(args, [this](int exitCode, const QString& out, const QString& err)
+    runCommand(args, [this, country, city, retriesLeft](int exitCode, const QString& out, const QString& err)
     {
         if (exitCode == 0)
         {
@@ -350,14 +417,26 @@ void VpnManager::connectVpn(const QString& country, const QString& city)
             }
 
             emit connectionStateChanged(m_state, lines.join(QLatin1Char('\n')));
+            return;
         }
-        else
+
+        if (retriesLeft > 0)
         {
-            DBG_CLI(QStringLiteral("VPN connection failed (exit=") + QString::number(exitCode) + QStringLiteral("): ") + (err.isEmpty() ? out : err));
-            m_state = VpnState::Error;
-            emit connectionStateChanged(m_state, err.isEmpty() ? out : err);
-            emit errorOccurred(err.isEmpty() ? out : err);
+            const int attempt = AUTO_CONNECT_RETRIES - retriesLeft + 1;
+            const int delayMs = attempt * 1000;
+            DBG_CLI(QStringLiteral("VPN connect attempt failed (exit=") + QString::number(exitCode) +
+                    QStringLiteral("), retrying in ") + QString::number(delayMs) + QStringLiteral(" ms..."));
+            QTimer::singleShot(delayMs, this, [this, country, city, retriesLeft]()
+            {
+                issueConnect(country, city, retriesLeft - 1);
+            });
+            return;
         }
+
+        DBG_CLI(QStringLiteral("VPN connection failed (exit=") + QString::number(exitCode) + QStringLiteral("): ") + (err.isEmpty() ? out : err));
+        m_state = VpnState::Error;
+        emit connectionStateChanged(m_state, err.isEmpty() ? out : err);
+        emit errorOccurred(err.isEmpty() ? out : err);
     });
 }
 

@@ -38,6 +38,10 @@ public:
     void submit2FA(const QString& token) const;
     void signOut();
     void connectVpn(const QString& country = QString(), const QString& city = QString());
+    // Like connectVpn(), but for the startup auto-connect path only: waits
+    // for NetworkManager to report a ready state before the first attempt,
+    // and retries with backoff if the connect attempt itself fails.
+    void startupAutoConnect(const QString& country = QString(), const QString& city = QString());
     void disconnectVpn();
     static void disconnectVpnSync(); // blocking disconnect - safe to call just before app exit
     // Disconnect, change any config key/value, then reconnect to the previous location.
@@ -102,6 +106,17 @@ private:
                     const std::function<void(int exitCode, const QString& output, const QString& errOutput)>& callback);
 
     void checkLoginStatus(int retriesLeft);
+
+    // Polls `nmcli` for NetworkManager's general state, retrying with backoff
+    // until it reports "connected*" or retriesLeft runs out. Calls onReady()
+    // either way (fails open) so a missing nmcli / non-NM system never blocks
+    // auto-connect indefinitely.
+    void checkNetworkReady(int retriesLeft, const std::function<void()>& onReady);
+
+    // Runs `protonvpn connect`, retrying with backoff up to retriesLeft times
+    // on failure before giving up and emitting VpnState::Error. retriesLeft=0
+    // means no retry (used by the manual connectVpn() path).
+    void issueConnect(const QString& country, const QString& city, int retriesLeft);
 
     // Background status monitor (long-lived subprocess, every 15 s while logged in).
     void startStatusMonitor();
