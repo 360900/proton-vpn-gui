@@ -238,8 +238,17 @@ for _wayland_dir in \
         info "Bundled Wayland platform plugin (${_wayland_dir})"
 
         # Copy shared library dependencies of libqwayland.so not already bundled.
+        # Core glibc libraries (libc, ld-linux, libpthread, etc.) are excluded:
+        # these must come from the host system at runtime, never from the
+        # AppImage, matching linuxdeploy's own excludelist. Bundling libc.so.6
+        # ties the AppImage to the CI runner's glibc build (e.g. its compiled
+        # CPU baseline), breaking it on hosts with an older/different CPU.
+        _glibc_excludelist='^(ld-linux(-x86-64)?\.so\.2|libc\.so\.6|libm\.so\.6|libpthread\.so\.0|libdl\.so\.2|librt\.so\.1|libresolv\.so\.2|libnsl\.so\.1|libutil\.so\.1|libcrypt\.so\.1|libnss_.*\.so.*)$'
         while IFS= read -r _dep; do
             _dep_name=$(basename "${_dep}")
+            if [[ "${_dep_name}" =~ ${_glibc_excludelist} ]]; then
+                continue
+            fi
             if [[ -f "${_dep}" && ! -f "${APPDIR}/usr/lib/${_dep_name}" ]]; then
                 cp "${_dep}" "${APPDIR}/usr/lib/"
                 info "  Bundled Wayland dep: ${_dep_name}"

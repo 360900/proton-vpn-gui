@@ -4,6 +4,8 @@
 // Prints to stdout when the app is started from a terminal.
 // All output is prefixed with a tag for easy grepping.
 
+#include "fileLogger.h"
+
 #include <QString>
 #include <QDateTime>
 #include <cstdio>
@@ -13,11 +15,12 @@
 inline void dbgPrint(const char* tag, const QString& message)
 {
     const QString timestamp = QDateTime::currentDateTime().toString(QStringLiteral("hh:mm:ss.zzz"));
-    fprintf(stdout, "[%s] [%s] %s\n",
-            qPrintable(timestamp),
-            tag,
-            qPrintable(message));
+    const QString line = QStringLiteral("[%1] [%2] %3").arg(timestamp, QString::fromUtf8(tag), message);
+
+    fprintf(stdout, "%s\n", qPrintable(line));
     fflush(stdout);
+
+    FileLogger::instance().write(line);
 }
 
 //  Convenience macros

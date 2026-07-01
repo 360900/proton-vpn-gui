@@ -305,6 +305,11 @@ DebugPage::DebugPage(QWidget* parent)
         QStringLiteral("true"),
         []() { AppConfig::instance().setCheckForUpdates(true); });
 
+    m_valLogToFile = addRow(
+        QStringLiteral("log_to_file"),
+        QStringLiteral("false"),
+        []() { AppConfig::instance().setLogToFile(false); });
+
     layout->addWidget(gridWidget);
 
 #ifdef QT_DEBUG
@@ -397,6 +402,7 @@ void DebugPage::refreshValues() const
     const QString lsv = cfg.lastSeenVersion();
     m_valLastSeenVersion->setText(lsv.isEmpty() ? QStringLiteral("(empty)") : lsv);
     m_valCheckForUpdates->setText(boolStr(cfg.checkForUpdates()));
+    m_valLogToFile->setText(boolStr(cfg.logToFile()));
 }
 
 void DebugPage::setLeftPadding(int px)

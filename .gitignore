@@ -32,6 +32,8 @@
 *.app
 
 build/
+src/cmake-build-debug/
+src/cmake-build-release/
 
 # Jetbrains
 .idea/
