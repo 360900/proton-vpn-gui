@@ -4,9 +4,12 @@
 #include <QFrame>
 #include <QHBoxLayout>
 #include <QLabel>
+#include <QMessageBox>
 #include <QPushButton>
 #include <QUrl>
 #include <QVBoxLayout>
+
+#include "../debug.h"
 
 namespace
 {
@@ -16,6 +19,7 @@ constexpr int UPDATE_H_MARGIN    = 24;
 constexpr int UPDATE_TOP_MARGIN  = 20;
 constexpr int UPDATE_BOT_MARGIN  = 16;
 constexpr int UPDATE_BTN_SPACING = 8;
+const QString RELEASES_URL = QStringLiteral("https://github.com/wheat32/proton-vpn-qt-app/releases");
 } // namespace
 
 UpdateAvailableDialog::UpdateAvailableDialog(const QString& currentVersion,
@@ -66,10 +70,18 @@ UpdateAvailableDialog::UpdateAvailableDialog(const QString& currentVersion,
 
     QPushButton* downloadBtn = new QPushButton(tr("Download"), this);
     downloadBtn->setDefault(true);
-    connect(downloadBtn, &QPushButton::clicked, this, []()
+    connect(downloadBtn, &QPushButton::clicked, this, [this]()
     {
-        QDesktopServices::openUrl(
-            QUrl(QStringLiteral("https://github.com/wheat32/proton-vpn-qt-app/releases")));
+        const bool ok = QDesktopServices::openUrl(QUrl(RELEASES_URL));
+        if (ok == false)
+        {
+            DBG_APP(QStringLiteral("Failed to open browser for update download: ") + RELEASES_URL);
+            QMessageBox::information(
+                this,
+                tr("Open Manually"),
+                tr("Couldn't open your browser automatically. Please visit this page to download the update:\n\n%1")
+                    .arg(RELEASES_URL));
+        }
     });
     connect(downloadBtn, &QPushButton::clicked, this, &QDialog::accept);
 
