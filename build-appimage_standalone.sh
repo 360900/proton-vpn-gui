@@ -23,9 +23,9 @@
 #   ./build-appimage.sh --run    # build, then launch the resulting AppImage
 #
 # Requirements (install with your package manager before running):
-#   cmake, ninja-build, Qt 6 dev headers (qt6-base-dev / qt6-base),
-#   python3, python3-gi, python3-gi-cairo,
+#   cmake, ninja-build, python3, python3-venv, python3-gi, python3-gi-cairo,
 #   wget, binutils (ar), gcc
+#   (Qt itself is fetched via aqtinstall — see below — not from the system.)
 #
 # linuxdeploy and appimagetool are downloaded automatically on first run
 # and cached in .appimage-build/tools/.
@@ -44,7 +44,9 @@ APP_ID="io.github.wheat32.ProtonVPNQt"
 
 # -- Read version --------------------------------------------------------------
 VERSION=$(python3 -c "import json; print(json.load(open('${SCRIPT_DIR}/src/version.json'))['app_version'])")
-OUTPUT="${OUTPUT_DIR}/ProtonVPN-Qt-${VERSION}-standalone-x86_64.AppImage"
+# APPIMAGE_VARIANT_SUFFIX distinguishes the ubuntu-24.04-pinned "compat" build
+# (see release.yml) from the regular build in the release artifact filename.
+OUTPUT="${OUTPUT_DIR}/ProtonVPN-Qt-${VERSION}-standalone${APPIMAGE_VARIANT_SUFFIX:+-${APPIMAGE_VARIANT_SUFFIX}}-x86_64.AppImage"
 
 # -- Color helpers -------------------------------------------------------------
 GREEN='\033[0;32m'; YELLOW='\033[1;33m'; RED='\033[0;31m'; NC='\033[0m'
@@ -60,10 +62,52 @@ command -v ar      >/dev/null 2>&1 || die "ar not found — install binutils"
 command -v gcc     >/dev/null 2>&1 || die "gcc is not installed (needed for stub library)"
 [[ -f "${SCRIPT_DIR}/src/CMakeLists.txt" ]] || die "Run this script from the repository root."
 
+# -- Install Qt via aqt ---------------------------------------------------------
+# aqt fetches Qt from upstream instead of the distro's qt6-base package,
+# avoiding distros (e.g. Ubuntu 26.04) that compile against a raised CPU
+# baseline (AVX2). QT_SPEC="6" always resolves to the newest 6.x release,
+# bounded so a future Qt7 can't get pulled in silently.
+QT_SPEC="6"
+AQT_VENV="${BUILD_ROOT}/aqt-venv"
+python3 -m venv "${AQT_VENV}"
+"${AQT_VENV}/bin/pip" install --quiet aqtinstall
+
+info "Resolving latest Qt ${QT_SPEC}.x release via aqt..."
+QT_VERSION=$("${AQT_VENV}/bin/aqt" list-qt linux desktop --spec "${QT_SPEC}" --latest-version)
+[[ -n "${QT_VERSION}" ]] || die "Could not resolve latest Qt ${QT_SPEC}.x version via aqt"
+info "Latest available: Qt ${QT_VERSION}"
+
+# The arch identifier used to query/install changed from "gcc_64" (Qt <=6.5)
+# to "linux_gcc_64" (Qt >=6.8); resolve it instead of hardcoding either. The
+# on-disk install directory is always named "gcc_64" regardless of which arch
+# identifier was used to install it.
+QT_ARCH=$("${AQT_VENV}/bin/aqt" list-qt linux desktop --arch "${QT_VERSION}" | tr ' ' '\n' | grep -m1 'gcc_64$')
+[[ -n "${QT_ARCH}" ]] || die "Could not resolve Qt linux desktop arch for ${QT_VERSION}"
+
+QT_CACHE="${BUILD_ROOT}/qt"
+QT_DIR="${QT_CACHE}/${QT_VERSION}/gcc_64"
+
+# qtsvg and qtwayland (the platform plugin) ship in the base install as of at
+# least Qt 6.10+ — no -m addon modules needed; requesting them by name errors.
+if [[ ! -x "${QT_DIR}/bin/qmake6" ]]; then
+    info "Installing Qt ${QT_VERSION} (${QT_ARCH}) via aqt..."
+    "${AQT_VENV}/bin/aqt" install-qt linux desktop "${QT_VERSION}" "${QT_ARCH}" \
+        -O "${QT_CACHE}"
+fi
+
+QMAKE="${QT_DIR}/bin/qmake6"
+[[ -x "${QMAKE}" ]] || die "aqt-installed qmake6 not found at ${QMAKE}"
+export QMAKE
+export PATH="${QT_DIR}/bin:${PATH}"
+
 # -- Build the Qt app ----------------------------------------------------------
+# -march=x86-64 pins our binary to the generic baseline, regardless of the CI runner's compiler default.
 info "Building ProtonVPN Qt App (Release)..."
 cmake -S "${SCRIPT_DIR}/src" -B "${BUILD_ROOT}/native" \
-      -DCMAKE_BUILD_TYPE=Release -G Ninja
+      -DCMAKE_BUILD_TYPE=Release -G Ninja \
+      -DCMAKE_PREFIX_PATH="${QT_DIR}" \
+      -DCMAKE_C_FLAGS="-march=x86-64" \
+      -DCMAKE_CXX_FLAGS="-march=x86-64"
 cmake --build "${BUILD_ROOT}/native" --parallel
 
 info "Installing into AppDir..."
@@ -189,11 +233,9 @@ done
 # libssl.so.3 (newer than Ubuntu's) must not overwrite the libssl that Qt was
 # compiled against.  linuxdeploy will bundle Ubuntu's libssl.so.3 here; the
 # bundled Python later uses its own copy found via RPATH.
+# QMAKE was already set above (aqt-installed Qt); linuxdeploy-plugin-qt queries
+# it to locate Qt's own libs/plugins to bundle.
 info "Bundling Qt and gi libraries..."
-
-QMAKE=$(command -v qmake6 2>/dev/null || command -v qmake 2>/dev/null || true)
-[[ -n "${QMAKE}" ]] || die "qmake6/qmake not found — install Qt 6 development tools"
-export QMAKE
 
 FAKE_LIBS="${BUILD_ROOT}/fake-libs"
 mkdir -p "${FAKE_LIBS}"
@@ -226,10 +268,13 @@ rm -f "${APPDIR}/usr/plugins/imageformats/kimg_jxr.so"
 rm -f "${APPDIR}/usr/lib/libjxrglue.so.0"
 
 # linuxdeploy-plugin-qt skips the Wayland platform plugin on headless CI runners.
-# EXTRA_PLATFORM_PLUGINS uses a naming convention that doesn't match Ubuntu's
+# EXTRA_PLATFORM_PLUGINS uses a naming convention that doesn't match the
 # libqwayland.so filename, so we copy it manually instead along with any of its
 # shared library dependencies (e.g. libQt6WaylandClient) not already bundled.
+# The aqt-installed Qt's own plugin dir is checked first; the /usr/lib* paths
+# remain as a fallback for local builds against a system-installed Qt.
 for _wayland_dir in \
+    "${QT_DIR}/plugins/platforms" \
     "/usr/lib/x86_64-linux-gnu/qt6/plugins/platforms" \
     "/usr/lib/qt6/plugins/platforms" \
     "/usr/lib64/qt6/plugins/platforms"; do
@@ -283,7 +328,7 @@ done
 # no conflict between the two copies.
 info "Bundling Qt SSL libraries..."
 for lib in libssl.so.3 libcrypto.so.3; do
-    src=$(ldconfig -p 2>/dev/null | grep " ${lib} " | awk '{print $NF}' | head -1 || true)
+    src=$(ldconfig -p 2>/dev/null | awk -v lib="${lib}" '$1 == lib {print $NF; exit}' || true)
     if [[ -n "${src}" && -f "${src}" ]]; then
         cp -n "${src}" "${APPDIR}/usr/lib/"
         info "  Bundled: ${lib} (${src})"
