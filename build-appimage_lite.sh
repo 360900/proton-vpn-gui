@@ -146,6 +146,11 @@ gcc -shared -Wl,-soname,libjxrglue.so.0 -x c /dev/null \
 
 export PATH="${TOOLS_DIR}:${PATH}"
 
+# linuxdeploy resolves proton_vpn_qt's shared library dependencies the same
+# way ldd does (via LD_LIBRARY_PATH/system paths), not via QMAKE. Since aqt's
+# Qt lives outside any system library path, it must be added explicitly or
+# linuxdeploy can't find libQt6*.so at all.
+LD_LIBRARY_PATH="${QT_DIR}/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}" \
 NO_STRIP=1 APPIMAGE_EXTRACT_AND_RUN=1 "${LINUXDEPLOY}" \
     --appdir       "${APPDIR}" \
     --executable   "${APPDIR}/usr/bin/proton_vpn_qt" \
@@ -161,7 +166,7 @@ if [[ ! -d "${LINUXDEPLOY_QT_EXTRACTED}" ]]; then
 fi
 
 info "Deploying Qt plugins..."
-LD_LIBRARY_PATH="${FAKE_LIBS}${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}" \
+LD_LIBRARY_PATH="${QT_DIR}/lib:${FAKE_LIBS}${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}" \
 NO_STRIP=1 \
     "${LINUXDEPLOY_QT_EXTRACTED}/usr/bin/linuxdeploy-plugin-qt" \
     --appdir "${APPDIR}"
