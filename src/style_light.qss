@@ -313,8 +313,22 @@ QToolButton#accordionHeader:hover {
     background-color: #e4e4f0;
 }
 
+/* QScrollArea's internal viewport widget doesn't inherit the app's palette
+   the way a normal QWidget does under Fusion, so it falls back to the
+   style's own default rendering unless given an explicit background. */
+QScrollArea {
+    background: transparent;
+    border: none;
+}
+QScrollArea > QWidget {
+    background: transparent;
+}
+QScrollArea > QWidget > QWidget {
+    background: transparent;
+}
+
 QScrollBar:vertical {
-    background: #e8e8f0;
+    background: #ffffff;
     width: 8px;
     border-radius: 4px;
 }
@@ -482,15 +496,90 @@ QFrame#drawerNotch:hover {
     background-color: #d0d0e8;
 }
 
+/*  Tabs (Settings page) — Fusion has no built-in Breeze-like tab rendering,
+    so this is defined explicitly rather than left to the active QStyle. */
+QTabWidget::pane {
+    background-color: #f0f0f5;
+    border: 1px solid #c8c8d8;
+    border-radius: 6px;
+    border-top-left-radius: 0px;
+    border-top-right-radius: 0px;
+    top: -1px;
+}
+QTabWidget::tab-bar {
+    left: 0px;
+    alignment: left;
+}
+QTabBar::tab {
+    background-color: transparent;
+    color: #5a5a7a;
+    border: none;
+    padding: 6px 16px 5px 16px;
+}
+QTabBar::tab:selected {
+    background-color: #f0f0f5;
+    color: #1a1a2e;
+    font-weight: bold;
+    border: 1px solid #c8c8d8;
+    border-bottom: none;
+    border-top: 2px solid #6d4aff;
+    border-top-left-radius: 6px;
+    border-top-right-radius: 6px;
+    padding: 4px 15px 5px 15px;
+}
+QTabBar::tab:hover:!selected {
+    background-color: #dcdcec;
+    color: #1a1a2e;
+    border-top-left-radius: 6px;
+    border-top-right-radius: 6px;
+}
+
+QComboBox {
+    background-color: #ffffff;
+    color: #1a1a2e;
+    border: 1px solid #c8c8d8;
+    border-radius: 6px;
+    padding: 4px 8px;
+    min-height: 22px;
+}
+QComboBox:hover {
+    border-color: #6d4aff;
+}
+QComboBox:focus {
+    border: 1px solid #6d4aff;
+}
+QComboBox QAbstractItemView {
+    background-color: #ffffff;
+    color: #1a1a2e;
+    border: 1px solid #c8c8d8;
+    border-radius: 6px;
+    selection-background-color: #6d4aff;
+    selection-color: white;
+    outline: none;
+    padding: 4px;
+}
 QComboBox:disabled {
     color: #aaaabb;
     background-color: #e0e0ea;
     border-color: #c0c0d0;
 }
+QComboBox::drop-down {
+    background: transparent;
+    border: none;
+}
 QComboBox::drop-down:disabled {
-    border-color: #c0c0d0;
+    background: transparent;
+    border: none;
+}
+QComboBox::down-arrow {
+    image: url(:/assets/chevron-down.svg);
+    width: 12px;
+    height: 12px;
 }
 QComboBox::down-arrow:disabled {
+    image: url(:/assets/chevron-down.svg);
+    width: 12px;
+    height: 12px;
     opacity: 0.3;
 }
 

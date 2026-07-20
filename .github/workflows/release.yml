@@ -122,8 +122,11 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y \
             cmake ninja-build \
-            qt6-base-dev qt6-svg-dev libqt6svg6-dev qt6-wayland \
-            libgl1-mesa-dev \
+            libgl1-mesa-dev libwayland-dev pkg-config \
+            libxkbcommon-x11-0 libxcb-cursor0 libxcb-icccm4 libxcb-image0 \
+            libxcb-keysyms1 libxcb-randr0 libxcb-render-util0 libxcb-render0 \
+            libxcb-shape0 libxcb-shm0 libxcb-sync1 libxcb-xfixes0 \
+            libxcb-xinerama0 libxcb-xkb1 libx11-xcb1 \
             python3 python3-venv python3-gi python3-gi-cairo \
             wget
 
@@ -140,6 +143,50 @@ jobs:
           name: appimage-standalone
           path: dist/*-standalone-*.AppImage
 
+  # Same build as above, but pinned to ubuntu-24.04 instead of ubuntu-26.04.
+  # Ubuntu 26.04's own apt packages (openssl, curl, etc. — everything except
+  # Qt, which now comes from aqt regardless of variant) are compiled against a
+  # raised CPU baseline (x86-64-v3 / AVX2), so an AppImage built there won't
+  # run on older, pre-AVX2 CPUs. This variant stays on 24.04's baseline apt
+  # packages for maximum compatibility, at the cost of tracking Ubuntu's own
+  # (older) library versions instead of 26.04's newer ones. ubuntu-24.04 is
+  # pinned explicitly (not ubuntu-latest) so it won't silently drift onto
+  # 26.04's baseline once GitHub Actions retires the 24.04 label.
+  build-appimage-standalone-compat:
+    name: Build AppImage Standalone Compat (Ubuntu 24.04)
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            cmake ninja-build \
+            libgl1-mesa-dev libwayland-dev pkg-config \
+            libxkbcommon-x11-0 libxcb-cursor0 libxcb-icccm4 libxcb-image0 \
+            libxcb-keysyms1 libxcb-randr0 libxcb-render-util0 libxcb-render0 \
+            libxcb-shape0 libxcb-shm0 libxcb-sync1 libxcb-xfixes0 \
+            libxcb-xinerama0 libxcb-xkb1 libx11-xcb1 \
+            python3 python3-venv python3-gi python3-gi-cairo \
+            wget
+
+      - name: Build AppImage (Standalone Compat)
+        run: |
+          chmod +x build-appimage_standalone.sh
+          ./build-appimage_standalone.sh
+        env:
+          APPIMAGE_EXTRACT_AND_RUN: "1"
+          APPIMAGE_VARIANT_SUFFIX: "compat"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: appimage-standalone-compat
+          path: dist/*-standalone-compat-*.AppImage
+
   build-appimage-lite:
     name: Build AppImage Lite (Ubuntu)
     runs-on: ubuntu-26.04
@@ -153,9 +200,12 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y \
             cmake ninja-build \
-            qt6-base-dev qt6-svg-dev libqt6svg6-dev qt6-wayland \
-            libgl1-mesa-dev \
-            python3 \
+            libgl1-mesa-dev libwayland-dev pkg-config \
+            libxkbcommon-x11-0 libxcb-cursor0 libxcb-icccm4 libxcb-image0 \
+            libxcb-keysyms1 libxcb-randr0 libxcb-render-util0 libxcb-render0 \
+            libxcb-shape0 libxcb-shm0 libxcb-sync1 libxcb-xfixes0 \
+            libxcb-xinerama0 libxcb-xkb1 libx11-xcb1 \
+            python3 python3-venv \
             wget
 
       - name: Build AppImage (Lite)
@@ -174,7 +224,7 @@ jobs:
   release:
     name: Create GitHub Release
     runs-on: ubuntu-26.04
-    needs: [build-native, build-flatpak, build-appimage-standalone, build-appimage-lite]
+    needs: [build-native, build-flatpak, build-appimage-standalone, build-appimage-standalone-compat, build-appimage-lite]
 
     steps:
       - name: Checkout
@@ -206,6 +256,11 @@ jobs:
         with:
           name: appimage-standalone
 
+      - name: Download AppImage (Standalone Compat)
+        uses: actions/download-artifact@v4
+        with:
+          name: appimage-standalone-compat
+
       - name: Download AppImage (Lite)
         uses: actions/download-artifact@v4
         with:
@@ -226,6 +281,7 @@ jobs:
             | File | Description |
             |------|-------------|
             | `ProtonVPN-Qt-${{ steps.tag.outputs.VERSION }}-standalone-x86_64.AppImage` | AppImage — bundles the ProtonVPN CLI; no separate install needed |
+            | `ProtonVPN-Qt-${{ steps.tag.outputs.VERSION }}-standalone-compat-x86_64.AppImage` | AppImage — same as Standalone, but built for compatibility with older (pre-2015-ish, pre-AVX2) CPUs |
             | `ProtonVPN-Qt-${{ steps.tag.outputs.VERSION }}-lite-x86_64.AppImage` | AppImage — Qt app only; requires the ProtonVPN CLI installed on your system |
             | `proton-vpn-qt-app-linux-x86_64.tar.gz` | Native binary (requires ProtonVPN CLI on host) |
             | `io.github.wheat32.ProtonVPNQt.flatpak` | Flatpak bundle (requires ProtonVPN CLI on host) |
@@ -233,6 +289,8 @@ jobs:
             ### AppImage — Standalone vs Lite
 
             The **Standalone** AppImage bundles a portable Python interpreter and the ProtonVPN CLI packages, so no extra install is required. The **Lite** AppImage contains only the Qt frontend and relies on the [Proton VPN Linux CLI](https://protonvpn.com/support/linux-vpn-tool/) already being installed on your system — useful if you already have it set up and want a smaller download.
+
+            If the regular Standalone AppImage fails to launch with a `CPU ISA level is lower than required` error, your CPU likely doesn't support AVX2 — use the **Standalone Compat** build instead.
 
             ```bash
             chmod +x ProtonVPN-Qt-${{ steps.tag.outputs.VERSION }}-standalone-x86_64.AppImage
@@ -257,6 +315,7 @@ jobs:
             > This is a community build. See the [README](https://github.com/${{ github.repository }}/blob/main/README.md) for requirements and usage.
           files: |
             ProtonVPN-Qt-${{ steps.tag.outputs.VERSION }}-standalone-x86_64.AppImage
+            ProtonVPN-Qt-${{ steps.tag.outputs.VERSION }}-standalone-compat-x86_64.AppImage
             ProtonVPN-Qt-${{ steps.tag.outputs.VERSION }}-lite-x86_64.AppImage
             proton-vpn-qt-app-linux-x86_64.tar.gz
             io.github.wheat32.ProtonVPNQt.flatpak

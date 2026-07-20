@@ -127,8 +127,11 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y \
             cmake ninja-build \
-            qt6-base-dev qt6-svg-dev libqt6svg6-dev qt6-wayland \
-            libgl1-mesa-dev \
+            libgl1-mesa-dev libwayland-dev pkg-config \
+            libxkbcommon-x11-0 libxcb-cursor0 libxcb-icccm4 libxcb-image0 \
+            libxcb-keysyms1 libxcb-randr0 libxcb-render-util0 libxcb-render0 \
+            libxcb-shape0 libxcb-shm0 libxcb-sync1 libxcb-xfixes0 \
+            libxcb-xinerama0 libxcb-xkb1 libx11-xcb1 \
             python3 python3-venv python3-gi python3-gi-cairo \
             wget
 
@@ -149,6 +152,48 @@ jobs:
           path: dist/*-standalone-*.AppImage
           retention-days: 7
 
+  # Pinned to ubuntu-24.04 instead of ubuntu-26.04 for pre-AVX2 CPU compatibility.
+  # Kept in CI too so a compat-specific breakage (different apt package set)
+  # surfaces on a PR instead of only at release time.
+  build-appimage-standalone-compat:
+    name: Build AppImage Standalone Compat (Ubuntu 24.04)
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            cmake ninja-build \
+            libgl1-mesa-dev libwayland-dev pkg-config \
+            libxkbcommon-x11-0 libxcb-cursor0 libxcb-icccm4 libxcb-image0 \
+            libxcb-keysyms1 libxcb-randr0 libxcb-render-util0 libxcb-render0 \
+            libxcb-shape0 libxcb-shm0 libxcb-sync1 libxcb-xfixes0 \
+            libxcb-xinerama0 libxcb-xkb1 libx11-xcb1 \
+            python3 python3-venv python3-gi python3-gi-cairo \
+            wget
+
+      - name: Build AppImage (Standalone Compat)
+        run: |
+          chmod +x build-appimage_standalone.sh
+          ./build-appimage_standalone.sh
+        env:
+          APPIMAGE_EXTRACT_AND_RUN: "1"
+          APPIMAGE_VARIANT_SUFFIX: "compat"
+
+      - name: Confirm AppImage exists
+        run: ls dist/*-standalone-compat-*.AppImage
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: appimage-standalone-compat-ci
+          path: dist/*-standalone-compat-*.AppImage
+          retention-days: 7
+
   build-appimage-lite:
     name: Build AppImage Lite (Ubuntu)
     runs-on: ubuntu-26.04
@@ -162,9 +207,12 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y \
             cmake ninja-build \
-            qt6-base-dev qt6-svg-dev libqt6svg6-dev qt6-wayland \
-            libgl1-mesa-dev \
-            python3 \
+            libgl1-mesa-dev libwayland-dev pkg-config \
+            libxkbcommon-x11-0 libxcb-cursor0 libxcb-icccm4 libxcb-image0 \
+            libxcb-keysyms1 libxcb-randr0 libxcb-render-util0 libxcb-render0 \
+            libxcb-shape0 libxcb-shm0 libxcb-sync1 libxcb-xfixes0 \
+            libxcb-xinerama0 libxcb-xkb1 libx11-xcb1 \
+            python3 python3-venv \
             wget
 
       - name: Build AppImage (Lite)

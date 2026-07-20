@@ -49,3 +49,5 @@ dist/
 # AppImage Building
 .appimage-build/
 squashfs-root/
+aqtinstall.log
+

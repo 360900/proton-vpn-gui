@@ -84,6 +84,8 @@ set(SOURCES
         dialogs/aboutDialog.cpp
         dialogs/errorDetailsDialog.h
         dialogs/errorDetailsDialog.cpp
+        dialogs/quitDialog.h
+        dialogs/quitDialog.cpp
         dialogs/updateAvailableDialog.h
         dialogs/updateAvailableDialog.cpp
         dialogs/whatsNewDialog.h

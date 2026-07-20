@@ -1,4 +1,4 @@
-# proton-vpn-qt-app
+# ProtonVPN Qt App
 
 A Qt GUI front-end for the [Proton VPN Linux CLI](https://protonvpn.com/support/linux-vpn-tool/).
 

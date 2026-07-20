@@ -1,5 +1,6 @@
 #pragma once
 
+#include <QCloseEvent>
 #include <QEvent>
 #include <QFrame>
 #include <QKeyEvent>
@@ -81,6 +82,7 @@ private:
     void updateTrayIcon(VpnState state);
     void sendNotification(const QString& title, const QString& message) const;
     void changeEvent(QEvent* event) override;
+    void closeEvent(QCloseEvent* event) override;
     void keyPressEvent(QKeyEvent* event) override;
     void resizeEvent(QResizeEvent* event) override;
     void maybeShowWhatsNew();
