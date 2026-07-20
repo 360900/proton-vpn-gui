@@ -13,6 +13,7 @@
 #include <QSysInfo>
 #include <QTranslator>
 #include "appConfig.h"
+#include "cli/appImageUtils.h"
 #include "cli/flatpakUtils.h"
 #include "cli/platformUtils.h"
 #include "dbus/vpnStatusAdaptor.h"
@@ -97,6 +98,23 @@ int main(int argc, char* argv[])
             nullptr,
             QCoreApplication::translate("main", "Already Running"),
             QCoreApplication::translate("main", "ProtonVPN is already running.\n\nCheck your system tray or taskbar."));
+        return 1;
+    }
+
+    // The Standalone AppImage bundles its own ProtonVPN CLI. If a separate
+    // CLI is also installed on the host, the two installs fight over the
+    // same daemon/session state. Refuse to start rather than risk that.
+    if (isStandaloneAppImage() && systemProtonVpnCliInstalledSeparately())
+    {
+        DBG_APP(QStringLiteral("Standalone AppImage detected a separate system ProtonVPN CLI install. Refusing to start."));
+        QMessageBox::critical(
+            nullptr,
+            QCoreApplication::translate("main", "Conflicting ProtonVPN CLI Installation"),
+            QCoreApplication::translate("main",
+                "This AppImage bundles its own ProtonVPN CLI, but a separate ProtonVPN CLI "
+                "installation was also found on your system. Running both together can cause "
+                "conflicts.\n\nPlease either use the Lite AppImage instead, or uninstall the "
+                "system ProtonVPN CLI."));
         return 1;
     }
 

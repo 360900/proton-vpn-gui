@@ -64,7 +64,11 @@ constexpr int   LOADING_TIMER_INTERVAL_MS = 120;
 constexpr qreal LOGO_SCALE                = 4.0;
 constexpr int   SMALL_ICON_PIX            = 14;
 constexpr QColor STAR_FILL_COLOR(0xFF, 0xD2, 0x4A);
-constexpr QColor NOTCH_ICON_COLOR(200, 200, 220);
+// The drawer notch background is light on the light theme, so the icon needs
+// a dark tint there instead of the light tint used against the dark theme's
+// dark notch background — otherwise it's too low-contrast to see.
+constexpr QColor NOTCH_ICON_COLOR_DARK_BG(200, 200, 220);
+constexpr QColor NOTCH_ICON_COLOR_LIGHT_BG(90, 90, 122);
 
 // Picker list rows
 constexpr int   ROW_HEIGHT         = 34;
@@ -1741,7 +1745,20 @@ void VpnPage::updateDrawerNotchIcon()
     const QString path = m_drawer->isExpanded() == true
         ? QStringLiteral(":/assets/arrow-bar-left.svg")
         : QStringLiteral(":/assets/arrow-bar-right.svg");
-    m_drawerNotchIcon->setPixmap(GeoUtils::svgPixmap(path, SMALL_ICON_PIX, NOTCH_ICON_COLOR));
+    const QColor windowColor = QGuiApplication::palette().color(QPalette::Window);
+    const QColor tintColor = (windowColor.lightness() < LIGHTNESS_MIDPOINT)
+        ? NOTCH_ICON_COLOR_DARK_BG
+        : NOTCH_ICON_COLOR_LIGHT_BG;
+    m_drawerNotchIcon->setPixmap(GeoUtils::svgPixmap(path, SMALL_ICON_PIX, tintColor));
+}
+
+void VpnPage::changeEvent(QEvent* event)
+{
+    QWidget::changeEvent(event);
+    if (event->type() == QEvent::PaletteChange)
+    {
+        updateDrawerNotchIcon();
+    }
 }
 
 void VpnPage::resizeEvent(QResizeEvent* event)

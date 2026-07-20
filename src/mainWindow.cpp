@@ -20,6 +20,7 @@
 #include "appConfig.h"
 #include "connectionHistory.h"
 #include "debug.h"
+#include "dialogs/quitDialog.h"
 #include "dialogs/updateAvailableDialog.h"
 #include "dialogs/whatsNewDialog.h"
 #include "geoUtils.h"
@@ -63,14 +64,6 @@ constexpr int DARK_THEME_LIGHTNESS_THRESHOLD = 128;
 constexpr int DARK_BG_R = 0x1a;
 constexpr int DARK_BG_G = 0x1a;
 constexpr int DARK_BG_B = 0x2e;
-
-// Quit dialog
-constexpr int QUIT_DIALOG_MIN_WIDTH         = 440;
-constexpr int QUIT_DIALOG_SPACING           = 16;
-constexpr int QUIT_DIALOG_MARGIN            = 24;
-constexpr int QUIT_DIALOG_BOTTOM_MARGIN     = 20;
-constexpr int QUIT_DIALOG_BTN_ROW_SPACING   = 8;
-constexpr int QUIT_DIALOG_RESULT_DISCONNECT = 2;
 
 // Notifications and tray
 constexpr int NOTIFICATION_ICON_SIZE   = 64;
@@ -446,83 +439,12 @@ MainWindow::MainWindow(QWidget* parent)
             return;
         }
 
-        auto* dlg = new QDialog(this);
-        dlg->setWindowTitle(tr("Quit ProtonVPN"));
-        dlg->setAttribute(Qt::WA_DeleteOnClose);
-        dlg->setModal(true);
-        dlg->setMinimumWidth(QUIT_DIALOG_MIN_WIDTH);
-
-        auto* layout = new QVBoxLayout(dlg);
-        layout->setSpacing(QUIT_DIALOG_SPACING);
-        layout->setContentsMargins(QUIT_DIALOG_MARGIN, QUIT_DIALOG_MARGIN, QUIT_DIALOG_MARGIN, QUIT_DIALOG_BOTTOM_MARGIN);
-
-        auto* msgLabel = new QLabel(
-            QStringLiteral("%1<br>%2").arg(
-                tr("The VPN is currently active.").toHtmlEscaped(),
-                tr("What would you like to do before quitting?").toHtmlEscaped()),
-            dlg);
-        msgLabel->setWordWrap(true);
-        msgLabel->setTextFormat(Qt::RichText);
-        layout->addWidget(msgLabel);
-
-        if (m_vpnPage->isPortForwardingActive())
-        {
-            auto* pfLabel = new QLabel(
-                QStringLiteral("<i>%1</i>").arg(
-                    tr("Note: the forwarded port lease will lapse shortly after "
-                       "the app closes, as the keep-alive loop will no longer be running.")
-                    .toHtmlEscaped()),
-                dlg);
-            pfLabel->setWordWrap(true);
-            pfLabel->setTextFormat(Qt::RichText);
-            layout->addWidget(pfLabel);
-        }
-
-        auto* btnRow = new QHBoxLayout();
-        btnRow->setSpacing(QUIT_DIALOG_BTN_ROW_SPACING);
-
-        auto* cancelBtn = new QPushButton(tr("Cancel"), dlg);
-        cancelBtn->setObjectName(QStringLiteral("secondaryButton"));
-
-        auto* leaveOnBtn = new QPushButton(tr("Leave VPN on"), dlg);
-        leaveOnBtn->setObjectName(QStringLiteral("leaveVpnOnButton"));
-        leaveOnBtn->setDefault(true);
-
-        auto* disconnectBtn = new QPushButton(tr("Disconnect VPN"), dlg);
-        disconnectBtn->setObjectName(QStringLiteral("dangerButton"));
-
-        // Uniform size: same height, equal width via stretch, reduced horizontal
-        // padding so the longest label ("Disconnect VPN") fits without clipping.
-        const QString overridePadding = QStringLiteral("padding-left: 8px; padding-right: 8px;");
-        cancelBtn->setStyleSheet(
-            QStringLiteral("QPushButton#secondaryButton { %1 }").arg(overridePadding));
-        leaveOnBtn->setStyleSheet(
-            QStringLiteral("QPushButton#leaveVpnOnButton { %1 }").arg(overridePadding));
-        disconnectBtn->setStyleSheet(
-            QStringLiteral("QPushButton#dangerButton { %1 }").arg(overridePadding));
-
-        const int btnH = disconnectBtn->sizeHint().height();
-        cancelBtn->setFixedHeight(btnH);
-        leaveOnBtn->setFixedHeight(btnH);
-        disconnectBtn->setFixedHeight(btnH);
-
-        btnRow->addWidget(cancelBtn, 1);
-        btnRow->addWidget(leaveOnBtn, 1);
-        btnRow->addWidget(disconnectBtn, 1);
-        layout->addLayout(btnRow);
-
-        connect(cancelBtn,    &QPushButton::clicked, dlg, &QDialog::reject);
-        connect(leaveOnBtn,   &QPushButton::clicked, dlg, &QDialog::accept);
-        connect(disconnectBtn, &QPushButton::clicked, dlg, [dlg]()
-        {
-            dlg->done(QUIT_DIALOG_RESULT_DISCONNECT); // custom result code for "disconnect then quit"
-        });
-
-        const int result = dlg->exec();
+        QuitDialog dlg(m_vpnPage->isPortForwardingActive(), this);
+        const int result = dlg.exec();
         if (result == QDialog::Rejected)
             return; // user canceled - do nothing
 
-        if (result == QUIT_DIALOG_RESULT_DISCONNECT)
+        if (result == QuitDialog::DisconnectResult)
         {
             m_manager->disconnectVpnSync(); // blocks until protonvpn disconnect finishes
         }
@@ -786,6 +708,21 @@ void MainWindow::changeEvent(QEvent* event)
     {
         refreshIcons();
     }
+}
+
+// Closing the window (the titlebar X) hides to the tray instead of quitting,
+// matching the tray icon's "Quit" action being the only path that actually
+// exits. Falls back to a real close if no tray is available to hide to,
+// since hiding with no way to bring the window back would strand the user.
+void MainWindow::closeEvent(QCloseEvent* event)
+{
+    if (QSystemTrayIcon::isSystemTrayAvailable())
+    {
+        event->ignore();
+        hide();
+        return;
+    }
+    QWidget::closeEvent(event);
 }
 
 void MainWindow::resizeEvent(QResizeEvent* event)

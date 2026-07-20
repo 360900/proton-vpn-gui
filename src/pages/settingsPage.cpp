@@ -74,6 +74,7 @@ constexpr int PAGE_LAYOUT_TOP_MARGIN        = 8;
 constexpr int PAGE_LAYOUT_SPACING           = 8;
 constexpr int APP_CONTENT_BOT_MARGIN        = 8;
 constexpr int SECTION_HEADER_H_MARGIN       = 4;
+constexpr int SECTION_HEADER_LEFT_MARGIN    = 12;
 constexpr int SECTION_HEADER_TOP_MARGIN     = 16;
 constexpr int SECTION_HEADER_BOT_MARGIN     = 4;
 constexpr int AUTOSTART_SUB_LEFT_MARGIN     = 32;
@@ -477,6 +478,12 @@ SettingsPage::SettingsPage(VpnManager* manager, NatPmpManager* natPmpManager, QW
         QScrollArea* scroll = new QScrollArea(tabPage);
         scroll->setWidgetResizable(true);
         scroll->setFrameShape(QFrame::NoFrame);
+        // The viewport's own background is handled by the global
+        // "QScrollArea > QWidget" QSS rule, not a local setStyleSheet() call
+        // here — a *local* stylesheet on an ancestor silently breaks
+        // background-color painting for ID-selector-styled descendants
+        // further down the tree (e.g. #infoCard), even though borders still
+        // render fine. Confirmed by isolated testing; cost real time to find.
         QVBoxLayout* pageLayout = new QVBoxLayout(tabPage);
         pageLayout->setContentsMargins(0, PAGE_LAYOUT_TOP_MARGIN, 0, 0);
         pageLayout->setSpacing(PAGE_LAYOUT_SPACING);
@@ -501,6 +508,7 @@ SettingsPage::SettingsPage(VpnManager* manager, NatPmpManager* natPmpManager, QW
         QScrollArea* scroll = new QScrollArea(appTab);
         scroll->setWidgetResizable(true);
         scroll->setFrameShape(QFrame::NoFrame);
+        // See the comment on the equivalent construction in makeCard() above.
         QVBoxLayout* pageLayout = new QVBoxLayout(appTab);
         pageLayout->setContentsMargins(0, PAGE_LAYOUT_TOP_MARGIN, 0, 0);
         pageLayout->setSpacing(0);
@@ -525,7 +533,7 @@ SettingsPage::SettingsPage(VpnManager* manager, NatPmpManager* natPmpManager, QW
 
             QWidget* w = new QWidget(appContent);
             QHBoxLayout* hl = new QHBoxLayout(w);
-            hl->setContentsMargins(SECTION_HEADER_H_MARGIN, SECTION_HEADER_TOP_MARGIN,
+            hl->setContentsMargins(SECTION_HEADER_LEFT_MARGIN, SECTION_HEADER_TOP_MARGIN,
                                    SECTION_HEADER_H_MARGIN, SECTION_HEADER_BOT_MARGIN);
             QLabel* lbl = new QLabel(title.toUpper(), w);
             lbl->setObjectName(QStringLiteral("appSectionHeader"));
@@ -748,7 +756,7 @@ SettingsPage::SettingsPage(VpnManager* manager, NatPmpManager* natPmpManager, QW
 
             QWidget* w = new QWidget(m_appPlusSection);
             QHBoxLayout* hl = new QHBoxLayout(w);
-            hl->setContentsMargins(SECTION_HEADER_H_MARGIN, SECTION_HEADER_TOP_MARGIN,
+            hl->setContentsMargins(SECTION_HEADER_LEFT_MARGIN, SECTION_HEADER_TOP_MARGIN,
                                    SECTION_HEADER_H_MARGIN, SECTION_HEADER_BOT_MARGIN);
             QLabel* lbl = new QLabel(title.toUpper(), w);
             lbl->setObjectName(QStringLiteral("appSectionHeader"));
