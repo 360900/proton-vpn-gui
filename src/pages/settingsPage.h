@@ -8,7 +8,7 @@
 #include <QTimer>
 #include <functional>
 #include "../vpnManager.h"
-#include "../cli/natpmpManager.h"
+#include "../core/natPmpService.h"
 #include "../dialogs/aboutDialog.h"
 #include "../widgets/toggleWithStatus.h"
 
@@ -20,7 +20,7 @@ class SettingsPage : public QWidget
     Q_OBJECT
 
 public:
-    explicit SettingsPage(VpnManager* manager, NatPmpManager* natPmpManager, QWidget* parent = nullptr);
+    explicit SettingsPage(VpnManager* manager, NatPmpService* natPmpManager, QWidget* parent = nullptr);
     void refresh();
 
 signals:
@@ -50,7 +50,7 @@ private:
     };
 
     VpnManager* m_manager;
-    NatPmpManager* m_natPmpManager = nullptr;
+    NatPmpService* m_natPmpManager = nullptr;
     QList<ToggleRow> m_toggleRows;
     QList<ComboRow> m_comboRows;
 

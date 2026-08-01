@@ -1,0 +1,5 @@
+Status:     Connected
+Server:     US-NJ#203 in Secaucus, United States
+Country:    United States
+Protocol:   WireGuard
+IP:         192.0.2.1

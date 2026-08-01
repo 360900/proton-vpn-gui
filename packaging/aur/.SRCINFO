@@ -1,0 +1,19 @@
+pkgbase = proton-vpn-gui
+	pkgdesc = Qt 6 graphical interface for the Proton VPN Linux CLI
+	pkgver = 2.0.0
+	pkgrel = 1
+	url = https://github.com/360900/proton-vpn-gui
+	arch = x86_64
+	license = GPL-3.0-only
+	makedepends = cmake
+	makedepends = ninja
+	makedepends = qt6-tools
+	depends = proton-vpn-cli
+	depends = qt6-base
+	depends = qt6-declarative
+	depends = qt6-svg
+	optdepends = libnatpmp: port forwarding support
+	source = git+https://github.com/360900/proton-vpn-gui.git#tag=v2.0.0
+	sha256sums = SKIP
+
+pkgname = proton-vpn-gui

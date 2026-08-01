@@ -24,7 +24,7 @@ constexpr int BROWSER_STRETCH       = 1;
 WhatsNewDialog::WhatsNewDialog(const QString& version, QWidget* parent)
     : QDialog(parent)
 {
-    setWindowTitle(tr("What's New in ProtonVPN Qt App"));
+    setWindowTitle(tr("What's New in Proton VPN GUI"));
     setMinimumSize(WHATS_NEW_MIN_WIDTH, WHATS_NEW_MIN_HEIGHT);
     setAttribute(Qt::WA_DeleteOnClose);
 
@@ -58,10 +58,10 @@ WhatsNewDialog::WhatsNewDialog(const QString& version, QWidget* parent)
     browser->setFrameShape(QFrame::NoFrame);
     browser->setHtml(
         QStringLiteral("<p>%1</p>")
-        .arg(tr("Thanks for keeping ProtonVPN Qt App up to date! "
+        .arg(tr("Thanks for keeping Proton VPN GUI up to date! "
                 "For the full list of changes, bug fixes, and new features, visit the release page on GitHub: "
-                "<a href='https://github.com/wheat32/proton-vpn-qt-app/releases'>"
-                "github.com/wheat32/proton-vpn-qt-app/releases</a>.")));
+                "<a href='https://github.com/360900/proton-vpn-gui/releases'>"
+                "github.com/360900/proton-vpn-gui/releases</a>.")));
     layout->addWidget(browser, BROWSER_STRETCH);
 
     //  Buttons
@@ -73,7 +73,7 @@ WhatsNewDialog::WhatsNewDialog(const QString& version, QWidget* parent)
     connect(releasePageBtn, &QPushButton::clicked, this, []()
     {
         QDesktopServices::openUrl(
-            QUrl(QStringLiteral("https://github.com/wheat32/proton-vpn-qt-app/releases")));
+            QUrl(QStringLiteral("https://github.com/360900/proton-vpn-gui/releases")));
     });
 
     QPushButton* closeBtn = new QPushButton(tr("Got It!"), this);

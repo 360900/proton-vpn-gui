@@ -13,10 +13,10 @@ namespace
 {
 QString historyFilePath()
 {
-    // XDG_DATA_HOME / ProtonVPN-Qt / history.json
+    // XDG_DATA_HOME / ProtonVPN-GUI / history.json
     // Override to be explicit about the sub-dir name.
     const QString dir = QStandardPaths::writableLocation(QStandardPaths::GenericDataLocation)
-                        + QStringLiteral("/ProtonVPN-Qt");
+                        + QStringLiteral("/ProtonVPN-GUI");
     return dir + QStringLiteral("/history.json");
 }
 } // namespace

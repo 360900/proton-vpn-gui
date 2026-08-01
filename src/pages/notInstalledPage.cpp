@@ -25,7 +25,7 @@ NotInstalledPage::NotInstalledPage(QWidget* parent)
     icon->setFixedSize(NOT_INSTALLED_ICON_SIZE, NOT_INSTALLED_ICON_SIZE);
     layout->addWidget(icon, 0, Qt::AlignCenter);
 
-    QLabel* titleLabel = new QLabel(tr("ProtonVPN CLI Not Found"), this);
+    QLabel* titleLabel = new QLabel(tr("Proton VPN CLI Not Found"), this);
     titleLabel->setObjectName(QStringLiteral("titleLabel"));
     QFont titleFont = titleLabel->font();
     titleFont.setPointSize(NOT_INSTALLED_TITLE_FONT_SIZE);
@@ -47,7 +47,13 @@ NotInstalledPage::NotInstalledPage(QWidget* parent)
     installBtn->setCursor(Qt::PointingHandCursor);
     connect(installBtn, &QPushButton::clicked, this, []()
     {
-        QDesktopServices::openUrl(QUrl(QStringLiteral("https://protonvpn.com/support/linux-vpn-setup/")));
+        QDesktopServices::openUrl(QUrl(QStringLiteral("https://protonvpn.com/support/linux-cli")));
     });
     layout->addWidget(installBtn, 0, Qt::AlignCenter);
+
+    // Lets the user continue without restarting the app after installing the CLI.
+    QPushButton* recheckBtn = new QPushButton(tr("Check Again"), this);
+    recheckBtn->setCursor(Qt::PointingHandCursor);
+    connect(recheckBtn, &QPushButton::clicked, this, &NotInstalledPage::recheckRequested);
+    layout->addWidget(recheckBtn, 0, Qt::AlignCenter);
 }

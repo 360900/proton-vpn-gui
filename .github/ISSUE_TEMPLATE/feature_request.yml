@@ -1,5 +1,5 @@
 name: Feature Request
-description: Suggest a new feature or enhancement for proton-vpn-qt-app.
+description: Suggest a new feature or enhancement for proton-vpn-gui.
 labels: ["enhancement"]
 body:
   - type: checkboxes

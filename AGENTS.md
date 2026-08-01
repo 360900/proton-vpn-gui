@@ -1,4 +1,4 @@
-# AGENTS.md — ProtonVPN Qt App
+# AGENTS.md — Proton VPN GUI
 
 ## Architecture Overview
 
@@ -24,7 +24,7 @@ cmake -B cmake-build-debug -DCMAKE_BUILD_TYPE=Debug
 # Build
 cmake --build cmake-build-debug
 # Run
-./cmake-build-debug/proton_vpn_qt
+./cmake-build-debug/proton_vpn_gui
 ```
 
 Pre-built configs exist at `src/cmake-build-debug/` and `src/cmake-build-release/`.
@@ -54,8 +54,8 @@ This transparently wraps commands with `flatpak-spawn --host` when inside a Flat
 | `cli/statusmonitor.h/cpp` | Background `protonvpn status` polling subprocess |
 | `cli/flatpakutils.h` | `buildHostCommand()` for Flatpak-safe subprocess spawning |
 | `cli/protonvpncli.cpp` | CLI command builder helpers |
-| `appconfig.h/cpp` | App preferences → `~/.config/ProtonVPN-Qt/app.json` |
-| `connectionhistory.h/cpp` | Recent connections → `$XDG_DATA_HOME/ProtonVPN-Qt/history.json` |
+| `appconfig.h/cpp` | App preferences → `~/.config/ProtonVPN-GUI/app.json` |
+| `connectionhistory.h/cpp` | Recent connections → `$XDG_DATA_HOME/ProtonVPN-GUI/history.json` |
 | `main.cpp` | Palette, style, single-instance lock, version from `version.json` |
 | `style.qss` | App-wide stylesheet (embedded via `resources.qrc`) |
 
@@ -67,7 +67,7 @@ This transparently wraps commands with `flatpak-spawn --host` when inside a Flat
 - **Logging**: use `DBG_APP(msg)`, `DBG_CLI(msg)`, `DBG_SETTINGS(msg)` macros (stdout, tagged+timestamped). Never use `qDebug()`.
 - **Versioning**: single source of truth is `src/version.json` (keys: `app_version`, `cli_version_tested_min`, `cli_version_tested_max`); read at runtime via embedded resource `:/version.json`
 - **Palette**: dark Proton-branded theme set in `main.cpp` (`bg #1a1a2e`, accent purple `#6d4aff`)
-- **Translations**: Qt Linguist, source file `i18n/proton_vpn_qt_en.ts`; UI strings use `tr()` or `QCoreApplication::translate()`
+- **Translations**: Qt Linguist, source file `i18n/proton_vpn_gui_en.ts`; UI strings use `tr()` or `QCoreApplication::translate()`
 - **Language**: American English only — variable names, comments, and default/fallback text strings (e.g. `color` not `colour`, `canceled` not `cancelled`, `initialize` not `initialise`)
 
 ### Code Style

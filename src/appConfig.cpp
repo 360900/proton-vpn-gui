@@ -12,12 +12,12 @@ namespace
 {
 // Easy-to-change config location
 // QStandardPaths::GenericConfigLocation resolves to:
-//   - Native install : ~/.config/ProtonVPN-Qt/
-//   - Flatpak sandbox: ~/.var/app/io.github.wheat32.ProtonVPNQt/config/ProtonVPN-Qt/
+//   - Native install : ~/.config/ProtonVPN-GUI/
+//   - Flatpak sandbox: ~/.var/app/io.github._360900.ProtonVpnGui/config/ProtonVPN-GUI/
 QString configDir()
 {
     return QStandardPaths::writableLocation(QStandardPaths::GenericConfigLocation)
-           + QStringLiteral("/ProtonVPN-Qt");
+           + QStringLiteral("/ProtonVPN-GUI");
 }
 QString configFile() { return configDir() + QStringLiteral("/app.json"); }
 
@@ -55,6 +55,8 @@ void AppConfig::load()
     m_lastSeenVersion = obj.value(QStringLiteral("last_seen_version")).toString();
     m_checkForUpdates = obj.value(QStringLiteral("check_for_updates")).toBool(true);
     m_logToFile = obj.value(QStringLiteral("log_to_file")).toBool(false);
+    m_sidebarCollapsed = obj.value(QStringLiteral("sidebar_collapsed")).toBool(false);
+    m_reduceMotion = obj.value(QStringLiteral("reduce_motion")).toBool(false);
 
     const QString themeStr = obj.value(QStringLiteral("theme")).toString(QStringLiteral("system"));
     if (themeStr == QStringLiteral("dark"))
@@ -101,6 +103,8 @@ void AppConfig::logLoadedConfig() const
     DBG_SETTINGS(QStringLiteral("  last_seen_version        = ") + m_lastSeenVersion);
     DBG_SETTINGS(QStringLiteral("  check_for_updates        = ") + (m_checkForUpdates ? QStringLiteral("true") : QStringLiteral("false")));
     DBG_SETTINGS(QStringLiteral("  log_to_file              = ") + (m_logToFile ? QStringLiteral("true") : QStringLiteral("false")));
+    DBG_SETTINGS(QStringLiteral("  sidebar_collapsed        = ") + (m_sidebarCollapsed ? QStringLiteral("true") : QStringLiteral("false")));
+    DBG_SETTINGS(QStringLiteral("  reduce_motion            = ") + (m_reduceMotion ? QStringLiteral("true") : QStringLiteral("false")));
     DBG_SETTINGS(QStringLiteral("  theme                    = ") + themeStr);
 }
 
@@ -128,6 +132,8 @@ bool AppConfig::save() const
     }
     obj[QStringLiteral("check_for_updates")] = m_checkForUpdates;
     obj[QStringLiteral("log_to_file")] = m_logToFile;
+    obj[QStringLiteral("sidebar_collapsed")] = m_sidebarCollapsed;
+    obj[QStringLiteral("reduce_motion")] = m_reduceMotion;
 
     QString themeStr;
     switch (m_theme)
@@ -272,6 +278,26 @@ void AppConfig::setLogToFile(const bool value)
     FileLogger::instance().setEnabled(value);
 }
 
+bool AppConfig::sidebarCollapsed() const { return m_sidebarCollapsed; }
+
+void AppConfig::setSidebarCollapsed(const bool value)
+{
+    if (m_sidebarCollapsed == value) return;
+    DBG_SETTINGS(QStringLiteral("Setting changed: sidebar_collapsed = ") + (value ? QStringLiteral("true") : QStringLiteral("false")));
+    m_sidebarCollapsed = value;
+    (void)save();
+}
+
+bool AppConfig::reduceMotion() const { return m_reduceMotion; }
+
+void AppConfig::setReduceMotion(const bool value)
+{
+    if (m_reduceMotion == value) return;
+    DBG_SETTINGS(QStringLiteral("Setting changed: reduce_motion = ") + (value ? QStringLiteral("true") : QStringLiteral("false")));
+    m_reduceMotion = value;
+    (void)save();
+}
+
 void AppConfig::resetToDefaults()
 {
     DBG_SETTINGS(QStringLiteral("AppConfig::resetToDefaults() - deleting config file and resetting all values"));
@@ -292,6 +318,8 @@ void AppConfig::resetToDefaults()
     m_lastSeenVersion        = QString();
     m_checkForUpdates        = true;
     m_logToFile              = false;
+    m_sidebarCollapsed       = false;
+    m_reduceMotion           = false;
     FileLogger::instance().setEnabled(false);
 }
 

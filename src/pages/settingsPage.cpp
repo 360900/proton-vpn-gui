@@ -15,6 +15,7 @@
 #include <QApplication>
 #include <QButtonGroup>
 #include <QClipboard>
+#include <QPointer>
 #include <QCoreApplication>
 #include <QDebug>
 #include <QDialogButtonBox>
@@ -457,7 +458,7 @@ void SettingsPage::updateAutoConnectServerRow() const
     }
 }
 
-SettingsPage::SettingsPage(VpnManager* manager, NatPmpManager* natPmpManager, QWidget* parent)
+SettingsPage::SettingsPage(VpnManager* manager, NatPmpService* natPmpManager, QWidget* parent)
     : QWidget(parent), m_manager(manager), m_natPmpManager(natPmpManager)
 {
     QVBoxLayout* outerLayout = new QVBoxLayout(this);
@@ -1243,7 +1244,7 @@ SettingsPage::SettingsPage(VpnManager* manager, NatPmpManager* natPmpManager, QW
 
         QRadioButton* advancedRadio = makeKsOption(
             tr("Advanced"),
-            tr("Only allow internet access when connected to ProtonVPN. "
+            tr("Only allow internet access when connected to Proton VPN. "
                "Advanced kill switch will remain active even when you restart your device."),
             false, false);
         radioGroup->addButton(advancedRadio);
@@ -1355,9 +1356,19 @@ SettingsPage::SettingsPage(VpnManager* manager, NatPmpManager* natPmpManager, QW
 
         connect(m_portForwardingToggle, &ToggleWithStatus::toggled, this, [this](const bool on)
         {
-            if (on == true && NatPmpManager::isInstalled() == false)
+            if (on == false)
             {
-                QDialog* dlg = new QDialog(this);
+                return;
+            }
+            // The install check probes the HOST PATH asynchronously (the old
+            // synchronous lookup searched the sandbox PATH under Flatpak).
+            m_natPmpManager->checkInstalled([self = QPointer(this)](const bool installed)
+            {
+                if (self.isNull() || installed)
+                {
+                    return;
+                }
+                QDialog* dlg = new QDialog(self.data());
                 dlg->setWindowTitle(tr("natpmpc Not Installed"));
                 dlg->setAttribute(Qt::WA_DeleteOnClose);
                 dlg->setMinimumWidth(NATPMPC_DLG_MIN_WIDTH);
@@ -1457,7 +1468,7 @@ SettingsPage::SettingsPage(VpnManager* manager, NatPmpManager* natPmpManager, QW
                 layout->addWidget(btnBox);
 
                 dlg->exec();
-            }
+            });
         });
 
         connect(m_portForwardingToggle, &ToggleWithStatus::toggled, this, [this](const bool on)
@@ -1528,7 +1539,7 @@ SettingsPage::SettingsPage(VpnManager* manager, NatPmpManager* natPmpManager, QW
 
         if (m_natPmpManager != nullptr)
         {
-            connect(m_natPmpManager, &NatPmpManager::portAcquired, this, [this](const int port)
+            connect(m_natPmpManager, &NatPmpService::portAcquired, this, [this](const int port)
             {
                 if (m_settingsPortLabel != nullptr)
                 {
@@ -1539,14 +1550,14 @@ SettingsPage::SettingsPage(VpnManager* manager, NatPmpManager* natPmpManager, QW
                     m_settingsPortRow->setVisible(true);
                 }
             });
-            connect(m_natPmpManager, &NatPmpManager::portLost, this, [this]()
+            connect(m_natPmpManager, &NatPmpService::portLost, this, [this]()
             {
                 if (m_settingsPortRow != nullptr)
                 {
                     m_settingsPortRow->setVisible(false);
                 }
             });
-            connect(m_natPmpManager, &NatPmpManager::natpmpcMissing, this, [this]()
+            connect(m_natPmpManager, &NatPmpService::natpmpcMissing, this, [this]()
             {
                 if (m_settingsPortRow != nullptr)
                 {
@@ -1895,8 +1906,14 @@ void SettingsPage::onSettingsReady(const QMap<QString, QString>& info)
 
 QString SettingsPage::autoStartFilePath()
 {
-    return QStandardPaths::writableLocation(QStandardPaths::ConfigLocation)
-           + QStringLiteral("/autostart/proton-vpn-qt.desktop");
+    // Inside a Flatpak sandbox, QStandardPaths::ConfigLocation resolves to the
+    // app-private config dir (~/.var/app/<id>/config), which the host never
+    // reads. Write the entry to the real host ~/.config/autostart instead;
+    // that path is exposed via the xdg-config/autostart finish argument.
+    const QString configDir = isRunningAsFlatpak()
+        ? QDir::homePath() + QStringLiteral("/.config")
+        : QStandardPaths::writableLocation(QStandardPaths::ConfigLocation);
+    return configDir + QStringLiteral("/autostart/proton-vpn-gui.desktop");
 }
 
 bool SettingsPage::autoStartEnabled()
@@ -1911,7 +1928,7 @@ bool SettingsPage::setAutoStart(const bool enable, QString& errorOut)
     if (enable == true)
     {
         // Load the bundled .desktop template.
-        QFile templateFile(QStringLiteral(":/autostart/proton-vpn-qt.desktop"));
+        QFile templateFile(QStringLiteral(":/autostart/proton-vpn-gui.desktop"));
         if (templateFile.open(QIODevice::ReadOnly) == false)
         {
             errorOut = tr("Could not read the autostart template resource.");

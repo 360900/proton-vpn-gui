@@ -16,6 +16,7 @@
 #include <QJsonObject>
 #include <QMouseEvent>
 #include <QPainter>
+#include <QPointer>
 #include <QPainterPath>
 #include <QSvgRenderer>
 #include <QPropertyAnimation>
@@ -1321,10 +1322,10 @@ VpnPage::VpnPage(VpnManager* manager, QWidget* parent)
         m_connectedCountryCode = cc;
     });
 
-    //  NatPmpManager
-    m_natPmpManager = new NatPmpManager(this);
+    //  NAT-PMP port-forwarding service (owned by VpnService; shared with SettingsPage)
+    m_natPmpManager = m_manager->natPmp();
 
-    connect(m_natPmpManager, &NatPmpManager::portAcquired, this, [this](int port)
+    connect(m_natPmpManager, &NatPmpService::portAcquired, this, [this](int port)
     {
         if (m_portLabel != nullptr)
         {
@@ -1336,7 +1337,7 @@ VpnPage::VpnPage(VpnManager* manager, QWidget* parent)
         }
     });
 
-    connect(m_natPmpManager, &NatPmpManager::portLost, this, [this]()
+    connect(m_natPmpManager, &NatPmpService::portLost, this, [this]()
     {
         if (m_portRow != nullptr)
         {
@@ -1344,7 +1345,7 @@ VpnPage::VpnPage(VpnManager* manager, QWidget* parent)
         }
     });
 
-    connect(m_natPmpManager, &NatPmpManager::natpmpcMissing, this, [this]()
+    connect(m_natPmpManager, &NatPmpService::natpmpcMissing, this, [this]()
     {
         showNatpmpcBanner();
     });
@@ -2099,9 +2100,9 @@ void VpnPage::updateUi(const VpnState state, const QString& info)
         else
         {
             m_infoLabel->setText(tr(
-                "An error occurred in the ProtonVPN Qt desktop app.\n"
+                "An error occurred in the Proton VPN GUI desktop app.\n"
                 "Please file a bug report at "
-                "<a href='https://github.com/wheat32/proton-vpn-qt-app/issues'>github.com/wheat32/proton-vpn-qt-app</a>."));
+                "<a href='https://github.com/360900/proton-vpn-gui/issues'>github.com/360900/proton-vpn-gui</a>."));
         }
         m_infoLabel->setTextFormat(Qt::RichText);
         m_infoLabel->setOpenExternalLinks(true);
@@ -2183,23 +2184,32 @@ void VpnPage::refreshConnectedInfoLabel() const
 
 void VpnPage::startNatPmpLoop()
 {
-    if (NatPmpManager::isInstalled() == false)
+    // The install check runs on the host (async) - the old synchronous PATH
+    // lookup searched the sandbox PATH and always failed under Flatpak.
+    m_natPmpManager->checkInstalled([self = QPointer(this)](const bool installed)
     {
-        showNatpmpcBanner();
-        return;
-    }
+        if (self.isNull())
+        {
+            return;
+        }
+        if (installed == false)
+        {
+            self->showNatpmpcBanner();
+            return;
+        }
 
-    // natpmpc is available - dismiss any stale "not installed" banner that
-    // may have been shown before the user installed the package at runtime.
-    if (m_natpmpcBanner != nullptr)
-    {
-        m_natpmpcBanner->deleteLater();
-        m_natpmpcBanner = nullptr;
-    }
+        // natpmpc is available - dismiss any stale "not installed" banner that
+        // may have been shown before the user installed the package at runtime.
+        if (self->m_natpmpcBanner != nullptr)
+        {
+            self->m_natpmpcBanner->deleteLater();
+            self->m_natpmpcBanner = nullptr;
+        }
 
-    // refresh() fires an immediate port-mapping request whether or not the
-    // keep-alive loop was already running, preventing a 45-second wait.
-    m_natPmpManager->refresh();
+        // refresh() fires an immediate port-mapping request whether or not the
+        // keep-alive loop was already running, preventing a 45-second wait.
+        self->m_natPmpManager->refresh();
+    });
 }
 
 void VpnPage::showNatpmpcBanner()

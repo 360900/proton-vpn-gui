@@ -2,14 +2,14 @@
 
 #include <QDBusAbstractAdaptor>
 #include <QString>
-#include "../vpnManager.h"
+#include "../core/vpnService.h"
 
 /**
  * D-Bus adaptor that exposes the VPN connection status on the session bus.
  *
- * Service name : com.protonvpn.app
- * Object path  : /com/protonvpn/app
- * Interface    : com.protonvpn.app.Status
+ * Service name : io.github._360900.ProtonVpnGui
+ * Object path  : /io/github/360900/ProtonVpnGui
+ * Interface    : io.github._360900.ProtonVpnGui.Status
  *
  * Properties (read-only):
  *   Status          – "unknown" | "disconnected" | "connecting" |
@@ -23,13 +23,13 @@
 class VpnStatusAdaptor : public QDBusAbstractAdaptor
 {
     Q_OBJECT
-    Q_CLASSINFO("D-Bus Interface", "com.protonvpn.app.Status")
+    Q_CLASSINFO("D-Bus Interface", "io.github._360900.ProtonVpnGui.Status")
 
     Q_PROPERTY(QString Status          READ status)
     Q_PROPERTY(QString ConnectedServer READ connectedServer)
 
 public:
-    explicit VpnStatusAdaptor(VpnManager* parent);
+    explicit VpnStatusAdaptor(VpnService* parent);
 
     QString status()          const;
     QString connectedServer() const;
@@ -37,11 +37,6 @@ public:
 signals:
     void StatusChanged(const QString& status);
 
-private slots:
-    void onConnectionStateChanged(VpnState state, const QString& info);
-
 private:
-    VpnManager* m_manager; // non-owning; lifetime is managed by MainWindow
-    static QString stateToString(VpnState state);
+    VpnService* m_service; // non-owning; the adaptor is parented to it
 };
-

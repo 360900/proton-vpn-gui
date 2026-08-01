@@ -1,0 +1,119 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>io.github._360900.ProtonVpnGui</id>
+  <name>Proton VPN GUI</name>
+  <summary>Community Qt interface for the Proton VPN CLI</summary>
+  <description>
+    <p>
+      A lightweight Qt-based graphical interface for the Proton VPN command-line
+      tool. Supports connecting to servers by country or city, account management,
+      favorites, connection history, and VPN settings.
+    </p>
+    <p>
+      When running as a Flatpak, the app communicates with the Proton VPN CLI
+      installed on the host system via flatpak-spawn. The CLI must be installed
+      separately.
+    </p>
+  </description>
+
+  <url type="homepage">https://github.com/360900/proton-vpn-gui</url>
+  <url type="bugtracker">https://github.com/360900/proton-vpn-gui/issues</url>
+  <url type="vcs-browser">https://github.com/360900/proton-vpn-gui</url>
+
+  <launchable type="desktop-id">io.github._360900.ProtonVpnGui.desktop</launchable>
+
+  <developer id="io.github._360900">
+    <name>360900</name>
+  </developer>
+
+  <branding>
+    <color type="primary" scheme_preference="light">#5636d9</color>
+    <color type="primary" scheme_preference="dark">#8b76ff</color>
+  </branding>
+
+  <screenshots>
+    <screenshot type="default">
+      <caption>Main connection page</caption>
+      <image type="source" width="773" height="614">https://raw.githubusercontent.com/360900/proton-vpn-gui/v2.0.0/screenshots/main-page_normal-width.png</image>
+    </screenshot>
+    <screenshot>
+      <caption>Countries list</caption>
+      <image type="source" width="626" height="694">https://raw.githubusercontent.com/360900/proton-vpn-gui/v2.0.0/screenshots/countries-list_normal-width.png</image>
+    </screenshot>
+    <screenshot>
+      <caption>Account page</caption>
+      <image type="source" width="626" height="694">https://raw.githubusercontent.com/360900/proton-vpn-gui/v2.0.0/screenshots/account-page.png</image>
+    </screenshot>
+    <screenshot>
+      <caption>Settings: VPN tab</caption>
+      <image type="source" width="626" height="694">https://raw.githubusercontent.com/360900/proton-vpn-gui/v2.0.0/screenshots/settings-page_vpn-tab.png</image>
+    </screenshot>
+    <screenshot>
+      <caption>Settings: App tab</caption>
+      <image type="source" width="626" height="694">https://raw.githubusercontent.com/360900/proton-vpn-gui/v2.0.0/screenshots/settings-page_app-tab-1.png</image>
+    </screenshot>
+    <screenshot>
+      <caption>Settings: App tab (continued)</caption>
+      <image type="source" width="626" height="694">https://raw.githubusercontent.com/360900/proton-vpn-gui/v2.0.0/screenshots/settings-page_app-tab-2.png</image>
+    </screenshot>
+    <screenshot>
+      <caption>Settings: Appearance tab</caption>
+      <image type="source" width="626" height="694">https://raw.githubusercontent.com/360900/proton-vpn-gui/v2.0.0/screenshots/settings-page_appearance-tab.png</image>
+    </screenshot>
+  </screenshots>
+
+  <releases>
+    <release version="2.0.0" date="2026-08-01">
+      <description>
+        <p>Complete overhaul: new Qt Quick interface on a rewritten, tested core.</p>
+        <ul>
+          <li>Brand-new interface following Proton's visual language: persistent searchable server list with favorites and recents, connection status card, dark and light themes with live system-theme following.</li>
+          <li>Rewritten core: all CLI interaction now flows through a tested library with typed parsers, a connection state machine with a stuck-transition watchdog, and fast status polling during connect/disconnect.</li>
+          <li>Port forwarding now works inside the Flatpak sandbox.</li>
+          <li>New D-Bus control interface (Connect/Disconnect/Raise); launching a second instance now raises the existing window.</li>
+          <li>Quitting with an active connection no longer freezes the interface.</li>
+          <li>Crisp icons and flags on HiDPI displays.</li>
+        </ul>
+      </description>
+    </release>
+  </releases>
+
+  <content_rating type="oars-1.1">
+    <content_attribute id="violence-cartoon">none</content_attribute>
+    <content_attribute id="violence-fantasy">none</content_attribute>
+    <content_attribute id="violence-realistic">none</content_attribute>
+    <content_attribute id="violence-bloodshed">none</content_attribute>
+    <content_attribute id="violence-sexual">none</content_attribute>
+    <content_attribute id="violence-desecration">none</content_attribute>
+    <content_attribute id="violence-slavery">none</content_attribute>
+    <content_attribute id="violence-worship">none</content_attribute>
+    <content_attribute id="drugs-alcohol">none</content_attribute>
+    <content_attribute id="drugs-narcotics">none</content_attribute>
+    <content_attribute id="drugs-tobacco">none</content_attribute>
+    <content_attribute id="sex-nudity">none</content_attribute>
+    <content_attribute id="sex-themes">none</content_attribute>
+    <content_attribute id="sex-homosexuality">none</content_attribute>
+    <content_attribute id="sex-prostitution">none</content_attribute>
+    <content_attribute id="sex-adultery">none</content_attribute>
+    <content_attribute id="sex-appearance">none</content_attribute>
+    <content_attribute id="language-profanity">none</content_attribute>
+    <content_attribute id="language-humor">none</content_attribute>
+    <content_attribute id="language-discrimination">none</content_attribute>
+    <content_attribute id="social-chat">none</content_attribute>
+    <content_attribute id="social-info">none</content_attribute>
+    <content_attribute id="social-audio">none</content_attribute>
+    <content_attribute id="social-location">none</content_attribute>
+  </content_rating>
+
+  <metadata_license>MIT</metadata_license>
+  <project_license>GPL-3.0-only</project_license>
+
+  <requires>
+    <internet>always</internet>
+  </requires>
+
+  <recommends>
+    <control>pointing</control>
+    <control>keyboard</control>
+  </recommends>
+</component>

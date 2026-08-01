@@ -1,298 +1,112 @@
 // vpnManager.cpp
-// VpnManager: construction, settings file access, and background status
-// monitor infrastructure.
-//
-// All functions that interact with the protonvpn CLI live in protonvpnCli.cpp.
+// See vpnManager.h - façade over core/vpnService.h.
 
-#include <QDir>
-#include <QFile>
-#include <QJsonArray>
-// ReSharper disable once CppUnusedIncludeDirective
-#include <QJsonDocument>
-#include <QJsonObject>
-#include "cli/statusMonitor.h"
-#include "debug.h"
 #include "vpnManager.h"
-
-namespace
-{
-// Path to the ProtonVPN settings file, relative to the user's home directory.
-QString getSettingsFilePath()
-{
-    return QDir::homePath() + QStringLiteral("/.config/Proton/VPN/settings.json");
-}
-
-constexpr int KILLSWITCH_MODE_STANDARD    = 1;
-constexpr int NETSHIELD_MODE_MALWARE      = 1;
-constexpr int NETSHIELD_MODE_FULL         = 2;
-} // namespace
 
 VpnManager::VpnManager(QObject* parent)
     : QObject(parent)
+    , m_service(new VpnService(nullptr, this))
 {
-}
+    // Direct forwards.
+    connect(m_service, &VpnService::installedResult,   this, &VpnManager::installedResult);
+    connect(m_service, &VpnService::loginStatusResult, this, &VpnManager::loginStatusResult);
+    connect(m_service, &VpnService::twoFactorRequired, this, &VpnManager::twoFactorRequired);
+    connect(m_service, &VpnService::loginFinished,     this, &VpnManager::loginFinished);
+    connect(m_service, &VpnService::signOutFinished,   this, &VpnManager::signOutFinished);
+    connect(m_service, &VpnService::stateChanged,      this, &VpnManager::connectionStateChanged);
+    connect(m_service, &VpnService::connectionCityKnown,
+            this, &VpnManager::connectionCityKnown);
+    connect(m_service, &VpnService::connectionCountryKnown,
+            this, &VpnManager::connectionCountryKnown);
+    connect(m_service, &VpnService::infoReady,        this, &VpnManager::infoReady);
+    connect(m_service, &VpnService::settingsReady,    this, &VpnManager::settingsReady);
+    connect(m_service, &VpnService::configApplied,    this, &VpnManager::configApplied);
+    connect(m_service, &VpnService::cliVersionReady,  this, &VpnManager::cliVersionReady);
+    connect(m_service, &VpnService::accountTypeReady, this, &VpnManager::accountTypeReady);
+    connect(m_service, &VpnService::errorOccurred,    this, &VpnManager::errorOccurred);
 
-// ---------------------------------------------------------------------------
-// Settings (file-based - no CLI involved)
-// ---------------------------------------------------------------------------
-
-void VpnManager::fetchSettings()
-{
-    QMap<QString, QString> settings;
-
-    QFile f(getSettingsFilePath());
-    if (f.open(QIODevice::ReadOnly) == false)
-    {
-        emit settingsReady(settings);
-        return;
-    }
-
-    const QJsonDocument doc = QJsonDocument::fromJson(f.readAll());
-    f.close();
-
-    if (doc.isObject() == false)
-    {
-        emit settingsReady(settings);
-        return;
-    }
-
-    const QJsonObject root = doc.object();
-
-    auto boolStr = [](const bool b) -> QString
-    {
-        return b ? QStringLiteral("on") : QStringLiteral("off");
-    };
-
-    if (root.contains(QStringLiteral("killswitch")))
-    {
-        const int ks = root[QStringLiteral("killswitch")].toInt(0);
-        settings.insert(QStringLiteral("kill-switch"),
-                        ks == KILLSWITCH_MODE_STANDARD ? QStringLiteral("standard") : QStringLiteral("off"));
-    }
-
-    if (root.contains(QStringLiteral("ipv6")))
-    {
-        settings.insert(QStringLiteral("ipv6"),
-                        boolStr(root[QStringLiteral("ipv6")].toBool()));
-    }
-
-    if (root.contains(QStringLiteral("anonymous_crash_reports")))
-    {
-        settings.insert(QStringLiteral("anonymous-crash-reports"),
-                        boolStr(root[QStringLiteral("anonymous_crash_reports")].toBool()));
-    }
-
-    if (root.contains(QStringLiteral("custom_dns")))
-    {
-        const QJsonObject dns = root[QStringLiteral("custom_dns")].toObject();
-        const bool dnsEnabled = dns[QStringLiteral("enabled")].toBool(false);
-        if (dnsEnabled)
-        {
-            const QJsonArray ipList = dns[QStringLiteral("ip_list")].toArray();
-            QStringList ips;
-            for (const auto& v : ipList)
+    // Typed -> legacy payload conversions.
+    connect(m_service, &VpnService::countriesReady, this,
+            [this](const QList<Country>& countries)
             {
-                ips << v.toString();
-            }
-            settings.insert(QStringLiteral("custom-dns"),
-                            ips.isEmpty() ? QStringLiteral("on") : ips.join(QLatin1Char(',')));
-        }
-        else
-        {
-            settings.insert(QStringLiteral("custom-dns"), QStringLiteral("off"));
-        }
-    }
-
-    if (root.contains(QStringLiteral("features")))
-    {
-        const QJsonObject feat = root[QStringLiteral("features")].toObject();
-
-        if (feat.contains(QStringLiteral("netshield")))
-        {
-            const int ns = feat[QStringLiteral("netshield")].toInt(0);
-            QString nsVal;
-            switch (ns)
-            {
-                case NETSHIELD_MODE_MALWARE:
-                    nsVal = QStringLiteral("malware-only");
-                    break;
-                case NETSHIELD_MODE_FULL:
-                    nsVal = QStringLiteral("malware-ads-trackers");
-                    break;
-                default:
-                    nsVal = QStringLiteral("off");
-                    break;
-            }
-            settings.insert(QStringLiteral("netshield"), nsVal);
-        }
-
-        if (feat.contains(QStringLiteral("moderate_nat")))
-        {
-            settings.insert(QStringLiteral("moderate-nat"),
-                            boolStr(feat[QStringLiteral("moderate_nat")].toBool()));
-        }
-
-        if (feat.contains(QStringLiteral("vpn_accelerator")))
-        {
-            settings.insert(QStringLiteral("vpn-accelerator"),
-                            boolStr(feat[QStringLiteral("vpn_accelerator")].toBool()));
-        }
-
-        if (feat.contains(QStringLiteral("port_forwarding")))
-        {
-            settings.insert(QStringLiteral("port-forwarding"),
-                            boolStr(feat[QStringLiteral("port_forwarding")].toBool()));
-        }
-    }
-
-    emit settingsReady(settings);
-}
-
-bool VpnManager::portForwardingEnabled() const
-{
-    QFile f(getSettingsFilePath());
-    if (f.open(QIODevice::ReadOnly) == false)
-        return false;
-    const QJsonDocument doc = QJsonDocument::fromJson(f.readAll());
-    f.close();
-    if (doc.isObject() == false)
-        return false;
-    return doc.object()
-               .value(QStringLiteral("features")).toObject()
-               .value(QStringLiteral("port_forwarding")).toBool(false);
-}
-
-// ---------------------------------------------------------------------------
-// Background status monitor (long-lived subprocess, every 15 s while logged in)
-// ---------------------------------------------------------------------------
-
-void VpnManager::startStatusMonitor()
-{
-    if (m_statusMonitor != nullptr)
-        return;
-
-    m_statusMonitor = new StatusMonitor(this);
-    connect(m_statusMonitor, &StatusMonitor::statusParsed,
-            this, [this](const QMap<QString, QString>& fields)
-            {
-                if (m_state == VpnState::Connecting || m_state == VpnState::Disconnecting)
-                    return; // ignore polls during in-progress transitions
-                applyStatusFields(fields);
+                QMap<QString, QString> map;
+                for (const Country& c : countries)
+                {
+                    map.insert(c.name, c.code);
+                }
+                emit countriesReady(map);
             });
-
-    m_statusMonitor->start();
+    connect(m_service, &VpnService::citiesReady, this,
+            [this](const QString& countryCode, const QList<City>& cities)
+            {
+                QList<QPair<QString, QString>> pairs;
+                pairs.reserve(cities.size());
+                for (const City& c : cities)
+                {
+                    pairs.append({c.name, c.features});
+                }
+                emit citiesReady(countryCode, pairs);
+            });
 }
 
-void VpnManager::stopStatusMonitor()
-{
-    if (m_statusMonitor == nullptr)
-        return;
+void VpnManager::checkInstalled()                { m_service->checkInstalled(); }
+void VpnManager::checkLoginStatus()              { m_service->checkLoginStatus(); }
+void VpnManager::cancelLogin()                   { m_service->cancelLogin(); }
+void VpnManager::signOut()                       { m_service->signOut(); }
+void VpnManager::disconnectVpn()                 { m_service->disconnectVpn(); }
+void VpnManager::fetchCountries()                { m_service->fetchCountries(); }
+void VpnManager::fetchInfo()                     { m_service->fetchInfo(); }
+void VpnManager::fetchSettings()                 { m_service->fetchSettings(); }
+void VpnManager::fetchCliVersion()               { m_service->fetchCliVersion(); }
+void VpnManager::fetchAccountType()              { m_service->fetchAccountType(); }
 
-    m_statusMonitor->stop();
-    m_statusMonitor->deleteLater();
-    m_statusMonitor = nullptr;
+void VpnManager::login(const QString& username, const QString& password)
+{
+    m_service->login(username, password);
 }
 
-// ---------------------------------------------------------------------------
-// Apply a parsed `protonvpn status` snapshot to internal state.
-// Only emits signals when state or connected server actually changed.
-// ---------------------------------------------------------------------------
-
-void VpnManager::applyStatusFields(const QMap<QString, QString>& fields)
+void VpnManager::submit2FA(const QString& token) const
 {
-    const QString statusVal = fields.value(QStringLiteral("status")).toLower();
-    const VpnState newState = (statusVal == QStringLiteral("connected"))
-                              ? VpnState::Connected
-                              : VpnState::Disconnected;
+    m_service->submit2fa(token);
+}
 
-    const QString server = (newState == VpnState::Connected)
-                           ? fields.value(QStringLiteral("server"))
-                           : QString();
-    const QString city = StatusMonitor::parseCityFromServer(server);
-    const QString info = server.isEmpty()
-                        ? QString() :
-                        QStringLiteral("Connected to %1.").arg(server);
+void VpnManager::connectVpn(const QString& country, const QString& city)
+{
+    m_service->connectVpn(country, city);
+}
 
-    // Country code - e.g. "US" from "US-NJ#203 in Secaucus, United States".
-    QString countryCode;
-    if (server.isEmpty() == false)
-    {
-        const int dashPos = server.indexOf(QLatin1Char('-'));
-        const int hashPos = server.indexOf(QLatin1Char('#'));
-        const int endPos  = (dashPos >= 0 && (hashPos < 0 || dashPos < hashPos))
-                            ? dashPos : hashPos;
-        if (endPos > 0)
-        {
-            countryCode = server.left(endPos).toUpper();
-        }
-    }
+void VpnManager::startupAutoConnect(const QString& country, const QString& city)
+{
+    m_service->startupAutoConnect(country, city);
+}
 
-    const VpnState prevState  = m_state;
-    const QString  prevServer = m_connectedServer;
+void VpnManager::disconnectThen(const std::function<void()>& done, const int timeoutMs)
+{
+    m_service->disconnectThen(done, timeoutMs);
+}
 
-    const bool stateChanged  = newState != m_state;
-    const bool serverChanged = stateChanged == false &&
-                               newState == VpnState::Connected &&
-                               m_connectedServer.isEmpty() == false &&
-                               server != m_connectedServer;
+void VpnManager::applyConfigValueAndReconnect(const QString& key, const QString& value)
+{
+    m_service->applyConfigValueAndReconnect(key, value);
+}
 
-    if (stateChanged || serverChanged)
-    {
-        m_state           = newState;
-        m_connectedServer = (newState == VpnState::Connected) ? server : QString();
+void VpnManager::fetchCities(const QString& countryCode)
+{
+    m_service->fetchCities(countryCode);
+}
 
-        if (newState == VpnState::Connected)
-        {
-            if (city.isEmpty() == false)
-            {
-                emit connectionCityKnown(city);
-            }
-            if (countryCode.isEmpty() == false)
-            {
-                emit connectionCountryKnown(countryCode);
-            }
-            emit connectionStateChanged(m_state, info);
-        }
-        else
-        {
-            emit connectionStateChanged(m_state, QString());
-        }
-    }
-    else if (newState == VpnState::Connected && m_connectedServer.isEmpty())
-    {
-        m_connectedServer = server;
-    }
+void VpnManager::applyConfig(const QString& key, const bool enabled)
+{
+    applyConfigValue(key, enabled ? QStringLiteral("on") : QStringLiteral("off"));
+}
 
-    auto stateToStr = [](const VpnState s) -> QString
-    {
-        switch (s)
-        {
-            case VpnState::Connected:
-                return QStringLiteral("Connected");
-            case VpnState::Disconnected:
-                return QStringLiteral("Disconnected");
-            case VpnState::Connecting:
-                return QStringLiteral("Connecting");
-            case VpnState::Disconnecting:
-                return QStringLiteral("Disconnecting");
-            default:
-                return QStringLiteral("Error");
-        }
-    };
+void VpnManager::applyConfigValue(const QString& key, const QString& value)
+{
+    m_service->applyConfigValue(key, value);
+}
 
-    const bool dbgStateChanged  = newState != prevState;
-    const bool dbgServerChanged = dbgStateChanged == false &&
-                                  newState == VpnState::Connected &&
-                                  prevServer.isEmpty() == false &&
-                                  server != prevServer;
-    if (dbgStateChanged)
-    {
-        DBG_POLL(QStringLiteral("State changed:  %1 → %2")
-                     .arg(stateToStr(prevState), stateToStr(newState)));
-    }
-    else if (dbgServerChanged)
-    {
-        DBG_POLL(QStringLiteral("Server changed: \"%1\" → \"%2\"")
-                     .arg(prevServer, server));
-    }
+void VpnManager::fetchCityFeatures(const QString& countryCode, const QString& city,
+                                   const std::function<void(const QString&)>& callback)
+{
+    m_service->fetchCityFeatures(countryCode, city, callback);
 }

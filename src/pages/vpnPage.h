@@ -8,7 +8,7 @@
 #include <QVersionNumber>
 #include <QGraphicsDropShadowEffect>
 #include "../vpnManager.h"
-#include "../cli/natpmpManager.h"
+#include "../core/natPmpService.h"
 #include "../widgets/pickerBase.h"
 #include "../widgets/pickerDrawer.h"
 #include "../widgets/infoBanner.h"
@@ -157,7 +157,7 @@ public:
     void setFavoritesEnabled(bool enabled);
     // Returns true while the natpmpc keep-alive loop is running (port forwarding active).
     bool isPortForwardingActive() const { return m_natPmpManager != nullptr && m_natPmpManager->isRunning(); }
-    NatPmpManager* natPmpManager() const { return m_natPmpManager; }
+    NatPmpService* natPmpManager() const { return m_natPmpManager; }
 
 signals:
     void connectRequested(const QString& country, const QString& city);
@@ -231,10 +231,10 @@ private:
     int   m_checkingSpinnerFrame = 0;
     QString m_rawError;
 
-    // Port forwarding (NatPmpManager keep-alive loop)
+    // Port forwarding (NatPmpService keep-alive loop, owned by VpnService)
     QWidget*        m_portRow       = nullptr;
     QLabel*         m_portLabel     = nullptr;
-    NatPmpManager*  m_natPmpManager = nullptr;
+    NatPmpService*  m_natPmpManager = nullptr;
     InfoBanner*     m_natpmpcBanner = nullptr;
 
     VpnState m_currentState = VpnState::Unknown;

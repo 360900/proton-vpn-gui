@@ -1,5 +1,5 @@
 #!/bin/bash
-# AppRun – ProtonVPN Qt App AppImage launcher.
+# AppRun – Proton VPN GUI AppImage launcher.
 #
 # The AppImage runtime sets $APPIMAGE (path to the .AppImage file) and
 # $APPDIR (mount point of the squashfs filesystem) before executing this
@@ -11,7 +11,7 @@ if [[ -z "${APPDIR}" ]]; then
 fi
 export APPDIR
 
-# ── ProtonVPN CLI ─────────────────────────────────────────────────────────────
+# ── Proton VPN CLI ─────────────────────────────────────────────────────────────
 # Add the bundled CLI launcher to the front of PATH so the Qt app resolves
 # "protonvpn" to the version we shipped, not a system install.
 export PATH="${APPDIR}/usr/share/protonvpn:${PATH}"
@@ -32,4 +32,4 @@ export QT_QPA_PLATFORM_PLUGIN_PATH="${APPDIR}/usr/plugins/platforms"
 
 
 # ── Launch ────────────────────────────────────────────────────────────────────
-exec "${APPDIR}/usr/bin/proton_vpn_qt" "$@"
+exec "${APPDIR}/usr/bin/proton_vpn_gui" "$@"

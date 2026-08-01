@@ -39,7 +39,7 @@ void migrateSystemdToXdgAutostart(const QString& previousVersion)
         return;
 
     const QString configDir = QStandardPaths::writableLocation(QStandardPaths::ConfigLocation);
-    const QString serviceFile = configDir + QStringLiteral("/systemd/user/proton-vpn-qt.service");
+    const QString serviceFile = configDir + QStringLiteral("/systemd/user/proton-vpn-gui.service");
 
     // If the service file does not exist, auto-start was not enabled under the
     // old version — remove nothing, create nothing.
@@ -58,7 +58,7 @@ void migrateSystemdToXdgAutostart(const QString& previousVersion)
     QFile::remove(serviceFile);
 
     // Load the bundled .desktop template.
-    QFile templateFile(QStringLiteral(":/autostart/proton-vpn-qt.desktop"));
+    QFile templateFile(QStringLiteral(":/autostart/proton-vpn-gui.desktop"));
     if (templateFile.open(QIODevice::ReadOnly) == false)
     {
         DBG_APP(QStringLiteral("Migration: failed to read autostart template resource"));
@@ -75,7 +75,7 @@ void migrateSystemdToXdgAutostart(const QString& previousVersion)
 
     // Write the XDG autostart entry.
     const QString autostartDir = configDir + QStringLiteral("/autostart");
-    const QString desktopFile  = autostartDir + QStringLiteral("/proton-vpn-qt.desktop");
+    const QString desktopFile  = autostartDir + QStringLiteral("/proton-vpn-gui.desktop");
 
     QDir().mkpath(autostartDir);
 
@@ -128,7 +128,7 @@ QString Migrations::testMigrateSystemdToXdgAutostart(const QString& simulatedPre
     }
 
     const QString configDir   = QStandardPaths::writableLocation(QStandardPaths::ConfigLocation);
-    const QString serviceFile = configDir + QStringLiteral("/systemd/user/proton-vpn-qt.service");
+    const QString serviceFile = configDir + QStringLiteral("/systemd/user/proton-vpn-gui.service");
 
     logLine(QStringLiteral("Checking for service file: %1").arg(serviceFile));
 
@@ -140,7 +140,7 @@ QString Migrations::testMigrateSystemdToXdgAutostart(const QString& simulatedPre
 
     logLine(QStringLiteral("Service file found."));
     logLine(QStringLiteral("→ WOULD remove: %1").arg(serviceFile));
-    logLine(QStringLiteral("→ WOULD write XDG autostart entry: %1/autostart/proton-vpn-qt.desktop").arg(configDir));
+    logLine(QStringLiteral("→ WOULD write XDG autostart entry: %1/autostart/proton-vpn-gui.desktop").arg(configDir));
 
     return log.join(QLatin1Char('\n'));
 }

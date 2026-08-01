@@ -3,7 +3,7 @@
     <qresource prefix="/assets">
         <file alias="proton-vpn-logo.svg">assets/proton-vpn-logo.svg</file>
         <file alias="proton-vpn-logo-light.svg">assets/proton-vpn-logo-light.svg</file>
-        <file alias="proton-vpn-sign.svg">assets/proton-vpn-sign.svg</file>
+        <file alias="proton-vpn-gui.svg">assets/proton-vpn-gui.svg</file>
         <file alias="state-connected.svg">assets/state-connected.svg</file>
         <file alias="state-disconnected.svg">assets/state-disconnected.svg</file>
         <file alias="state-connecting.svg">assets/state-connecting.svg</file>
@@ -13,6 +13,7 @@
         <file alias="security-key.svg">assets/security-key.svg</file>
         <file alias="lock-fill.svg">assets/lock-fill.svg</file>
         <file alias="person-lines-fill.svg">assets/person-lines-fill.svg</file>
+        <file alias="person-circle.svg">assets/person-circle.svg</file>
         <file alias="power.svg">assets/power.svg</file>
         <file alias="gear.svg">assets/gear.svg</file>
         <file alias="eye-hide.svg">assets/eye/hide.svg</file>
@@ -32,6 +33,8 @@
         <file alias="arrow-bar-right.svg">assets/arrow-bar-right.svg</file>
         <file alias="arrow-bar-left.svg">assets/arrow-bar-left.svg</file>
         <file alias="box-arrow-up-right.svg">assets/box-arrow-up-right.svg</file>
+        <file alias="arrow-clockwise.svg">assets/arrow-clockwise.svg</file>
+        <file alias="search.svg">assets/search.svg</file>
     </qresource>
     <qresource prefix="/">
         <file>version.json</file>
@@ -39,7 +42,6 @@
         <file>style_light.qss</file>
     </qresource>
     <qresource prefix="/autostart">
-        <file alias="proton-vpn-qt.desktop">autostart/proton-vpn-qt.desktop</file>
+        <file alias="proton-vpn-gui.desktop">autostart/proton-vpn-gui.desktop</file>
     </qresource>
 </RCC>
-

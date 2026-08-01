@@ -34,6 +34,7 @@
 build/
 src/cmake-build-debug/
 src/cmake-build-release/
+src/Testing/
 
 # Jetbrains
 .idea/
@@ -50,4 +51,3 @@ dist/
 .appimage-build/
 squashfs-root/
 aqtinstall.log
-

@@ -5,7 +5,7 @@
 
 // ---------------------------------------------------------------------------
 // AppConfig – persists app-level preferences to
-//   ~/.config/ProtonVPN-Qt/app.json
+//   ~/.config/ProtonVPN-GUI/app.json
 // ---------------------------------------------------------------------------
 class AppConfig
 {
@@ -33,6 +33,8 @@ public:
     QString lastSeenVersion() const;
     bool checkForUpdates() const;
     bool logToFile() const;
+    bool sidebarCollapsed() const;
+    bool reduceMotion() const;
 
     void setAutoConnect(bool value);
     void setAutoConnectServer(const QString& value);
@@ -46,6 +48,8 @@ public:
     void setLastSeenVersion(const QString& value);
     void setCheckForUpdates(bool value);
     void setLogToFile(bool value);
+    void setSidebarCollapsed(bool value);
+    void setReduceMotion(bool value);
 
     // Resets every setting to its compile-time default and deletes the config
     // file. The in-memory state is usable immediately; the file will not be
@@ -69,4 +73,6 @@ private:
     QString m_lastSeenVersion;
     bool m_checkForUpdates = true;
     bool m_logToFile = false;
+    bool m_sidebarCollapsed = false;
+    bool m_reduceMotion = false;
 };

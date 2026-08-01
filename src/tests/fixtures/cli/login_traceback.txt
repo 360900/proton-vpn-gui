@@ -1,0 +1,7 @@
+Password:
+Traceback (most recent call last):
+  File "/usr/lib/python3.14/site-packages/proton/vpn/cli/main.py", line 132, in signin
+    session.authenticate(username, password)
+  File "/usr/lib/python3.14/site-packages/proton/session/api.py", line 88, in authenticate
+    raise ProtonAPIError(response)
+proton.session.exceptions.ProtonAPIError: unexpected response

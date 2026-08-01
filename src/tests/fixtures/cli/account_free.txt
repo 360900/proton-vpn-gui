@@ -1,0 +1,11 @@
+
+Current configuration
+Setting                  Value
+-----------------------  -------
+netshield                off
+kill-switch              off
+ipv6                     on
+anonymous-crash-reports  on
+
+To upgrade to VPN Plus and unlock all settings, visit https://protonvpn.com/pricing.
+Use 'protonvpn config set <setting> <value>' to change settings.

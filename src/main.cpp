@@ -1,6 +1,7 @@
 #include <QApplication>
 #include <QDBusConnection>
 #include <QDBusError>
+#include <QDBusMessage>
 #include <QDir>
 #include <QFile>
 #include <QJsonDocument>
@@ -16,6 +17,7 @@
 #include "cli/appImageUtils.h"
 #include "cli/flatpakUtils.h"
 #include "cli/platformUtils.h"
+#include "dbus/vpnControlAdaptor.h"
 #include "dbus/vpnStatusAdaptor.h"
 #include "debug.h"
 #include "fileLogger.h"
@@ -26,13 +28,13 @@
 int main(int argc, char* argv[])
 {
     const QApplication app(argc, argv);
-    QApplication::setApplicationName(QStringLiteral("ProtonVPN"));
-    QApplication::setApplicationDisplayName(QStringLiteral("ProtonVPN"));
+    QApplication::setApplicationName(QStringLiteral("Proton VPN GUI"));
+    QApplication::setApplicationDisplayName(QStringLiteral("Proton VPN GUI"));
 
     // Install translator for UI strings
     static QTranslator translator;
     const QLocale locale = QLocale::system();
-    if (translator.load(locale, QStringLiteral("proton_vpn_qt"), QStringLiteral("_"), QStringLiteral(":/i18n")))
+    if (translator.load(locale, QStringLiteral("proton_vpn_gui"), QStringLiteral("_"), QStringLiteral(":/i18n")))
     {
         QApplication::installTranslator(&translator);
     }
@@ -65,7 +67,7 @@ int main(int argc, char* argv[])
     FileLogger::instance().setEnabled(AppConfig::instance().logToFile());
 
     //  Startup diagnostics
-    DBG_APP(QStringLiteral("=== ProtonVPN Qt App starting ==="));
+    DBG_APP(QStringLiteral("=== Proton VPN GUI starting ==="));
     DBG_APP(QStringLiteral("App version        : ") + appVersion);
     DBG_APP(QStringLiteral("CLI tested min     : ") + cliVersionTestedMin);
     DBG_APP(QStringLiteral("CLI tested max     : ") + cliVersionTestedMax);
@@ -80,41 +82,58 @@ int main(int argc, char* argv[])
 
     AppConfig::instance().logLoadedConfig();
 
-    // Single-instance guard - prevent multiple copies running at the same time.
-    const QString lockPath = QDir::tempPath() + QStringLiteral("/proton-vpn-qt-app.lock");
-    QLockFile lockFile(lockPath);
-    lockFile.setStaleLockTime(0); // never treat a lock as stale
-    constexpr int lockTimeoutMs = 100;
-    if (lockFile.tryLock(lockTimeoutMs) == false)
+    // Single-instance guard. Primary mechanism: D-Bus service-name ownership -
+    // owning io.github._360900.ProtonVpnGui means we are the only instance, and
+    // a second launch asks the first to raise its window instead of showing a
+    // warning box. Fallback when no session bus exists: a QLockFile.
+    const QString dbusServiceName = QStringLiteral("io.github._360900.ProtonVpnGui");
+    QDBusConnection sessionBus = QDBusConnection::sessionBus();
+    QLockFile lockFile(QDir::tempPath() + QStringLiteral("/proton-vpn-gui.lock"));
+    if (sessionBus.isConnected())
     {
-        qint64 pid = 0;
-        QString hostname;
-        QString appname;
-        lockFile.getLockInfo(&pid, &hostname, &appname);
-        DBG_APP(QStringLiteral("Another instance of ProtonVPN is already running (PID: ") +
-                (pid > 0 ? QString::number(pid) : QStringLiteral("unknown")) +
-                QStringLiteral("). Exiting."));
-        QMessageBox::warning(
-            nullptr,
-            QCoreApplication::translate("main", "Already Running"),
-            QCoreApplication::translate("main", "ProtonVPN is already running.\n\nCheck your system tray or taskbar."));
-        return 1;
+        if (sessionBus.registerService(dbusServiceName) == false)
+        {
+            DBG_APP(QStringLiteral("Another instance owns %1 - raising it and exiting.")
+                        .arg(dbusServiceName));
+            QDBusMessage raise = QDBusMessage::createMethodCall(
+                dbusServiceName,
+                QStringLiteral("/io/github/360900/ProtonVpnGui"),
+                QStringLiteral("io.github._360900.ProtonVpnGui.Control"),
+                QStringLiteral("Raise"));
+            sessionBus.call(raise, QDBus::Block, 2000);
+            return 0;
+        }
+        DBG_APP(QStringLiteral("D-Bus: service %1 registered on session bus").arg(dbusServiceName));
+    }
+    else
+    {
+        DBG_APP(QStringLiteral("D-Bus: no session bus - falling back to lock-file guard"));
+        lockFile.setStaleLockTime(0); // never treat a lock as stale
+        constexpr int lockTimeoutMs = 100;
+        if (lockFile.tryLock(lockTimeoutMs) == false)
+        {
+            QMessageBox::warning(
+                nullptr,
+                QCoreApplication::translate("main", "Already Running"),
+                QCoreApplication::translate("main", "Proton VPN GUI is already running.\n\nCheck your system tray or taskbar."));
+            return 1;
+        }
     }
 
-    // The Standalone AppImage bundles its own ProtonVPN CLI. If a separate
+    // The Standalone AppImage bundles its own Proton VPN CLI. If a separate
     // CLI is also installed on the host, the two installs fight over the
     // same daemon/session state. Refuse to start rather than risk that.
     if (isStandaloneAppImage() && systemProtonVpnCliInstalledSeparately())
     {
-        DBG_APP(QStringLiteral("Standalone AppImage detected a separate system ProtonVPN CLI install. Refusing to start."));
+        DBG_APP(QStringLiteral("Standalone AppImage detected a separate system Proton VPN CLI install. Refusing to start."));
         QMessageBox::critical(
             nullptr,
-            QCoreApplication::translate("main", "Conflicting ProtonVPN CLI Installation"),
+            QCoreApplication::translate("main", "Conflicting Proton VPN CLI Installation"),
             QCoreApplication::translate("main",
-                "This AppImage bundles its own ProtonVPN CLI, but a separate ProtonVPN CLI "
+                "This AppImage bundles its own Proton VPN CLI, but a separate Proton VPN CLI "
                 "installation was also found on your system. Running both together can cause "
                 "conflicts.\n\nPlease either use the Lite AppImage instead, or uninstall the "
-                "system ProtonVPN CLI."));
+                "system Proton VPN CLI."));
         return 1;
     }
 
@@ -139,23 +158,24 @@ int main(int argc, char* argv[])
 
     MainWindow w;
 
-    // Expose VPN status on the D-Bus session bus
-    // The adaptor must be parented to the adapted object (VpnManager)
-    const VpnStatusAdaptor* dbusAdaptor = new VpnStatusAdaptor(w.manager());
-    Q_UNUSED(dbusAdaptor)
-    QDBusConnection sessionBus = QDBusConnection::sessionBus();
+    // Expose VPN status + control on the session bus. Adaptors must be
+    // parented to the adapted object (VpnManager); the service name itself
+    // was registered by the single-instance guard above. The name matches
+    // the application ID so it is automatically owned inside a Flatpak
+    // sandbox (no extra finish-args required).
     if (sessionBus.isConnected())
     {
-        sessionBus.registerObject(QStringLiteral("/com/protonvpn/app"), w.manager());
-        if (sessionBus.registerService(QStringLiteral("com.protonvpn.app")) == false)
+        VpnService* service = w.manager()->service();
+        const VpnStatusAdaptor* statusAdaptor = new VpnStatusAdaptor(service);
+        Q_UNUSED(statusAdaptor)
+        VpnControlAdaptor* controlAdaptor = new VpnControlAdaptor(service);
+        QObject::connect(controlAdaptor, &VpnControlAdaptor::raiseRequested, &w, [&w]
         {
-            DBG_APP(QStringLiteral("D-Bus: failed to register service com.protonvpn.app: ") +
-                    sessionBus.lastError().message());
-        }
-        else
-        {
-            DBG_APP(QStringLiteral("D-Bus: service com.protonvpn.app registered on session bus"));
-        }
+            w.showNormal();
+            w.raise();
+            w.activateWindow();
+        });
+        sessionBus.registerObject(QStringLiteral("/io/github/360900/ProtonVpnGui"), service);
     }
     else
     {
@@ -172,4 +192,3 @@ int main(int argc, char* argv[])
     }
     return QApplication::exec();
 }
-

@@ -9,5 +9,8 @@ class NotInstalledPage : public QWidget
 
 public:
     explicit NotInstalledPage(QWidget* parent = nullptr);
+
+signals:
+    void recheckRequested();
 };
 

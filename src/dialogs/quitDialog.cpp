@@ -20,7 +20,7 @@ constexpr int QUIT_DIALOG_BTN_ROW_SPACING = 8;
 QuitDialog::QuitDialog(const bool portForwardingActive, QWidget* parent)
     : QDialog(parent)
 {
-    setWindowTitle(tr("Quit ProtonVPN"));
+    setWindowTitle(tr("Quit Proton VPN GUI"));
     setAttribute(Qt::WA_DeleteOnClose);
     setModal(true);
     setMinimumWidth(QUIT_DIALOG_MIN_WIDTH);

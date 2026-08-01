@@ -64,7 +64,7 @@ AboutDialog::AboutDialog(const QString& installedCliVersion, QWidget* parent)
         testedVersionStr = QStringLiteral("unknown");
     }
 
-    setWindowTitle(tr("About ProtonVPN Qt App"));
+    setWindowTitle(tr("About Proton VPN GUI"));
     setMinimumSize(ABOUT_MIN_WIDTH, ABOUT_MIN_HEIGHT);
 
     QVBoxLayout* layout = new QVBoxLayout(this);
@@ -73,7 +73,7 @@ AboutDialog::AboutDialog(const QString& installedCliVersion, QWidget* parent)
     //  Title / subtitle
     QLabel* titleLabel = new QLabel(
         QStringLiteral("<h2 style=\"margin-bottom:2px;\">%1</h2>")
-            .arg(tr("ProtonVPN Qt App").toHtmlEscaped()),
+            .arg(tr("Proton VPN GUI").toHtmlEscaped()),
         this);
     titleLabel->setTextFormat(Qt::RichText);
     layout->addWidget(titleLabel);
@@ -157,7 +157,7 @@ AboutDialog::AboutDialog(const QString& installedCliVersion, QWidget* parent)
             "<p><b>\u26a0 %1</b> %2</p>"
             "<hr/>"
             "<h3>%3</h3>"
-            "<ul><li>Nicholas Page (<a href='https://github.com/wheat32'>wheat32</a>)</li></ul>"
+            "<ul><li>360900 (<a href='https://github.com/360900'>GitHub</a>)</li></ul>"
             "<h3>%4</h3>"
             "<ul>"
             "<li>%5</li>"
@@ -170,11 +170,11 @@ AboutDialog::AboutDialog(const QString& installedCliVersion, QWidget* parent)
         .arg(
             tr("Disclaimer:"),
             tr("This project is <b>not affiliated with, endorsed by, or supported by Proton AG</b> "
-               "in any way. ProtonVPN and the Proton logo are trademarks of Proton AG."),
+               "in any way. Proton VPN and the Proton logo are trademarks of Proton AG."),
             tr("Author"),
             tr("Credits & Acknowledgements"),
             tr("Built with <a href='https://www.qt.io/'>Qt 6</a>"),
-            tr("Uses the <a href='https://protonvpn.com/support/linux-vpn-tool/'>ProtonVPN Linux CLI</a>"),
+            tr("Uses the <a href='https://protonvpn.com/support/linux-vpn-tool/'>Proton VPN Linux CLI</a>"),
             tr("Icons from <a href='https://icons.getbootstrap.com/'>Bootstrap Icons</a> (MIT License)"),
             tr("Country flag SVGs from <a href='https://github.com/lipis/flag-icons'>flag-icons</a>"
                " by Panayiotis Lipiridis (MIT License)"),

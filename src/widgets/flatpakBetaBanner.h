@@ -21,7 +21,7 @@ public:
         : InfoBanner(
               tr("The <b>Flatpak</b> packaging of this app is currently in <b>beta</b>. "
                  "You may encounter issues that do not occur in the native version. "
-                 "Please <a href='https://github.com/wheat32/proton-vpn-qt-app/issues'>"
+                 "Please <a href='https://github.com/360900/proton-vpn-gui/issues'>"
                  "report any problems on GitHub</a>."),
               parent)
     {}

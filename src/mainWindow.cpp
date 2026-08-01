@@ -39,6 +39,8 @@ namespace
 {
 // Window dimensions
 constexpr int WINDOW_ICON_SIZE       = 64;
+// Ceiling for the disconnect-then-quit flow; quits even if the CLI hangs.
+constexpr int DISCONNECT_QUIT_TIMEOUT_MS = 10'000;
 constexpr int MIN_WINDOW_WIDTH       = 460;
 constexpr int MIN_WINDOW_HEIGHT      = 580;
 constexpr int INITIAL_WINDOW_WIDTH   = 660;
@@ -74,7 +76,7 @@ constexpr int TRAY_ICON_SIZE           = 22;
 constexpr int UPDATE_CHECK_DELAY_MS   = 3000;
 constexpr int UPDATE_CHECK_TIMEOUT_MS = 10000;
 constexpr const char* UPDATE_VERSION_URL =
-    "https://raw.githubusercontent.com/wheat32/proton-vpn-qt-app/main/src/version.json";
+    "https://raw.githubusercontent.com/360900/proton-vpn-gui/main/src/version.json";
 
 // Startup
 constexpr int WHATS_NEW_DELAY_MS = 400;
@@ -110,8 +112,8 @@ QIcon svgNavIcon(const QString& path, const QSize& size = {NAV_ICON_SIZE, NAV_IC
 MainWindow::MainWindow(QWidget* parent)
     : QWidget(parent)
 {
-    setWindowTitle(QStringLiteral("ProtonVPN"));
-    setWindowIcon(svgNavIcon(QStringLiteral(":/assets/proton-vpn-sign.svg"), {WINDOW_ICON_SIZE, WINDOW_ICON_SIZE}, false));
+    setWindowTitle(QStringLiteral("Proton VPN GUI"));
+    setWindowIcon(svgNavIcon(QStringLiteral(":/assets/proton-vpn-gui.svg"), {WINDOW_ICON_SIZE, WINDOW_ICON_SIZE}, false));
     setMinimumSize(MIN_WINDOW_WIDTH, MIN_WINDOW_HEIGHT);
     resize(INITIAL_WINDOW_WIDTH, INITIAL_WINDOW_HEIGHT);
 
@@ -154,6 +156,10 @@ MainWindow::MainWindow(QWidget* parent)
     // Not installed page (index 1)
     m_notInstalledPage = new NotInstalledPage();
     m_stack->addWidget(m_notInstalledPage); // index 1
+    connect(m_notInstalledPage, &NotInstalledPage::recheckRequested, this, [this]()
+    {
+        m_manager->checkInstalled();
+    });
 
     // Login page (index 2)
     m_loginPage = new LoginPage();
@@ -446,7 +452,12 @@ MainWindow::MainWindow(QWidget* parent)
 
         if (result == QuitDialog::DisconnectResult)
         {
-            m_manager->disconnectVpnSync(); // blocks until protonvpn disconnect finishes
+            // Disconnect first, then quit - asynchronously, so the UI never
+            // freezes (the old code blocked the GUI thread for up to 10 s).
+            hide();
+            m_trayIcon->hide();
+            m_manager->disconnectThen([] { QApplication::quit(); }, DISCONNECT_QUIT_TIMEOUT_MS);
+            return;
         }
 
         QApplication::quit();
@@ -484,7 +495,7 @@ void MainWindow::setupSidebar()
     // Logo button is part of the exclusive group so clicking it automatically
     // clears the checked state on all nav buttons.
     m_logoBtn = new QToolButton(m_sidebar);
-    m_logoBtn->setIcon(svgNavIcon(QStringLiteral(":/assets/proton-vpn-sign.svg"), {LOGO_BTN_ICON_SIZE, LOGO_BTN_ICON_SIZE}, false));
+    m_logoBtn->setIcon(svgNavIcon(QStringLiteral(":/assets/proton-vpn-gui.svg"), {LOGO_BTN_ICON_SIZE, LOGO_BTN_ICON_SIZE}, false));
     m_logoBtn->setIconSize({LOGO_BTN_ICON_SIZE, LOGO_BTN_ICON_SIZE});
     m_logoBtn->setFixedSize(LOGO_BTN_SIZE, LOGO_BTN_SIZE);
     m_logoBtn->setToolTip(tr("VPN"));
@@ -683,8 +694,8 @@ void MainWindow::checkForUpdates()
 void MainWindow::refreshIcons()
 {
     // Logo button: render with original SVG colors (no tinting) - it's a branded icon.
-    setWindowIcon(svgNavIcon(QStringLiteral(":/assets/proton-vpn-sign.svg"), {WINDOW_ICON_SIZE, WINDOW_ICON_SIZE}, false));
-    m_logoBtn->setIcon(svgNavIcon(QStringLiteral(":/assets/proton-vpn-sign.svg"), {LOGO_BTN_ICON_SIZE, LOGO_BTN_ICON_SIZE}, false));
+    setWindowIcon(svgNavIcon(QStringLiteral(":/assets/proton-vpn-gui.svg"), {WINDOW_ICON_SIZE, WINDOW_ICON_SIZE}, false));
+    m_logoBtn->setIcon(svgNavIcon(QStringLiteral(":/assets/proton-vpn-gui.svg"), {LOGO_BTN_ICON_SIZE, LOGO_BTN_ICON_SIZE}, false));
     // Nav icons: monochrome utility icons - tint for legibility.
     m_countriesNavBtn->setIcon(svgNavIcon(QStringLiteral(":/assets/server-smart-routing.svg"), {NAV_ICON_SIZE, NAV_ICON_SIZE}));
     m_accountNavBtn->setIcon(svgNavIcon(QStringLiteral(":/assets/person-lines-fill.svg"), {NAV_ICON_SIZE, NAV_ICON_SIZE}));
@@ -758,11 +769,11 @@ void MainWindow::sendNotification(const QString& title, const QString& message) 
     if (AppConfig::instance().notifications() == false)
         return;
 
-    // Render the ProtonVPN sign SVG into a pixmap to use as the notification icon.
+    // Render the Proton VPN GUI sign SVG into a pixmap to use as the notification icon.
     QPixmap iconPix(NOTIFICATION_ICON_SIZE, NOTIFICATION_ICON_SIZE);
     iconPix.fill(Qt::transparent);
     QPainter p(&iconPix);
-    QSvgRenderer renderer(QStringLiteral(":/assets/proton-vpn-sign.svg"));
+    QSvgRenderer renderer(QStringLiteral(":/assets/proton-vpn-gui.svg"));
     renderer.render(&p);
     p.end();
 
@@ -805,32 +816,32 @@ void MainWindow::updateTrayIcon(VpnState state)
     switch (state)
     {
     case VpnState::Connected:
-        m_trayIcon->setToolTip(tr("ProtonVPN \u2013 Connected"));
+        m_trayIcon->setToolTip(tr("Proton VPN GUI \u2013 Connected"));
         m_trayConnectAction->setText(tr("Disconnect"));
         m_trayConnectAction->setEnabled(true);
         break;
     case VpnState::Connecting:
-        m_trayIcon->setToolTip(tr("ProtonVPN \u2013 Connecting\u2026"));
+        m_trayIcon->setToolTip(tr("Proton VPN GUI \u2013 Connecting\u2026"));
         m_trayConnectAction->setText(tr("Connecting\u2026"));
         m_trayConnectAction->setEnabled(false);
         break;
     case VpnState::Disconnecting:
-        m_trayIcon->setToolTip(tr("ProtonVPN \u2013 Disconnecting\u2026"));
+        m_trayIcon->setToolTip(tr("Proton VPN GUI \u2013 Disconnecting\u2026"));
         m_trayConnectAction->setText(tr("Disconnecting\u2026"));
         m_trayConnectAction->setEnabled(false);
         break;
     case VpnState::Error:
-        m_trayIcon->setToolTip(tr("ProtonVPN \u2013 Error"));
+        m_trayIcon->setToolTip(tr("Proton VPN GUI \u2013 Error"));
         m_trayConnectAction->setText(tr("Connect"));
         m_trayConnectAction->setEnabled(true);
         break;
     case VpnState::Disconnected:
-        m_trayIcon->setToolTip(tr("ProtonVPN \u2013 Disconnected"));
+        m_trayIcon->setToolTip(tr("Proton VPN GUI \u2013 Disconnected"));
         m_trayConnectAction->setText(tr("Connect"));
         m_trayConnectAction->setEnabled(true);
         break;
     default: // Unknown - still checking
-        m_trayIcon->setToolTip(tr("ProtonVPN \u2013 Checking\u2026"));
+        m_trayIcon->setToolTip(tr("Proton VPN GUI \u2013 Checking\u2026"));
         m_trayConnectAction->setText(tr("Connect"));
         m_trayConnectAction->setEnabled(false);
         break;
@@ -842,23 +853,23 @@ void MainWindow::updateTrayIcon(VpnState state)
         switch (state)
         {
         case VpnState::Connecting:
-            sendNotification(tr("ProtonVPN \u2013 Connecting"),
+            sendNotification(tr("Proton VPN GUI \u2013 Connecting"),
                              tr("Establishing a secure VPN connection\u2026"));
             break;
         case VpnState::Disconnecting:
-            sendNotification(tr("ProtonVPN \u2013 Disconnecting"),
+            sendNotification(tr("Proton VPN GUI \u2013 Disconnecting"),
                              tr("Closing the VPN connection\u2026"));
             break;
         case VpnState::Connected:
-            sendNotification(tr("ProtonVPN \u2013 Connected"),
-                             tr("You are now protected by ProtonVPN."));
+            sendNotification(tr("Proton VPN GUI \u2013 Connected"),
+                             tr("You are now protected by Proton VPN."));
             break;
         case VpnState::Disconnected:
             // Only notify on disconnect if we were previously connected/connecting
             if (m_lastNotifiedState == VpnState::Connected ||
                 m_lastNotifiedState == VpnState::Disconnecting)
             {
-                sendNotification(tr("ProtonVPN \u2013 Disconnected"),
+                sendNotification(tr("Proton VPN GUI \u2013 Disconnected"),
                                  tr("The VPN connection has been closed."));
             }
             break;

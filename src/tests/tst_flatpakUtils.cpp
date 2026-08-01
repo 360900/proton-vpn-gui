@@ -18,7 +18,7 @@ private:
     {
         if (set)
         {
-            qputenv("FLATPAK_ID", "io.github.wheat32.ProtonVPNQt");
+            qputenv("FLATPAK_ID", "io.github._360900.ProtonVpnGui");
         }
         else
         {
@@ -38,7 +38,7 @@ private slots:
     void cleanup()
     {
         if (m_hadFlatpakId)
-            qputenv("FLATPAK_ID", "io.github.wheat32.ProtonVPNQt");
+            qputenv("FLATPAK_ID", "io.github._360900.ProtonVpnGui");
         else
             qunsetenv("FLATPAK_ID");
     }
