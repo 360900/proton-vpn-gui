@@ -27,53 +27,11 @@ link drops, and remembering your favorites so the next time is one click.
 - Desktop notifications when you connect or disconnect.
 - Auto-launch on login, with an optional auto-connect to your last server.
 
-## Screenshots
+## Install on Linux
 
-Main window at normal and narrow sizes:
+Pick the one that matches your setup.
 
-<table>
-  <tr>
-    <td><img alt="Main window, normal width" src="screenshots/main-page_normal-width.png" /></td>
-    <td><img alt="Main window, narrow width" src="screenshots/main-page_narrow-width.png" /></td>
-  </tr>
-</table>
-
-Countries list, account page, and the settings tabs:
-
-<table>
-  <tr>
-    <td><img alt="Countries list, normal width" src="screenshots/countries-list_normal-width.png" /></td>
-    <td><img alt="Countries list, narrow width" src="screenshots/countries-list_narrow-width.png" /></td>
-  </tr>
-  <tr>
-    <td><img alt="Account page" src="screenshots/account-page.png" /></td>
-    <td></td>
-  </tr>
-  <tr>
-    <td><img alt="Settings: VPN tab" src="screenshots/settings-page_vpn-tab.png" /></td>
-    <td><img alt="Settings: appearance tab" src="screenshots/settings-page_appearance-tab.png" /></td>
-  </tr>
-  <tr>
-    <td><img alt="Settings: app tab" src="screenshots/settings-page_app-tab-1.png" /></td>
-    <td><img alt="Settings: app tab continued" src="screenshots/settings-page_app-tab-2.png" /></td>
-  </tr>
-</table>
-
-## Quick install
-
-Pick the one that matches your Linux setup.
-
-### Flatpak, recommended for Fedora, Linux Mint, openSUSE, and most desktop users
-
-```bash
-flatpak install flathub io.github._360900.ProtonVpnGui
-flatpak run io.github._360900.ProtonVpnGui
-```
-
-Once Flathub accepts this app you install it the same way. Right now you can
-build the Flatpak yourself from this repository with the included script.
-
-### Arch Linux and Manjaro
+### Arch Linux and Manjaro (AUR)
 
 ```bash
 git clone https://aur.archlinux.org/proton-vpn-gui.git
@@ -81,15 +39,47 @@ cd proton-vpn-gui
 makepkg -si
 ```
 
-A `proton-vpn-gui` launcher appears in your application menu.
+A `proton VPN GUI` launcher appears in your application menu. The package also
+exists on the AUR under the same name. Submitting the package to the AUR is a
+manual step on your end.
 
-### Native build, for Debian, Ubuntu, and other distributions
+### Build a Flatpak yourself (most other distros)
+
+The Flatpak is not published on Flathub yet. While the submission is prepared,
+you can build and install it from this repository with the included script.
+
+```bash
+git clone https://github.com/360900/proton-vpn-gui.git
+cd proton-vpn-gui
+./build-flatpak.sh --local --install
+flatpak run io.github._360900.ProtonVpnGui
+```
+
+This builds inside the KDE runtime and is the same pipeline that produces the
+official bundle, so what you run is exactly what will land on Flathub once the
+review is complete.
+
+### Native build (Debian, Ubuntu, Fedora, others)
 
 You will need the Proton VPN CLI and a handful of build tools.
+
+Debian or Ubuntu:
 
 ```bash
 sudo apt install cmake ninja-build qt6-base-dev qt6-declarative-dev \
   qt6-svg-dev qt6-tools-dev libqt6dbus6
+git clone https://github.com/360900/proton-vpn-gui.git
+cd proton-vpn-gui/src
+cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+cmake --build build
+./build/proton_vpn_gui
+```
+
+Fedora:
+
+```bash
+sudo dnf install cmake ninja-build qt6-qtbase-devel qt6-qtdeclarative-devel \
+  qt6-qtsvg-devel qt6-qttools-devel
 git clone https://github.com/360900/proton-vpn-gui.git
 cd proton-vpn-gui/src
 cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
@@ -105,7 +95,7 @@ This app is a friendly face for the **Proton VPN Linux CLI**. The CLI does the
 real work: signing in, opening the tunnel, switching servers, and applying your
 settings. You need to install it once before the GUI can do anything, even on
 Flatpak. The Flatpak version calls the CLI on your host through Flatpak's
-bridge, so the CLI still has to be on your host system, not inside the Flatpak.
+bridge, so the CLI has to be on your host system, not inside the Flatpak.
 
 If you don't have it yet, follow Proton's official Linux guide:
 [protonvpn.com/support/linux-vpn-tool](https://protonvpn.com/support/linux-vpn-tool/).
@@ -126,8 +116,8 @@ If you don't have it yet, follow Proton's official Linux guide:
   the country picker is hidden. To pick a country yourself you need a paid
   Plus plan.
 - Connecting to a server that supports port forwarding enables automatic
-  port-forward management. You need the optional `libnatpmp` package
-  (Debian, Ubuntu, Fedora, Arch) and a Plus plan.
+  port forwarding. You need the optional `libnatpmp` package (Debian, Ubuntu,
+  Fedora, Arch) and a Plus plan.
 
 ## Common questions
 
@@ -155,6 +145,10 @@ Yes. It publishes a session-bus interface at
 and raise-window methods. Scripts and other apps can use it to react to the
 VPN state.
 
+**When will the Flatpak be on Flathub?**
+The submission is queued. Until then, build it locally with
+`./build-flatpak.sh --local --install`.
+
 ## For developers
 
 The code is split into a small C++ core and a Qt Quick interface. The core
@@ -169,9 +163,39 @@ cd build
 ctest --output-on-failure
 ```
 
-Twelve unit tests cover the parsers, state machine, process runner, status
-poller, service, configurations, and history. Three more integration tests
-cover Flatpak, UI helpers, and IPv6 utilities.
+Thirteen tests cover parsers, the connection state machine, the process
+runner, status polling, the VPN service, configuration, connection history,
+geo helpers, the Flatpak bridge, and UI helpers. Native and Flatpak builds
+are wired into CI on every pull request.
+
+## Credits
+
+This project is a community-maintained Qt rewrite of the original
+**ProtonVPN Qt App** by Nicholas Page ([wheat32](https://github.com/wheat32)).
+We started from that codebase and rebuilt the core and the UI on top of
+their foundations. Without them, this project would not exist.
+
+Large parts of the file layout, the config and history paths, the tray
+controller, the autostart hook, the original Flatpak packaging, the
+proton-vpn-sign icon derivative, and the initial CI workflows come from the
+upstream repository at
+[github.com/wheat32/proton-vpn-qt-app](https://github.com/wheat32/proton-vpn-qt-app).
+Their work is licensed under GPL-3.0-only, the same license this project
+shipped with. If you are reading code or comments and spot a familiar
+pattern, it is almost certainly because we kept it on purpose.
+
+What this project adds on top:
+
+- A fully Qt Quick UI under `src/qml/`, replacing the legacy QtWidgets
+  scaffolding.
+- A new `src/core/` library that isolates the Proton VPN CLI interaction, the
+  connection state machine, status polling, settings management, and D-Bus
+  interfaces. Everything in this layer has unit tests.
+- A session D-Bus control interface at
+  `io.github._360900.ProtonVpnGui`.
+- Light and dark theme support with live system-theme following and a
+  reduced-motion option.
+- New AppStream metadata, an AUR package, and modernized CI workflows.
 
 ## License
 
