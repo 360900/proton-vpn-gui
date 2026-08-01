@@ -10,7 +10,7 @@ ApplicationWindow {
     height: 660
     minimumWidth: 720
     minimumHeight: 540
-    title: qsTr("Proton VPN")
+    title: Qt.application.name
     color: Theme.bgPage
 
     // Closing the window hides to tray; quitting goes through the tray menu.
