@@ -57,6 +57,10 @@ public:
     Q_INVOKABLE void clearFavorites();
     Q_INVOKABLE bool hasHistory() const;
     Q_INVOKABLE bool hasFavorites() const;
+    Q_INVOKABLE bool isFavorite(const QString& countryCode, const QString& city) const;
+    Q_INVOKABLE void addFavorite(const QString& countryCode, const QString& city);
+    Q_INVOKABLE void removeFavorite(const QString& countryCode, const QString& city);
+    Q_INVOKABLE void toggleFavorite(const QString& countryCode, const QString& city);
 
 signals:
     void changed();

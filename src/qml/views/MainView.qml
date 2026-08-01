@@ -175,8 +175,12 @@ Item {
                                 countryCode: modelData.countryCode
                                 countryName: modelData.countryName
                                 city: modelData.city
+                                starred: AppSettings.isFavorite(modelData.countryCode,
+                                                                modelData.city)
                                 freeUser: mainView.freeUser
                                 onConnectRequested: (cc, city) => VpnFacade.connectTo(cc, city)
+                                onToggleFavoriteRequested: (cc, city) =>
+                                    AppSettings.toggleFavorite(cc, city)
                             }
 
                             Text {
@@ -213,9 +217,14 @@ Item {
                                 countryCode: modelData.countryCode
                                 countryName: modelData.countryName
                                 city: modelData.city
+                                starred: modelData.city.length > 0
+                                         && AppSettings.isFavorite(modelData.countryCode,
+                                                                    modelData.city)
                                 subtitle: Qt.formatDateTime(modelData.when, "MMM d, hh:mm")
                                 freeUser: mainView.freeUser
                                 onConnectRequested: (cc, city) => VpnFacade.connectTo(cc, city)
+                                onToggleFavoriteRequested: (cc, city) =>
+                                    AppSettings.toggleFavorite(cc, city)
                             }
 
                             Text {

@@ -9,6 +9,7 @@
 #include "../core/fileLogger.h"
 #include "../core/hostCommand.h"
 #include "../favoritesManager.h"
+#include "../geoUtils.h"
 
 #include <QCoreApplication>
 #include <QDir>
@@ -210,4 +211,30 @@ bool AppSettings::hasHistory() const
 bool AppSettings::hasFavorites() const
 {
     return FavoritesManager::instance().hasAnyEntries();
+}
+
+bool AppSettings::isFavorite(const QString& countryCode, const QString& city) const
+{
+    return FavoritesManager::instance().isFavorite(countryCode, city);
+}
+
+void AppSettings::addFavorite(const QString& countryCode, const QString& city)
+{
+    const QString name = GeoUtils::countryCodeToName(countryCode);
+    if (name.isEmpty())
+        return;
+    FavoritesManager::instance().add(countryCode, name, city);
+}
+
+void AppSettings::removeFavorite(const QString& countryCode, const QString& city)
+{
+    FavoritesManager::instance().remove(countryCode, city);
+}
+
+void AppSettings::toggleFavorite(const QString& countryCode, const QString& city)
+{
+    const QString name = GeoUtils::countryCodeToName(countryCode);
+    if (name.isEmpty())
+        return;
+    FavoritesManager::instance().toggle(countryCode, name, city);
 }

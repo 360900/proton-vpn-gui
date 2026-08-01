@@ -464,6 +464,12 @@ Rectangle {
                             font.pixelSize: Theme.fontCaption
                             font.weight: Font.DemiBold
                         }
+                        StarButton {
+                            starred: AppSettings.isFavorite(favRow.modelData.countryCode,
+                                                            favRow.modelData.city)
+                            onClicked: AppSettings.toggleFavorite(favRow.modelData.countryCode,
+                                                                  favRow.modelData.city)
+                        }
                     }
                 }
             }
