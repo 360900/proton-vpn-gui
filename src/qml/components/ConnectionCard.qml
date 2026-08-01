@@ -410,67 +410,16 @@ Rectangle {
                 model: card.favorites
                 ScrollBar.vertical: PScrollBar {}
 
-                delegate: Rectangle {
-                    id: favRow
+                delegate: LocationRow {
                     required property var modelData
-                    width: ListView.view ? ListView.view.width : implicitWidth
-                    height: 40
-                    radius: Theme.radiusMd
-                    color: favHover.hovered && !card.freeUser
-                           ? Theme.surfaceHover : "transparent"
-                    scale: favTap.pressed && !card.freeUser ? 0.98 : 1
-                    Behavior on color { ColorAnimation { duration: Theme.dur(Theme.durMicro) } }
-                    Behavior on scale { NumberAnimation { duration: Theme.dur(Theme.durMicro) } }
-
-                    HoverHandler {
-                        id: favHover
-                        cursorShape: card.freeUser ? Qt.ForbiddenCursor
-                                                    : Qt.PointingHandCursor
-                    }
-                    TapHandler {
-                        id: favTap
-                        onTapped: {
-                            if (card.freeUser == false)
-                                VpnFacade.connectTo(favRow.modelData.countryCode,
-                                                    favRow.modelData.city)
-                        }
-                    }
-
-                    RowLayout {
-                        anchors.fill: parent
-                        anchors.leftMargin: Theme.spacingMd
-                        anchors.rightMargin: Theme.spacingSm
-                        spacing: Theme.spacingMd
-
-                        FlagIcon {
-                            countryCode: favRow.modelData.countryCode
-                            flagWidth: 22
-                        }
-                        Text {
-                            text: favRow.modelData.city.length > 0
-                                  ? "%1 - %2".arg(favRow.modelData.countryName)
-                                                  .arg(favRow.modelData.city)
-                                  : qsTr("%1 - Fastest")
-                                    .arg(favRow.modelData.countryName)
-                            color: Theme.textPrimary
-                            font.pixelSize: Theme.fontBody
-                            elide: Text.ElideRight
-                            Layout.fillWidth: true
-                        }
-                        Text {
-                            visible: card.freeUser
-                            text: qsTr("Plus")
-                            color: Theme.textHint
-                            font.pixelSize: Theme.fontCaption
-                            font.weight: Font.DemiBold
-                        }
-                        StarButton {
-                            starred: AppSettings.isFavorite(favRow.modelData.countryCode,
-                                                            favRow.modelData.city)
-                            onClicked: AppSettings.toggleFavorite(favRow.modelData.countryCode,
-                                                                  favRow.modelData.city)
-                        }
-                    }
+                    countryCode: modelData.countryCode
+                    countryName: modelData.countryName
+                    city: modelData.city
+                    starred: AppSettings.isFavorite(modelData.countryCode, modelData.city)
+                    freeUser: card.freeUser
+                    onConnectRequested: (cc, city) => VpnFacade.connectTo(cc, city)
+                    onToggleFavoriteRequested: (cc, city) =>
+                        AppSettings.toggleFavorite(cc, city)
                 }
             }
         }
