@@ -51,8 +51,8 @@ modules:
       - type: git
         url: https://github.com/360900/proton-vpn-gui.git
          tag: v2.0.0
-         # Flathub requires the commit of the tag as well. Add the full release
-         # commit here before submitting this manifest to Flathub.
+         commit: 6ab71f8e400834a81baa3d9b6fa03b6f1303e84d
+         # Flathub requires both the release tag and its full commit.
         x-checker-data:
           type: git
           tag-pattern: ^v(\d+\.\d+\.\d+)$
