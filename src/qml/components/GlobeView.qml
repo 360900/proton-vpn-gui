@@ -35,7 +35,10 @@ Item {
     onCountryCodeChanged: control.updateEndpoints()
     onWidthChanged: canvas.requestPaint()
     onHeightChanged: canvas.requestPaint()
-    onTravelingChanged: canvas.requestPaint()
+    onTravelingChanged: {
+        beamAnim.restart()
+        canvas.requestPaint()
+    }
     onReverseTravelingChanged: {
         beamAnim.restart()
         canvas.requestPaint()
@@ -105,15 +108,22 @@ Item {
 
     // Traveling comet: one-way along the arc while connecting. One-way reads
     // as "data flowing to the destination"; ping-pong reads as indecision.
-    NumberAnimation on animProgress {
+    // Driving the loop off `running` is not enough on its own: if `traveling`
+    // flips true while `animProgress` is already at the loop end, the prop
+    // stays there. The `onTravelingChanged` and `onReverseTravelingChanged`
+    // handlers above explicitly restart the animation on every edge.
+    SequentialAnimation on animProgress {
         id: beamAnim
-        loops: Animation.Infinite
         running: control.traveling && control.visible && control.hasEndpoints
                  && Theme.reducedMotion === false
-        from: control.reverseTraveling ? 1 : 0
-        to: control.reverseTraveling ? 0 : 1
-        duration: 1800
-        easing.type: Easing.InOutSine
+        loops: Animation.Infinite
+
+        NumberAnimation {
+            from: control.reverseTraveling ? 1 : 0
+            to:   control.reverseTraveling ? 0 : 1
+            duration: 1800
+            easing.type: Easing.InOutSine
+        }
     }
 
     // One-shot success pulse at the destination marker.
