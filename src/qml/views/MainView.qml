@@ -113,19 +113,6 @@ Item {
                     onTextChanged: serverModel.searchText = text
                 }
 
-                //  Collapsed-rail search affordance
-                PIconButton {
-                    visible: mainView.sidebarCollapsed
-                    iconName: "search"
-                    iconSize: 20
-                    tooltip: qsTr("Search countries")
-                    Layout.alignment: Qt.AlignHCenter
-                    onClicked: {
-                        AppSettings.sidebarCollapsed = false
-                        Qt.callLater(function() { search.forceActiveFocus() })
-                    }
-                }
-
                 //  Filter sections (expanded only)
                 ColumnLayout {
                     visible: !mainView.sidebarCollapsed
@@ -140,6 +127,7 @@ Item {
                         Layout.fillHeight: true
                         label: qsTr("All countries")
                         expanded: true
+                        collapsible: false
 
                         ListView {
                             id: countryList

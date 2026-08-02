@@ -13,6 +13,9 @@ Item {
 
     property string label: ""
     property bool expanded: true
+    // When false the section is pinned open: the header shows no chevron and
+    // cannot collapse the body (used for the permanent "All countries" list).
+    property bool collapsible: true
     property int collapsedHeight: 32
     default property alias body: bodyHolder.data
 
@@ -30,12 +33,15 @@ Item {
             Layout.fillWidth: true
             implicitHeight: section.collapsedHeight
             hoverEnabled: true
+            enabled: section.collapsible
             onClicked: section.expanded = !section.expanded
 
             background: Rectangle {
                 radius: Theme.radiusSm
-                color: header.down ? Theme.surfaceActive
-                     : header.hovered ? Theme.surfaceHover : "transparent"
+                color: section.collapsible
+                     ? (header.down ? Theme.surfaceActive
+                        : header.hovered ? Theme.surfaceHover : "transparent")
+                     : "transparent"
                 Behavior on color { ColorAnimation { duration: Theme.durFast } }
             }
 
@@ -45,6 +51,7 @@ Item {
                 PIcon {
                     name: "chevron-down"
                     size: 12
+                    visible: section.collapsible
                     color: Theme.textSecondary
                     rotation: section.expanded ? 0 : -90
                     Behavior on rotation { NumberAnimation { duration: Theme.durFast; easing.type: Easing.OutCubic } }
@@ -52,13 +59,12 @@ Item {
 
                 Text {
                     text: section.label
-                    color: section.expanded ? Theme.textPrimary : Theme.textSecondary
+                    color: Theme.textPrimary
                     font.pixelSize: Theme.fontCaption + 1
                     font.weight: Font.DemiBold
                     font.capitalization: Font.AllUppercase
                     font.letterSpacing: 1
                     Layout.fillWidth: true
-                    Behavior on color { ColorAnimation { duration: Theme.durFast } }
                 }
             }
         }
