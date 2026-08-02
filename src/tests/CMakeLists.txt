@@ -67,21 +67,17 @@ add_qt_test(tst_geoUtils
     ../geoUtils.h
     ../geoUtils.cpp
 )
-target_link_libraries(tst_geoUtils Qt6::Gui Qt6::Svg Qt6::SvgWidgets)
+target_link_libraries(tst_geoUtils Qt6::Gui Qt6::Svg)
 
-#  GeoCoords (country centroid lookup for the globe animation) - QML UI only.
-#  geoCoords is a QML singleton with no legacy-widgets counterpart, and its
-#  Qt6::Qml dependency would break a USE_QML_UI=OFF configure.
-if(USE_QML_UI)
-    add_qt_test(tst_geoCoords
-        tst_geoCoords.cpp
-        ../app/geoCoords.h
-        ../app/geoCoords.cpp
-        ../geoUtils.h
-        ../geoUtils.cpp
-    )
-    target_link_libraries(tst_geoCoords Qt6::Gui Qt6::Svg Qt6::SvgWidgets Qt6::Qml)
-endif()
+#  GeoCoords (country centroid lookup for the globe animation)
+add_qt_test(tst_geoCoords
+    tst_geoCoords.cpp
+    ../app/geoCoords.h
+    ../app/geoCoords.cpp
+    ../geoUtils.h
+    ../geoUtils.cpp
+)
+target_link_libraries(tst_geoCoords Qt6::Gui Qt6::Svg Qt6::Qml)
 
 #  AppConfig
 add_qt_test(tst_appConfig
@@ -99,15 +95,10 @@ add_qt_test(tst_connectionHistory
     ../appConfig.cpp
 )
 
-#  UiHelpers
-add_qt_test(tst_uiHelpers
-    tst_uiHelpers.cpp
-    ../uiHelpers.h
-)
-
 #  FlatpakUtils
 add_qt_test(tst_flatpakUtils
     tst_flatpakUtils.cpp
-    ../cli/flatpakUtils.h
+    ../core/hostCommand.h
+    ../core/appImageUtils.h
 )
 

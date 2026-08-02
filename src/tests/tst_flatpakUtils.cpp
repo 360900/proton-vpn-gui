@@ -1,8 +1,8 @@
 #include <QtTest/QtTest>
 #include <QProcessEnvironment>
-#include "cli/flatpakUtils.h"
+#include "core/hostCommand.h"
 
-// Tests for the inline helpers in flatpakUtils.h:
+// Tests for the inline helpers in core/hostCommand.h:
 //   isRunningAsFlatpak()   - env-var detection
 //   buildHostCommand()     - transparent flatpak-spawn wrapping
 

@@ -38,8 +38,6 @@
     </qresource>
     <qresource prefix="/">
         <file>version.json</file>
-        <file>style.qss</file>
-        <file>style_light.qss</file>
     </qresource>
     <qresource prefix="/autostart">
         <file alias="proton-vpn-gui.desktop">autostart/proton-vpn-gui.desktop</file>

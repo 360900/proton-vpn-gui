@@ -191,8 +191,8 @@ pattern, it is almost certainly because we kept it on purpose.
 
 What this project adds on top:
 
-- A fully Qt Quick UI under `src/qml/`, replacing the legacy QtWidgets
-  scaffolding.
+- A Qt Quick UI under `src/qml/` driving all interaction through a small C++
+  core; the older QtWidgets scaffolding was removed.
 - A new `src/core/` library that isolates the Proton VPN CLI interaction, the
   connection state machine, status polling, settings management, and D-Bus
   interfaces. Everything in this layer has unit tests.

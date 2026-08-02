@@ -2,7 +2,7 @@
 
 ## Architecture Overview
 
-This is a **Qt6/C++23 desktop GUI** (Linux) that wraps the `protonvpn` CLI tool. The app has **no direct VPN or network logic** — it drives everything through `QProcess` calls to the `protonvpn` command-line binary. The QML UI (2.x) is the shipping default; the legacy QtWidgets UI remains buildable as a fallback until it is removed.
+This is a **Qt6/C++23 desktop GUI** (Linux) that wraps the `protonvpn` CLI tool. The app has **no direct VPN or network logic** — it drives everything through `QProcess` calls to the `protonvpn` command-line binary.
 
 ```
 ProtonVpnGui (QML UI, module URI ProtonVpnGui)
@@ -19,30 +19,24 @@ ProtonVpnGui (QML UI, module URI ProtonVpnGui)
 - `CliParsers` parse `Key: Value` lines from `protonvpn status` into `QMap<QString,QString>` and command output into typed structs
 - `VpnService::applyStatusFields()` (via snapshot) translates the map into `VpnState` enum changes and emits `stateChanged(VpnState, QString)`
 
-**Layering rule:** `core/` links **no** GUI modules (only `Qt6::Core`) so it stays testable. `app/` + `qml/` are the QML-only UI layer. Legacy widgets live in `mainWindow.cpp`, `pages/`, `widgets/`, `dialogs/` behind `VpnManager`.
+**Layering rule:** `core/` links **no** GUI modules (only `Qt6::Core`) so it stays testable. `app/` + `qml/` are the QML-only UI layer.
 
 ## Build & Run
 
 Requirements: **CMake ≥ 3.31**, **Qt ≥ 6.8** (needed for `qt_standard_project_setup(REQUIRES 6.8)` and the QML module build), C++23. Debian trixie / Ubuntu 26.04 / Fedora 42 or newer.
 
 ```bash
-# Configure (from src/). QML UI is the default; add -DUSE_QML_UI=OFF for legacy.
-cmake -B cmake-build-debug -DCMAKE_BUILD_TYPE=Debug
+# Configure (from src/)
+cmake -B build -DCMAKE_BUILD_TYPE=Debug
 # Build
-cmake --build cmake-build-debug
+cmake --build build
 # Run
-./cmake-build-debug/proton_vpn_gui
+./build/proton_vpn_gui
+# Run all tests
+cd build && ctest --output-on-failure
 ```
 
 Pre-built configs exist at `src/cmake-build-debug/` and `src/cmake-build-release/`.
-
-```bash
-# Build and run all tests
-cmake --build cmake-build-debug
-cd cmake-build-debug && ctest --output-on-failure
-```
-
-Note: the target binary is `proton_vpn_gui` for **both** the QML and legacy builds (selected via the `USE_QML_UI` CMake option, default `ON`). The legacy option is a stopgap; new work should only touch `core/`, `app/`, `qml/`.
 
 ## Flatpak Sandboxing
 
@@ -173,7 +167,6 @@ Tests live in `src/tests/` and use **Qt Test** (`QtTest/QtTest`). Each test file
    )
    ```
 3. If the unit needs extra Qt modules (e.g. `Qt6::Gui`, `Qt6::Qml`), add them with a separate `target_link_libraries` call after `add_qt_test`.
-4. Tests depending on the QML module (e.g. `tst_geoCoords` using `Qt6::Qml`) must be guarded by `if(USE_QML_UI)` so the legacy build still configures.
 
 **Test structure** — one `QObject` subclass per file, test slots in `private slots:`, `QTEST_MAIN` + `.moc` include at the bottom:
 
@@ -202,7 +195,7 @@ QTEST_MAIN(TstMyUnit)
 
 ## Page Navigation (QML)
 
-`Main.qml` hosts the view stack. The flow is: `LoadingView → NotInstalledView` (if CLI missing) or `LoginView` (if not authenticated) or `MainView` (main screen), with `SettingsView` and `AccountView` reachable from the main screen. The equivalent `Page` enum-driven flow exists in the legacy `MainWindow::showPage(Page)`.
+`Main.qml` hosts the view stack. The flow is: `LoadingView → NotInstalledView` (if CLI missing) or `LoginView` (if not authenticated) or `MainView` (main screen), with `SettingsView` and `AccountView` reachable from the main screen.
 
 ## Signals Pattern
 
