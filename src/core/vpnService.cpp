@@ -35,6 +35,10 @@ VpnService::VpnService(ProcessRunner* runner, QObject* parent)
                 // hung CLI command still resolves via status polls.
                 m_poller->setTransitionMode(state == VpnState::Connecting ||
                                             state == VpnState::Disconnecting);
+                if (state != VpnState::Connected)
+                {
+                    m_connectedIp.clear();
+                }
                 emit stateChanged(state, info);
             });
     connect(m_stateMachine, &VpnStateMachine::connectionCityKnown,
@@ -51,7 +55,14 @@ VpnService::VpnService(ProcessRunner* runner, QObject* parent)
             [this](const StatusSnapshot& snapshot)
             {
                 m_lastSnapshot = snapshot;
-                emit snapshotChanged(snapshot);
+                // Re-attach the IP learned from the connect message (the CLI's
+                // status command never reports it).
+                if (m_lastSnapshot.raw.value(QStringLiteral("ip")).isEmpty() &&
+                    m_connectedIp.isEmpty() == false)
+                {
+                    m_lastSnapshot.raw.insert(QStringLiteral("ip"), m_connectedIp);
+                }
+                emit snapshotChanged(m_lastSnapshot);
             });
 }
 
@@ -172,7 +183,12 @@ void VpnService::signOut()
     m_client->signout([this](const bool ok)
     {
         DBG_CLI(ok ? QStringLiteral("Sign-out succeeded.") : QStringLiteral("Sign-out failed."));
-        m_stateMachine->reset(VpnState::Disconnected);
+        // Only drop the connection state when the CLI actually signed out; a
+        // failed sign-out may leave the tunnel (and session) intact.
+        if (ok)
+        {
+            m_stateMachine->reset(VpnState::Disconnected);
+        }
         emit signOutFinished(ok);
     });
 }
@@ -256,10 +272,19 @@ void VpnService::issueConnect(const QString& country, const QString& city, const
         if (ok)
         {
             DBG_CLI(QStringLiteral("VPN connected successfully."));
-            const ServerInfo server = CliParsers::parseServerInfo(message);
+            // The CLI says "Connected to CH#7 in Zurich, Switzerland." -
+            // parse only the server part (parseServerInfo alone would treat
+            // "Connected to " as part of the country code).
+            const ServerInfo server = CliParsers::parseServerInfoFromConnectOutput(message);
             if (server.countryCode.isEmpty() == false)
             {
                 emit connectionCountryKnown(server.countryCode);
+            }
+            // Status has no IP field; capture the IP from the connect output.
+            const QString ip = CliParsers::parseIpFromConnectOutput(message);
+            if (ip.isEmpty() == false)
+            {
+                m_connectedIp = ip;
             }
             // Keep Connecting until status confirms the target. The CLI can
             // return success before its status endpoint has updated, and a
@@ -390,6 +415,10 @@ void VpnService::fetchCities(const QString& countryCode)
         {
             emit citiesReady(countryCode, cities);
         }
+        else
+        {
+            emit citiesFailed(countryCode);
+        }
     });
 }
 
@@ -400,6 +429,7 @@ void VpnService::fetchCityFeatures(const QString& countryCode, const QString& ci
     {
         if (ok == false)
         {
+            callback(QString()); // never leave a caller waiting on a failed fetch
             return;
         }
         for (const City& c : cities)

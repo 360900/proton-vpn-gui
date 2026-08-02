@@ -38,7 +38,7 @@ LoginSession::LoginSession(ProcessHandle* handle, const QString& password, QObje
     connect(m_handle, &ProcessHandle::finished, this,
             [this](const int exitCode, const QString& combinedOutput)
             {
-                if (m_cancelled)
+                if (m_canceled)
                 {
                     return;
                 }
@@ -79,7 +79,7 @@ void LoginSession::submit2fa(const QString& token)
 
 void LoginSession::cancel()
 {
-    m_cancelled = true;
+    m_canceled = true;
     m_password.fill(QLatin1Char('\0'));
     m_handle->kill();
     deleteLater();

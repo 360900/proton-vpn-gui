@@ -209,18 +209,20 @@ void VpnFacade::wireService()
 
     connect(m_service, &VpnService::settingsReady, this,
             [this](const QMap<QString, QString>& settings)
-    {
-        QVariantMap map;
-        for (auto it = settings.constBegin(); it != settings.constEnd(); ++it)
-        {
-            map.insert(it.key(), it.value());
-        }
-        emit settingsChanged(map);
-    });
+            {
+                QVariantMap map;
+                for (auto it = settings.constBegin(); it != settings.constEnd(); ++it)
+                {
+                    map.insert(it.key(), it.value());
+                }
+                emit settingsChanged(map);
+                emit portForwardingEnabledChanged();
+            });
 
     connect(m_service, &VpnService::configApplied, this, &VpnFacade::configApplied);
     connect(m_service, &VpnService::countriesReady, this, &VpnFacade::countriesReady);
     connect(m_service, &VpnService::citiesReady, this, &VpnFacade::citiesReady);
+    connect(m_service, &VpnService::citiesFailed, this, &VpnFacade::citiesFailed);
 
     connect(m_service, &VpnService::cliVersionReady, this, [this](const QString& version)
     {

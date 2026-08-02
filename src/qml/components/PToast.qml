@@ -75,6 +75,8 @@ Item {
                     }
                 }
                 PauseAnimation { duration: host.holdMs }
+                // Auto-dismiss: after the hold, fade and collapse out.
+                ScriptAction { script: exitAnim.restart() }
             }
 
             SequentialAnimation {

@@ -20,7 +20,9 @@ Item {
         Behavior on scale { NumberAnimation { duration: Theme.durSlow; easing.type: Easing.OutCubic } }
 
         Image {
-            source: "qrc:/assets/no-app-icon.svg"
+            // no-app-icon.svg is drawn in black; tint it with the theme's
+            // secondary text color so it reads correctly on dark surfaces.
+            source: "image://icon/no-app-icon?" + String(Theme.textSecondary)
             sourceSize: Qt.size(96, 96)
             Layout.alignment: Qt.AlignHCenter
         }

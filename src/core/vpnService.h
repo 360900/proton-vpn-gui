@@ -103,6 +103,9 @@ signals:
 
     void countriesReady(const QList<Country>& countries);
     void citiesReady(const QString& countryCode, const QList<City>& cities);
+    // A countries/cities list fetch failed (transient auth or network error).
+    // Consumers should clear any in-flight loading indicator.
+    void citiesFailed(const QString& countryCode);
     void infoReady(const QMap<QString, QString>& info);
     void settingsReady(const QMap<QString, QString>& settings);
     void configApplied(const QString& output);
@@ -128,4 +131,8 @@ private:
     QString        m_lastConnectCountry;
     QString        m_lastConnectCity;
     StatusSnapshot m_lastSnapshot;
+    // The `protonvpn status` command has no IP field (CLI 1.0.1), so the
+    // connect output ("Your new IP address is ...") is the only source. It is
+    // remembered here and re-merged into every live snapshot.
+    QString        m_connectedIp;
 };

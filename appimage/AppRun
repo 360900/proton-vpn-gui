@@ -20,8 +20,8 @@ export PATH="${APPDIR}/usr/share/protonvpn:${PATH}"
 export LD_LIBRARY_PATH="${APPDIR}/usr/lib:${LD_LIBRARY_PATH:-}"
 
 # Bundled Qt plugins take priority.  System Qt6 plugin paths are appended so
-# the host desktop's style plugins (e.g. Breeze on KDE Plasma) are also
-# visible.  On desktops without Breeze the app falls back to Fusion as normal.
+# the host desktop's style plugins and platform plugins (e.g. Wayland on KDE
+# Plasma) are also visible.
 export QT_PLUGIN_PATH="${APPDIR}/usr/plugins:/usr/lib/qt6/plugins:/usr/lib/x86_64-linux-gnu/qt6/plugins:/usr/lib64/qt6/plugins${QT_PLUGIN_PATH:+:${QT_PLUGIN_PATH}}"
 
 # Qt reports QT_QPA_PLATFORM_PLUGIN_PATH in the "not found" warning and uses

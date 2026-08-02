@@ -37,5 +37,4 @@ private:
     QSystemTrayIcon* m_trayIcon;
     QMenu*           m_menu;
     QAction*         m_toggleAction = nullptr;
-    VpnState         m_state = VpnState::Unknown;
 };

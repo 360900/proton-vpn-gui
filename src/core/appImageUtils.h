@@ -18,7 +18,7 @@ inline bool isRunningAsAppImage()
 // AppImage never ships this launcher, since it relies on a host CLI install.
 inline bool isStandaloneAppImage()
 {
-    if (!isRunningAsAppImage())
+    if (isRunningAsAppImage() == false)
     {
         return false;
     }
@@ -37,5 +37,5 @@ inline bool systemProtonVpnCliInstalledSeparately()
         qEnvironmentVariable("APPDIR") + QStringLiteral("/usr/share/protonvpn");
     QStringList searchDirs = qEnvironmentVariable("PATH").split(QLatin1Char(':'), Qt::SkipEmptyParts);
     searchDirs.removeAll(bundledDir);
-    return !QStandardPaths::findExecutable(QStringLiteral("protonvpn"), searchDirs).isEmpty();
+    return QStandardPaths::findExecutable(QStringLiteral("protonvpn"), searchDirs).isEmpty() == false;
 }

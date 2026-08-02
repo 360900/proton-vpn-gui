@@ -31,17 +31,19 @@ link drops, and remembering your favorites so the next time is one click.
 
 Pick the one that matches your setup.
 
-### Arch Linux and Manjaro (AUR)
+### Arch Linux and Manjaro (from source)
+
+The package is not published on the AUR yet, but the repo includes a ready-to-use
+`PKGBUILD`. Build and install it locally with:
 
 ```bash
-git clone https://aur.archlinux.org/proton-vpn-gui.git
-cd proton-vpn-gui
+git clone https://github.com/360900/proton-vpn-gui.git
+cd proton-vpn-gui/packaging/aur
 makepkg -si
 ```
 
-A `proton VPN GUI` launcher appears in your application menu. The package also
-exists on the AUR under the same name. Submitting the package to the AUR is a
-manual step on your end.
+A `Proton VPN GUI` launcher appears in your application menu. Pushing it to the
+AUR as an official package is a manual step the maintainers have not done yet.
 
 ### Build a Flatpak yourself (most other distros)
 
@@ -61,13 +63,15 @@ review is complete.
 
 ### Native build (Debian, Ubuntu, Fedora, others)
 
-You will need the Proton VPN CLI and a handful of build tools.
+You will need the Proton VPN CLI, a handful of build tools, and CMake 3.31 or
+newer with Qt 6.8 or newer (the QML interface relies on recent Qt Quick APIs).
 
-Debian or Ubuntu:
+Debian or Ubuntu (recent releases such as Debian trixie or Ubuntu 26.04; older
+LTS releases ship too-old Qt):
 
 ```bash
 sudo apt install cmake ninja-build qt6-base-dev qt6-declarative-dev \
-  qt6-svg-dev qt6-tools-dev libqt6dbus6
+  qt6-svg-dev qt6-tools-dev
 git clone https://github.com/360900/proton-vpn-gui.git
 cd proton-vpn-gui/src
 cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
@@ -164,9 +168,10 @@ ctest --output-on-failure
 ```
 
 Thirteen tests cover parsers, the connection state machine, the process
-runner, status polling, the VPN service, configuration, connection history,
-geo helpers, the Flatpak bridge, and UI helpers. Native and Flatpak builds
-are wired into CI on every pull request.
+runner, status polling, the VPN service, NAT-PMP, configuration, connection
+history, geo helpers, the Flatpak bridge, and UI helpers. Native, Flatpak,
+and AppImage builds are wired into CI on every pull request to `main` or
+`dev`.
 
 ## Credits
 

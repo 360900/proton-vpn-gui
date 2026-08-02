@@ -36,7 +36,10 @@ private slots:
         QCOMPARE(s.state, VpnState::Connected);
         QCOMPARE(s.server, QStringLiteral("US-NJ#203 in Secaucus, United States"));
         QCOMPARE(s.raw.value(QStringLiteral("protocol")), QStringLiteral("WireGuard"));
-        QCOMPARE(s.raw.value(QStringLiteral("ip")), QStringLiteral("192.0.2.1"));
+        QCOMPARE(s.raw.value(QStringLiteral("load")), QStringLiteral("42%"));
+        // CLI 1.0.1's status command has no IP field (verified against the
+        // installed binary); the app captures it from the connect output.
+        QVERIFY(s.raw.contains(QStringLiteral("ip")) == false);
     }
 
     void parseStatus_disconnectedFixture()
@@ -53,7 +56,7 @@ private slots:
         const StatusSnapshot s = parseStatus(readFixture(QStringLiteral("status_connected_pf.txt")));
         QCOMPARE(s.state, VpnState::Connected);
         QCOMPARE(s.server, QStringLiteral("CH#7 in Zurich, Switzerland"));
-        QCOMPARE(s.raw.size(), 4); // status, server, protocol, ip
+        QCOMPARE(s.raw.size(), 4); // status, server, load, protocol
     }
 
     void parseStatus_emptyInput_isDisconnected()
@@ -137,6 +140,47 @@ private slots:
     void parseServerInfo_empty_returnsEmpty()
     {
         QCOMPARE(parseServerInfo(QString()), ServerInfo{});
+    }
+
+    //  parseServerInfoFromConnectOutput
+
+    void parseServerInfoFromConnectOutput_realConnectMessage()
+    {
+        // CLI 1.0.1 prints "Connected to <server> in <location>. " plus
+        // "Your new IP address is ..." on a second line, possibly after an
+        // update-notice noise line. Only the server part must be parsed.
+        const ServerInfo info =
+            parseServerInfoFromConnectOutput(readFixture(QStringLiteral("connect_success.txt")));
+        QCOMPARE(info.countryCode, QStringLiteral("US"));
+        QCOMPARE(info.city, QStringLiteral("Secaucus"));
+    }
+
+    void parseServerInfoFromConnectOutput_bareServerNoCity()
+    {
+        const ServerInfo info =
+            parseServerInfoFromConnectOutput(QStringLiteral("Connected to CH#7."));
+        QCOMPARE(info.countryCode, QStringLiteral("CH"));
+        QVERIFY(info.city.isEmpty());
+    }
+
+    void parseServerInfoFromConnectOutput_noServerLine_returnsEmpty()
+    {
+        QCOMPARE(parseServerInfoFromConnectOutput(QStringLiteral("Connection failed.\n")),
+                 ServerInfo{});
+    }
+
+    //  parseIpFromConnectOutput
+
+    void parseIpFromConnectOutput_realConnectMessage()
+    {
+        const QString ip =
+            parseIpFromConnectOutput(readFixture(QStringLiteral("connect_success.txt")));
+        QCOMPARE(ip, QStringLiteral("192.0.2.1"));
+    }
+
+    void parseIpFromConnectOutput_empty_returnsEmpty()
+    {
+        QVERIFY(parseIpFromConnectOutput(QStringLiteral("Connected to CH#7.")).isEmpty());
     }
 
     //  parseCountriesTable

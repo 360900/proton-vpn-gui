@@ -38,8 +38,7 @@ AppConfig::AppConfig()
 void AppConfig::load()
 {
     QFile f(configFile());
-    if (f.open(QIODevice::ReadOnly) == false)
-        return; // file doesn't exist yet - all values stay at defaults
+    if (f.open(QIODevice::ReadOnly) == false) return; // file doesn't exist yet - defaults
 
     const QJsonObject obj = QJsonDocument::fromJson(f.readAll()).object();
     f.close();
@@ -111,8 +110,7 @@ void AppConfig::logLoadedConfig() const
 bool AppConfig::save() const
 {
     const QDir dir;
-    if (dir.mkpath(configDir()) == false)
-        return false;
+    if (dir.mkpath(configDir()) == false) return false;
 
     QJsonObject obj;
     obj[QStringLiteral("auto_connect")] = m_autoConnect;
@@ -138,15 +136,15 @@ bool AppConfig::save() const
     QString themeStr;
     switch (m_theme)
     {
-    case Theme::Dark:
-        themeStr = QStringLiteral("dark");
-        break;
-    case Theme::Light:
-        themeStr = QStringLiteral("light");
-        break;
-    default:
-        themeStr = QStringLiteral("system");
-        break;
+        case Theme::Dark:
+            themeStr = QStringLiteral("dark");
+            break;
+        case Theme::Light:
+            themeStr = QStringLiteral("light");
+            break;
+        default:
+            themeStr = QStringLiteral("system");
+            break;
     }
     obj[QStringLiteral("theme")] = themeStr;
 

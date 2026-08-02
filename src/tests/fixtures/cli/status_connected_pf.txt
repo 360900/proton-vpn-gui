@@ -1,8 +1,8 @@
 Server list is outdated, updating... This may take a moment.
-Status:     Connected
-Server:     CH#7 in Zurich, Switzerland
-Protocol:   WireGuard
-IP:         198.51.100.7
+Status: Connected
+Server: CH#7 in Zurich, Switzerland
+Load: 37%
+Protocol: WireGuard
 To get your forwarded port, run natpmpc periodically:
 natpmpc -a 1 0 udp 60 -g 10.2.0.1
 Guide: https://protonvpn.com/support/port-forwarding

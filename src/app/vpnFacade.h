@@ -50,7 +50,7 @@ public:
     Q_PROPERTY(QString loginError READ loginError NOTIFY loginErrorChanged)
     Q_PROPERTY(QString lastError READ lastError NOTIFY lastErrorChanged)
     Q_PROPERTY(int forwardedPort READ forwardedPort NOTIFY forwardedPortChanged)
-    Q_PROPERTY(bool portForwardingEnabled READ portForwardingEnabled NOTIFY settingsChanged)
+    Q_PROPERTY(bool portForwardingEnabled READ portForwardingEnabled NOTIFY portForwardingEnabledChanged)
     Q_PROPERTY(QString cliVersion READ cliVersion NOTIFY cliVersionChanged)
     Q_PROPERTY(QString appVersion READ appVersion CONSTANT)
     // Most recent connection (persisted across restarts) - drives the
@@ -126,6 +126,7 @@ signals:
     void loginErrorChanged();
     void lastErrorChanged();
     void forwardedPortChanged();
+    void portForwardingEnabledChanged();
     void settingsChanged(const QVariantMap& settings);
     void cliVersionChanged();
     void lastLocationChanged();
@@ -133,6 +134,7 @@ signals:
     void configApplied(const QString& output);
     void countriesReady(const QList<Country>& countries);
     void citiesReady(const QString& countryCode, const QList<City>& cities);
+    void citiesFailed(const QString& countryCode);
     // Fired when a connection attempt succeeded (used to record history).
     void connected(const QString& countryCode, const QString& city);
     // In-app toast requests.

@@ -16,6 +16,10 @@ constexpr bool DRY_RUN_MODE = true;
 #else
 constexpr bool DRY_RUN_MODE = false;
 #endif
+
+// The last version that used a systemd user service for auto-start.
+// Versions after this switched to an XDG autostart .desktop file.
+const QVersionNumber LAST_SYSTEMD_VERSION(1, 9, 0);
 } // namespace
 
 namespace Migrations
@@ -28,23 +32,17 @@ void run(const QString& previousVersion)
 
 void migrateSystemdToXdgAutostart(const QString& previousVersion)
 {
-    // The last version that used a systemd user service for auto-start.
-    // Versions after this switched to an XDG autostart .desktop file.
-    const QVersionNumber LAST_SYSTEMD_VERSION(1, 9, 0);
-
     const QVersionNumber prev = QVersionNumber::fromString(previousVersion);
     // Skip on a fresh install (empty previousVersion) or if already past the
     // migration point.
-    if (prev.isNull() || prev > LAST_SYSTEMD_VERSION)
-        return;
+    if (prev.isNull() || prev > LAST_SYSTEMD_VERSION) return;
 
     const QString configDir = QStandardPaths::writableLocation(QStandardPaths::ConfigLocation);
     const QString serviceFile = configDir + QStringLiteral("/systemd/user/proton-vpn-gui.service");
 
     // If the service file does not exist, auto-start was not enabled under the
-    // old version — remove nothing, create nothing.
-    if (QFileInfo::exists(serviceFile) == false)
-        return;
+    // old version; remove nothing, create nothing.
+    if (QFileInfo::exists(serviceFile) == false) return;
 
     DBG_APP(QStringLiteral("Migration: replacing legacy systemd unit with XDG autostart entry"));
 
@@ -67,10 +65,13 @@ void migrateSystemdToXdgAutostart(const QString& previousVersion)
     QString content = QString::fromUtf8(templateFile.readAll());
     templateFile.close();
 
-    // Substitute the executable path placeholder.
+    // Substitute the executable path placeholder. The AppImage runtime mounts
+    // under /tmp/.mount_XXXX (gone after unmount); $APPIMAGE survives reboot.
     const QString exec = isRunningAsFlatpak()
         ? QStringLiteral("flatpak run ") + QString::fromUtf8(qgetenv("FLATPAK_ID"))
-        : QCoreApplication::applicationFilePath();
+        : isRunningAsAppImage()
+          ? QString::fromUtf8(qgetenv("APPIMAGE"))
+          : QCoreApplication::applicationFilePath();
     content.replace(QStringLiteral("@EXEC@"), exec);
 
     // Write the XDG autostart entry.
@@ -100,7 +101,6 @@ void migrateSystemdToXdgAutostart(const QString& previousVersion)
 
 QString Migrations::testMigrateSystemdToXdgAutostart(const QString& simulatedPreviousVersion)
 {
-    const QVersionNumber LAST_SYSTEMD_VERSION(1, 9, 0);
     const QVersionNumber prev = QVersionNumber::fromString(simulatedPreviousVersion);
 
     QStringList log;

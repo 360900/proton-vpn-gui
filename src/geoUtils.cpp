@@ -1,4 +1,3 @@
-
 #include <QFile>
 #include <QMap>
 #include <QPainter>
@@ -360,7 +359,9 @@ QIcon flagIcon(const QString& countryCode)
     const QString key = countryCode.toLower();
     const auto it = cache.find(key);
     if (it != cache.end())
+    {
         return it.value();
+    }
 
     const QString path = QStringLiteral(":/flags/") + key;
     if (QFile::exists(path) == false)

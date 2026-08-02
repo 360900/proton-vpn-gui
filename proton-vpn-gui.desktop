@@ -9,3 +9,4 @@ Type=Application
 Categories=Network;
 Keywords=VPN;Proton;Network;Security;
 StartupNotify=true
+StartupWMClass=proton_vpn_gui

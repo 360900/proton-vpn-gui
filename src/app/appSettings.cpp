@@ -151,9 +151,13 @@ void AppSettings::setAutoStart(const bool enable)
         }
         QString content = QString::fromUtf8(templateFile.readAll());
 
+        // The AppImage runtime mounts the bundle under /tmp/.mount_XXXX which
+        // disappears on unmount; the persistent $APPIMAGE path survives reboot.
         const QString exec = isRunningAsFlatpak()
             ? QStringLiteral("flatpak run ") + QString::fromUtf8(qgetenv("FLATPAK_ID"))
-            : QCoreApplication::applicationFilePath();
+            : isRunningAsAppImage()
+              ? QString::fromUtf8(qgetenv("APPIMAGE"))
+              : QCoreApplication::applicationFilePath();
         content.replace(QStringLiteral("@EXEC@"), exec);
 
         QDir targetDir = QFileInfo(filePath).dir();
@@ -221,8 +225,7 @@ bool AppSettings::isFavorite(const QString& countryCode, const QString& city) co
 void AppSettings::addFavorite(const QString& countryCode, const QString& city)
 {
     const QString name = GeoUtils::countryCodeToName(countryCode);
-    if (name.isEmpty())
-        return;
+    if (name.isEmpty()) return;
     FavoritesManager::instance().add(countryCode, name, city);
 }
 
@@ -234,7 +237,6 @@ void AppSettings::removeFavorite(const QString& countryCode, const QString& city
 void AppSettings::toggleFavorite(const QString& countryCode, const QString& city)
 {
     const QString name = GeoUtils::countryCodeToName(countryCode);
-    if (name.isEmpty())
-        return;
+    if (name.isEmpty()) return;
     FavoritesManager::instance().toggle(countryCode, name, city);
 }

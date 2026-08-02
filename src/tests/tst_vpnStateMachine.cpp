@@ -168,6 +168,33 @@ private slots:
         QCOMPARE(sm.connectedServer(), QStringLiteral("CH#7"));
     }
 
+    //  reset (sign-out path)
+
+    void reset_fromConnected_emitsStateChanged()
+    {
+        // Sign-out happens outside the transition flow; consumers (tray,
+        // D-Bus adaptor, UI) must still learn about it, otherwise they keep
+        // showing the stale "Connected" state.
+        VpnStateMachine sm;
+        sm.reset(VpnState::Disconnected);
+        sm.applySnapshot(connectedSnapshot(QStringLiteral("CH#7")));
+
+        QSignalSpy spy(&sm, &VpnStateMachine::stateChanged);
+        sm.reset(VpnState::Disconnected);
+        QCOMPARE(spy.count(), 1);
+        QCOMPARE(spy.first().at(0).value<VpnState>(), VpnState::Disconnected);
+    }
+
+    void reset_sameState_noEmit()
+    {
+        VpnStateMachine sm;
+        sm.applySnapshot(disconnectedSnapshot());
+
+        QSignalSpy spy(&sm, &VpnStateMachine::stateChanged);
+        sm.reset(VpnState::Disconnected);
+        QCOMPARE(spy.count(), 0);
+    }
+
     //  Watchdog
 
     void watchdog_firstStage_requestsPoll()

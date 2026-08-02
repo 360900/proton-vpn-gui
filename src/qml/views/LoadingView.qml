@@ -9,7 +9,9 @@ Item {
         spacing: Theme.spacingLg
 
         Image {
-            source: "qrc:/assets/proton-vpn-logo.svg"
+            source: Theme.dark
+                    ? "qrc:/assets/proton-vpn-logo.svg"
+                    : "qrc:/assets/proton-vpn-logo-light.svg"
             sourceSize: Qt.size(220, 56)
             fillMode: Image.PreserveAspectFit
             Layout.alignment: Qt.AlignHCenter

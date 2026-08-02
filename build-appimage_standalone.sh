@@ -19,8 +19,8 @@
 #      libssl version to usr/lib/, conflicting with the Qt SSL backend.
 #
 # Usage:
-#   ./build-appimage.sh          # build only
-#   ./build-appimage.sh --run    # build, then launch the resulting AppImage
+#   ./build-appimage_standalone.sh          # build only
+#   ./build-appimage_standalone.sh --run    # build, then launch the resulting AppImage
 #
 # Requirements (install with your package manager before running):
 #   cmake, ninja-build, python3, python3-venv, python3-gi, python3-gi-cairo,

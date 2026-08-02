@@ -32,6 +32,14 @@
 #include "updateChecker.h"
 #include "vpnFacade.h"
 
+namespace
+{
+// How long to wait for the first instance to handle a Raise request before
+// giving up (and for the lock-file fallback when D-Bus is unavailable).
+constexpr int DBUS_RAISE_TIMEOUT_MS = 2'000;
+constexpr int LOCK_FILE_TIMEOUT_MS  = 100;
+} // namespace
+
 int main(int argc, char* argv[])
 {
     // Pin the Basic style before any QML loads: org.kde.Platform ships
@@ -42,7 +50,11 @@ int main(int argc, char* argv[])
     QApplication app(argc, argv);
     QApplication::setApplicationName(QStringLiteral("Proton VPN GUI"));
     QApplication::setApplicationDisplayName(QStringLiteral("Proton VPN GUI"));
-    QApplication::setDesktopFileName(QStringLiteral("io.github._360900.ProtonVpnGui"));
+    // Match the installed .desktop file so the launcher groups windows
+    // correctly: Flatpak renames it to the app-id, native keeps its own name.
+    QApplication::setDesktopFileName(isRunningAsFlatpak()
+                                         ? QStringLiteral("io.github._360900.ProtonVpnGui")
+                                         : QStringLiteral("proton-vpn-gui"));
     QApplication::setQuitOnLastWindowClosed(false); // window closes to tray
 
     static QTranslator translator;
@@ -87,14 +99,14 @@ int main(int argc, char* argv[])
                 QStringLiteral("/io/github/360900/ProtonVpnGui"),
                 QStringLiteral("io.github._360900.ProtonVpnGui.Control"),
                 QStringLiteral("Raise"));
-            sessionBus.call(raise, QDBus::Block, 2000);
+            sessionBus.call(raise, QDBus::Block, DBUS_RAISE_TIMEOUT_MS);
             return 0;
         }
     }
     else
     {
         lockFile.setStaleLockTime(0);
-        if (lockFile.tryLock(100) == false)
+        if (lockFile.tryLock(LOCK_FILE_TIMEOUT_MS) == false)
         {
             QMessageBox::warning(
                 nullptr,
@@ -124,6 +136,20 @@ int main(int argc, char* argv[])
     // The facade (and its VpnService) exists before the QML engine so the
     // D-Bus adaptors and tray can attach regardless of QML lifecycle.
     VpnFacade* facade = VpnFacade::instance();
+
+    // Register the D-Bus object as early as possible (before QML loads) so a
+    // second instance's Raise call in the single-instance check can never hit
+    // an unregistered path. The raise connection is added after the window
+    // exists below.
+    VpnControlAdaptor* dbusControl = nullptr;
+    if (sessionBus.isConnected())
+    {
+        const VpnStatusAdaptor* statusAdaptor = new VpnStatusAdaptor(facade->service());
+        Q_UNUSED(statusAdaptor)
+        dbusControl = new VpnControlAdaptor(facade->service());
+        sessionBus.registerObject(QStringLiteral("/io/github/360900/ProtonVpnGui"),
+                                  facade->service());
+    }
 
     QQmlApplicationEngine engine;
     QObject::connect(&engine, &QQmlApplicationEngine::warnings,
@@ -166,10 +192,20 @@ int main(int argc, char* argv[])
             QMetaObject::invokeMethod(window, "openQuitDialog");
         }
     });
+    // Track the previous state so the first stateChanged (which just reveals
+    // the state the app launched into) does not fire a notification.
+    VpnState lastTrayState = VpnState::Unknown;
     QObject::connect(facade->service(), &VpnService::stateChanged, &tray,
-                     [&tray, facade](const VpnState state, const QString&)
+                     [&tray, facade, &lastTrayState](const VpnState state, const QString&)
                      {
                          tray.updateState(state);
+                         const bool firstReveal = lastTrayState == VpnState::Unknown &&
+                                                  state != VpnState::Unknown;
+                         lastTrayState = state;
+                         if (firstReveal)
+                         {
+                             return; // startup reveal - no notification
+                         }
                          if (state == VpnState::Connected)
                          {
                              const QString server = facade->service()->connectedServer();
@@ -207,24 +243,17 @@ int main(int argc, char* argv[])
     AppConfig::instance().setLastSeenVersion(appVersion);
     updateChecker.checkSoon();
 
-    // D-Bus: status + control on the session bus.
-    if (sessionBus.isConnected())
+    // D-Bus: the object path was registered above; only attach the window
+    // raise wiring now that the window exists.
+    if (sessionBus.isConnected() && window != nullptr && dbusControl != nullptr)
     {
-        const VpnStatusAdaptor* statusAdaptor = new VpnStatusAdaptor(facade->service());
-        Q_UNUSED(statusAdaptor)
-        VpnControlAdaptor* controlAdaptor = new VpnControlAdaptor(facade->service());
-        if (window != nullptr)
-        {
-            QObject::connect(controlAdaptor, &VpnControlAdaptor::raiseRequested, window,
-                             [window]
-                             {
-                                 window->show();
-                                 window->raise();
-                                 window->requestActivate();
-                             });
-        }
-        sessionBus.registerObject(QStringLiteral("/io/github/360900/ProtonVpnGui"),
-                                  facade->service());
+        QObject::connect(dbusControl, &VpnControlAdaptor::raiseRequested, window,
+                         [window]
+                         {
+                             window->show();
+                             window->raise();
+                             window->requestActivate();
+                         });
     }
 
     if (window != nullptr && AppConfig::instance().startHidden() == false)

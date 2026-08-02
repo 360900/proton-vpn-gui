@@ -44,7 +44,10 @@ Item {
             spacing: Theme.spacingMd
 
             Image {
-                source: "qrc:/assets/proton-vpn-logo.svg"
+                // White wordmark on dark surfaces, dark wordmark on light.
+                source: Theme.dark
+                        ? "qrc:/assets/proton-vpn-logo.svg"
+                        : "qrc:/assets/proton-vpn-logo-light.svg"
                 sourceSize: Qt.size(190, 48)
                 fillMode: Image.PreserveAspectFit
                 Layout.alignment: Qt.AlignHCenter

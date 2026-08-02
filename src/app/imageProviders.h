@@ -17,9 +17,11 @@ class FlagImageProvider final : public QQuickImageProvider
 public:
     FlagImageProvider() : QQuickImageProvider(QQuickImageProvider::Pixmap) {}
 
+    static constexpr QSize FALLBACK_SIZE = QSize(24, 18);
+
     QPixmap requestPixmap(const QString& id, QSize* size, const QSize& requestedSize) override
     {
-        const QSize target = requestedSize.isValid() ? requestedSize : QSize(24, 18);
+        const QSize target = requestedSize.isValid() ? requestedSize : FALLBACK_SIZE;
         QSvgRenderer renderer(QStringLiteral(":/flags/") + id.toLower());
         if (renderer.isValid() == false)
         {
@@ -48,13 +50,15 @@ class IconImageProvider final : public QQuickImageProvider
 public:
     IconImageProvider() : QQuickImageProvider(QQuickImageProvider::Pixmap) {}
 
+    static constexpr QSize FALLBACK_SIZE = QSize(18, 18);
+
     QPixmap requestPixmap(const QString& id, QSize* size, const QSize& requestedSize) override
     {
         const int queryPos = id.lastIndexOf(QLatin1Char('?'));
         const QString name = queryPos >= 0 ? id.left(queryPos) : id;
         const QColor tint  = queryPos >= 0 ? QColor(id.mid(queryPos + 1)) : QColor();
 
-        const QSize target = requestedSize.isValid() ? requestedSize : QSize(18, 18);
+        const QSize target = requestedSize.isValid() ? requestedSize : FALLBACK_SIZE;
         QSvgRenderer renderer(QStringLiteral(":/assets/") + name + QStringLiteral(".svg"));
         if (renderer.isValid() == false)
         {

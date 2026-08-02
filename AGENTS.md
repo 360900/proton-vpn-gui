@@ -2,24 +2,31 @@
 
 ## Architecture Overview
 
-This is a **Qt6/C++23 desktop GUI** (Linux) that wraps the `protonvpn` CLI tool. The app has **no direct VPN or network logic** — it drives everything through `QProcess` calls to the `protonvpn` command-line binary.
+This is a **Qt6/C++23 desktop GUI** (Linux) that wraps the `protonvpn` CLI tool. The app has **no direct VPN or network logic** — it drives everything through `QProcess` calls to the `protonvpn` command-line binary. The QML UI (2.x) is the shipping default; the legacy QtWidgets UI remains buildable as a fallback until it is removed.
 
 ```
-MainWindow (QStackedWidget)
-  ├── pages/  (NotInstalledPage, LoginPage, VpnPage, CountriesPage, AccountPage, SettingsPage)
-  └── VpnManager  ─── runs `protonvpn <subcommand>` via QProcess
-        └── StatusMonitor  ─── long-lived subprocess polling `protonvpn status` every 15 s
+ProtonVpnGui (QML UI, module URI ProtonVpnGui)
+  ├── qml/views/    (LoadingView, LoginView, NotInstalledView, MainView, SettingsView, AccountView)
+  ├── qml/components/ (P* primitives: PButton, PSwitch, PTextField, PToast, ...)
+  ├── app/          (QML app layer: VpnFacade, serverListModel, trayController, main.cpp)
+  └── core/         (vpncore static lib: VpnService, StateMachine, CliClient, StatusPoller)
+        └── drives `protonvpn <subcommand>` via QProcess
 ```
 
-**Key data flows:**
-- UI → `VpnManager` → `protonvpn <cmd>` subprocess → signals back to UI
-- `StatusMonitor` parses `Key: Value` lines from `protonvpn status` and emits `statusParsed(QMap<QString,QString>)`
-- `VpnManager::applyStatusFields()` translates the map into `VpnState` enum changes and emits `connectionStateChanged`
+**Key data flows (QML):**
+- QML → `VpnFacade` → `VpnService` → `protonvpn <cmd>` subprocess → signals back through the facade to QML
+- `StatusPoller` keeps a long-lived subprocess running `bash -c 'while true; ... sleep 15'` polling `protonvpn status`; steady cadence is 15 s (transition cadence faster while state changes)
+- `CliParsers` parse `Key: Value` lines from `protonvpn status` into `QMap<QString,QString>` and command output into typed structs
+- `VpnService::applyStatusFields()` (via snapshot) translates the map into `VpnState` enum changes and emits `stateChanged(VpnState, QString)`
+
+**Layering rule:** `core/` links **no** GUI modules (only `Qt6::Core`) so it stays testable. `app/` + `qml/` are the QML-only UI layer. Legacy widgets live in `mainWindow.cpp`, `pages/`, `widgets/`, `dialogs/` behind `VpnManager`.
 
 ## Build & Run
 
+Requirements: **CMake ≥ 3.31**, **Qt ≥ 6.8** (needed for `qt_standard_project_setup(REQUIRES 6.8)` and the QML module build), C++23. Debian trixie / Ubuntu 26.04 / Fedora 42 or newer.
+
 ```bash
-# Configure (from src/)
+# Configure (from src/). QML UI is the default; add -DUSE_QML_UI=OFF for legacy.
 cmake -B cmake-build-debug -DCMAKE_BUILD_TYPE=Debug
 # Build
 cmake --build cmake-build-debug
@@ -35,9 +42,11 @@ cmake --build cmake-build-debug
 cd cmake-build-debug && ctest --output-on-failure
 ```
 
+Note: the target binary is `proton_vpn_gui` for **both** the QML and legacy builds (selected via the `USE_QML_UI` CMake option, default `ON`). The legacy option is a stopgap; new work should only touch `core/`, `app/`, `qml/`.
+
 ## Flatpak Sandboxing
 
-All `QProcess` spawning **must** go through `buildHostCommand()` (`cli/flatpakutils.h`):
+All `QProcess` spawning **must** go through `buildHostCommand()` (`core/hostCommand.h`):
 
 ```cpp
 auto [prog, args] = buildHostCommand("protonvpn", {"connect", country});
@@ -50,24 +59,36 @@ This transparently wraps commands with `flatpak-spawn --host` when inside a Flat
 
 | File | Purpose |
 |---|---|
-| `vpnmanager.h/cpp` | Central controller; all CLI calls and state machine |
-| `cli/statusmonitor.h/cpp` | Background `protonvpn status` polling subprocess |
-| `cli/flatpakutils.h` | `buildHostCommand()` for Flatpak-safe subprocess spawning |
-| `cli/protonvpncli.cpp` | CLI command builder helpers |
-| `appconfig.h/cpp` | App preferences → `~/.config/ProtonVPN-GUI/app.json` |
-| `connectionhistory.h/cpp` | Recent connections → `$XDG_DATA_HOME/ProtonVPN-GUI/history.json` |
-| `main.cpp` | Palette, style, single-instance lock, version from `version.json` |
-| `style.qss` | App-wide stylesheet (embedded via `resources.qrc`) |
+| `core/vpnService.h/cpp` | Central service in `vpncore`; all CLI calls, auth, state, list fetches; emits typed signals |
+| `core/vpnStateMachine.h/cpp` | `VpnState` enum state machine (Connected, Connecting, Disconnected, ...) |
+| `core/cliClient.h/cpp` | QProcess spawning + per-command parsing of `protonvpn` output |
+| `core/cliParsers.h/cpp` | Pure parsers for status fields, server info, command output |
+| `core/statusPoller.h/cpp` | Background `protonvpn status` polling subprocess via `processRunner` |
+| `core/processRunner.h/cpp` | Thin QProcess wrapper (start, output capture, cancellation) |
+| `core/hostCommand.h` | `buildHostCommand()` for Flatpak-safe subprocess spawning |
+| `core/natPmpService.h/cpp` | Port-forwarding (NAT-PMP) support |
+| `app/vpnFacade.h/cpp` | QML-exposed facade bridging `VpnService` and QML views |
+| `app/serverListModel.h/cpp` | `QAbstractListModel` feeding country/city lists to QML |
+| `app/trayController.h/cpp` | Tray icon + notifications + single-instance raise |
+| `app/main.cpp` | QML engine, D-Bus registration, single-instance lock, version from `version.json` |
+| `qml/Main.qml` | Root window / view stack of the QML UI |
+| `qml/theme/Theme.qml` | Singleton color/palette properties for the QML UI |
+| `appConfig.h/cpp` | App preferences → `~/.config/ProtonVPN-GUI/app.json` |
+| `connectionHistory.h/cpp` | Recent connections → `$XDG_DATA_HOME/ProtonVPN-GUI/history.json` |
+| `favoritesManager.h/cpp` | Favorites (starred cities/servers) |
+| `geoUtils.h/cpp` | Country/continent/coordinate helpers for the map |
+| `i18n/proton_vpn_gui_en.ts` | Translation catalog (QML `qsTr` + C++ `tr` strings) |
+| `version.json` | Single source of truth for `app_version` and tested CLI range |
 
 ## Conventions
 
 - **C++23**, strict conformance (`-extensions OFF`), `#pragma once` everywhere
-- **No `.ui` files** — all layouts built programmatically in constructors
-- **Singletons** via `static T& instance()`: `AppConfig`, `ConnectionHistory`
+- **No `.ui` files** — widget layout is built programmatically; the QML UI needs none
+- **Singletons** via `static T& instance()`: `AppConfig`, `ConnectionHistory`, `FavoritesManager`
 - **Logging**: use `DBG_APP(msg)`, `DBG_CLI(msg)`, `DBG_SETTINGS(msg)` macros (stdout, tagged+timestamped). Never use `qDebug()`.
-- **Versioning**: single source of truth is `src/version.json` (keys: `app_version`, `cli_version_tested_min`, `cli_version_tested_max`); read at runtime via embedded resource `:/version.json`
-- **Palette**: dark Proton-branded theme set in `main.cpp` (`bg #1a1a2e`, accent purple `#6d4aff`)
-- **Translations**: Qt Linguist, source file `i18n/proton_vpn_gui_en.ts`; UI strings use `tr()` or `QCoreApplication::translate()`
+- **Versioning**: single source of truth is `src/version.json` (keys: `app_version`, `cli_version_tested_min`, `cli_version_tested_max`, optional `prerelease`); read at runtime via embedded resource `:/version.json`
+- **Palette**: dark Proton-branded theme (bg `#1a1a2e`, accent purple `#6d4aff`); QML reads it from the `Theme.qml` singleton
+- **Translations**: Qt Linguist, source file `i18n/proton_vpn_gui_en.ts`; QML strings use `qsTr()` (context = file basename), C++ uses `tr()`. Regenerate with `lupdate6` over `app/` and `qml/`, compiled by `qt_add_translations` into `:/i18n/proton_vpn_gui_en.qm`.
 - **Language**: American English only — variable names, comments, and default/fallback text strings (e.g. `color` not `colour`, `canceled` not `cancelled`, `initialize` not `initialise`)
 
 ### Code Style
@@ -138,7 +159,7 @@ This transparently wraps commands with `flatpak-spawn --host` when inside a Flat
 
 Tests live in `src/tests/` and use **Qt Test** (`QtTest/QtTest`). Each test file maps to one logical unit — the naming convention is `tst_<unit>.cpp`.
 
-**When to write tests:** write a test for any class/function that has pure or near-pure logic — parsers, data models, config helpers, utility functions. Do **not** try to test `QWidget` subclasses or `VpnManager` (subprocess-dependent); those are integration-level and are not tested here.
+**When to write tests:** write a test for any class/function that has pure or near-pure logic — parsers, data models, config helpers, utility functions. Do **not** try to test `QWidget`/QML views, `VpnFacade`, or `VpnService` (subprocess-dependent); those are integration-level and are not tested here.
 
 **How to register a new test:**
 
@@ -151,7 +172,8 @@ Tests live in `src/tests/` and use **Qt Test** (`QtTest/QtTest`). Each test file
        ../myunit.cpp
    )
    ```
-3. If the unit needs extra Qt modules (e.g. `Qt6::Gui`), add them with a separate `target_link_libraries` call after `add_qt_test`.
+3. If the unit needs extra Qt modules (e.g. `Qt6::Gui`, `Qt6::Qml`), add them with a separate `target_link_libraries` call after `add_qt_test`.
+4. Tests depending on the QML module (e.g. `tst_geoCoords` using `Qt6::Qml`) must be guarded by `if(USE_QML_UI)` so the legacy build still configures.
 
 **Test structure** — one `QObject` subclass per file, test slots in `private slots:`, `QTEST_MAIN` + `.moc` include at the bottom:
 
@@ -176,14 +198,12 @@ QTEST_MAIN(TstMyUnit)
 
 **Naming:** `methodName_condition_expectedResult` (e.g. `parseStatusFields_emptyInput_returnsEmptyMap`).
 
-**Singletons in tests** (`AppConfig`, `ConnectionHistory`): call `QStandardPaths::setTestModeEnabled(true)` in `initTestCase()` and restore it in `cleanupTestCase()` to keep tests isolated from the real user config directory. Restore any values mutated during a slot at the end of that slot.
+**Singletons in tests** (`AppConfig`, `ConnectionHistory`, `FavoritesManager`): call `QStandardPaths::setTestModeEnabled(true)` in `initTestCase()` and restore it in `cleanupTestCase()` to keep tests isolated from the real user config directory. Restore any values mutated during a slot at the end of that slot.
 
-## Page Navigation
+## Page Navigation (QML)
 
-`MainWindow::showPage(Page)` switches the `QStackedWidget`. The `Page` enum drives the flow:
-`Loading → NotInstalled` (if CLI missing) or `Login` (if not authenticated) or `Vpn` (main screen).
+`Main.qml` hosts the view stack. The flow is: `LoadingView → NotInstalledView` (if CLI missing) or `LoginView` (if not authenticated) or `MainView` (main screen), with `SettingsView` and `AccountView` reachable from the main screen. The equivalent `Page` enum-driven flow exists in the legacy `MainWindow::showPage(Page)`.
 
 ## Signals Pattern
 
-`VpnManager` emits typed signals; pages connect to them in `MainWindow`'s constructor. Pages **never** call `protonvpn` directly — all actions go through `VpnManager`.
-
+`VpnService` emits typed signals; `VpnFacade` re-exposes them as QML properties/signals, and views bind to them. Views **never** call `protonvpn` directly — all actions go through `VpnFacade` → `VpnService`.

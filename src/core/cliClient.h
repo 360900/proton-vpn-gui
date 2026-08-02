@@ -41,7 +41,7 @@ private:
     QString        m_accumulated;
     bool           m_passwordSent = false;
     bool           m_twoFaEmitted = false;
-    bool           m_cancelled    = false;
+    bool           m_canceled    = false;
 };
 
 class ProtonVpnCliClient final : public QObject

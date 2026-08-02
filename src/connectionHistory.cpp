@@ -6,6 +6,7 @@
 #include <QStandardPaths>
 // ReSharper disable once CppUnusedIncludeDirective
 #include <ranges>
+#include <algorithm>
 #include "appConfig.h"
 #include "connectionHistory.h"
 
@@ -37,9 +38,13 @@ QList<ConnectionEntry> ConnectionHistory::entries() const
 {
     const int maxCount = AppConfig::instance().recentConnectionsCount();
     if (maxCount == 0)
+    {
         return {};
+    }
     if (m_entries.size() <= maxCount)
+    {
         return m_entries;
+    }
     return m_entries.sliced(0, maxCount);
 }
 

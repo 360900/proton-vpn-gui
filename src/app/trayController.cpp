@@ -14,6 +14,8 @@
 namespace
 {
 constexpr int TRAY_ICON_SIZE = 22;
+constexpr int NOTIFICATION_ICON_SIZE = 64;
+constexpr int NOTIFICATION_TIMEOUT_MS = 5'000;
 
 QString stateIconResource(const VpnState state)
 {
@@ -74,7 +76,6 @@ TrayController::TrayController(QObject* parent)
 
 void TrayController::updateState(const VpnState state)
 {
-    m_state = state;
     m_trayIcon->setIcon(stateIcon(state));
 
     switch (state)
@@ -114,12 +115,12 @@ void TrayController::notify(const QString& title, const QString& message) const
         return;
     }
     QSvgRenderer renderer(QStringLiteral(":/assets/proton-vpn-gui.svg"));
-    QPixmap iconPix(64, 64);
+    QPixmap iconPix(NOTIFICATION_ICON_SIZE, NOTIFICATION_ICON_SIZE);
     iconPix.fill(Qt::transparent);
     QPainter p(&iconPix);
     renderer.render(&p);
     p.end();
-    m_trayIcon->showMessage(title, message, QIcon(iconPix), 5'000);
+    m_trayIcon->showMessage(title, message, QIcon(iconPix), NOTIFICATION_TIMEOUT_MS);
 }
 
 QIcon TrayController::stateIcon(const VpnState state) const

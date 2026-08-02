@@ -5,6 +5,7 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QStandardPaths>
+#include <algorithm>
 #include <ranges>
 #include "favoritesManager.h"
 
@@ -48,8 +49,7 @@ void FavoritesManager::add(const QString& countryCode,
                             const QString& countryName,
                             const QString& city)
 {
-    if (isFavorite(countryCode, city))
-        return;
+    if (isFavorite(countryCode, city)) return;
 
     FavoriteEntry e;
     e.countryCode = countryCode;

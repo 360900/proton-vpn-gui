@@ -40,6 +40,16 @@ StatusSnapshot parseStatus(const QString& text);
 // "US-NJ#203 in Secaucus, United States". Missing parts come back empty.
 ServerInfo parseServerInfo(const QString& server);
 
+// Parse the server the CLI announces on a successful `connect`, from a
+// message like "Connected to US-NJ#203 in Secaucus, United States.".
+// The full sentence is safe here even though parseServerInfo() itself only
+// understands the bare server string.
+ServerInfo parseServerInfoFromConnectOutput(const QString& output);
+
+// Extract the IP address the CLI prints after a successful `connect`
+// ("Your new IP address is 1.2.3.4."). Empty when absent.
+QString parseIpFromConnectOutput(const QString& output);
+
 // Parse the `protonvpn countries list` table ("Country  Code" rows after a
 // "--" separator line).
 QList<Country> parseCountriesTable(const QString& text);

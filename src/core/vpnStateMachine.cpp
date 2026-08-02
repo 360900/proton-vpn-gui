@@ -55,11 +55,18 @@ void VpnStateMachine::disconnectFailed(const QString& error)
 
 void VpnStateMachine::reset(const VpnState state)
 {
+    const bool changed = m_state != state || m_connectedServer.isEmpty() == false;
     m_watchdog.stop();
     m_watchdogStage   = 0;
     m_state           = state;
     m_connectedServer.clear();
     m_disconnectedPollsWhileConnected = 0;
+    // reset() travels outside the transition flow (e.g. sign-out), so announce
+    // the change to D-Bus/tray/UI consumers just like any other state change.
+    if (changed)
+    {
+        emit stateChanged(m_state, QString());
+    }
 }
 
 // ---------------------------------------------------------------------------

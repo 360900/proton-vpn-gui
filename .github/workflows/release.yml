@@ -248,9 +248,11 @@ jobs:
         id: tag
         run: |
           VERSION=$(jq -r '.app_version' src/version.json)
+          PRERELEASE=$(jq -r '.prerelease // false' src/version.json)
           echo "VERSION=$VERSION" >> "$GITHUB_OUTPUT"
           echo "TAG=v$VERSION" >> "$GITHUB_OUTPUT"
           echo "NAME=v$VERSION" >> "$GITHUB_OUTPUT"
+          echo "PRERELEASE=$PRERELEASE" >> "$GITHUB_OUTPUT"
 
       - name: Download native tarball
         uses: actions/download-artifact@v4
@@ -330,4 +332,5 @@ jobs:
             ProtonVPN-GUI-${{ steps.tag.outputs.VERSION }}-lite-x86_64.AppImage
             proton-vpn-gui-linux-x86_64.tar.gz
             io.github._360900.ProtonVpnGui.flatpak
+          prerelease: ${{ steps.tag.outputs.PRERELEASE == 'true' }}
           make_latest: true

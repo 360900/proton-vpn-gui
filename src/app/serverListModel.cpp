@@ -41,6 +41,24 @@ ServerListModel::ServerListModel(QObject* parent)
                 }
             });
 
+    // A failed city fetch must not leave the row's spinner running forever.
+    connect(facade, &VpnFacade::citiesFailed, this,
+            [this](const QString& countryCode)
+            {
+                if (m_citiesLoading.remove(countryCode) == false)
+                {
+                    return;
+                }
+                for (int row = 0; row < m_visible.size(); ++row)
+                {
+                    if (m_countries.at(m_visible.at(row)).code == countryCode)
+                    {
+                        emit dataChanged(index(row), index(row), {CitiesLoadingRole});
+                        break;
+                    }
+                }
+            });
+
     connect(&FavoritesManager::instance(), &FavoritesManager::changed, this, [this]
             {
                 emit favoritesChanged();

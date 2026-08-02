@@ -32,9 +32,13 @@
 *.app
 
 build/
+cmake-build-*/
 src/cmake-build-debug/
 src/cmake-build-release/
 src/Testing/
+
+# Qt Creator
+CMakeLists.txt.user*
 
 # Jetbrains
 .idea/
@@ -44,8 +48,10 @@ src/Testing/
 .flatpak-build/
 .flatpak-builder/
 
-# Binaries
+# Binaries (including CI release artifacts reproduced locally)
 dist/
+io.github._360900.ProtonVpnGui.flatpak
+proton-vpn-gui-linux-x86_64.tar.gz
 
 # AppImage Building
 .appimage-build/

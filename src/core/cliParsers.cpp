@@ -144,14 +144,53 @@ ServerInfo parseServerInfo(const QString& server)
 
     // City: the segment between " in " and the following comma,
     // e.g. "Secaucus" from "US-NJ#203 in Secaucus, United States".
-    const int inPos = server.indexOf(QStringLiteral(" in "));
+    const QString inSeparator = QStringLiteral(" in ");
+    const int      inPos      = server.indexOf(inSeparator);
     if (inPos >= 0)
     {
-        const QString rest     = server.mid(inPos + 4);
+        const QString rest     = server.mid(inPos + inSeparator.length());
         const int      commaPos = rest.indexOf(QLatin1Char(','));
         info.city = (commaPos >= 0 ? rest.left(commaPos) : rest).trimmed();
     }
     return info;
+}
+
+ServerInfo parseServerInfoFromConnectOutput(const QString& output)
+{
+    // The CLI's connect message is "Connected to <server> in <location>."
+    // (plus optional trailing lines such as the new IP address). Scan the
+    // noise-stripped lines for the connecting line and hand the bare server
+    // substring to parseServerInfo.
+    ServerInfo info;
+    for (const QString& line : stripNoiseLines(output))
+    {
+        const QString trimmed = line.trimmed();
+        const QString prefix = QStringLiteral("Connected to ");
+        if (trimmed.startsWith(prefix) == false)
+        {
+            continue;
+        }
+        QString server = trimmed.mid(prefix.length());
+        if (server.endsWith(QLatin1Char('.')))
+        {
+            server.chop(1);
+        }
+        info = parseServerInfo(server);
+        if (info.countryCode.isEmpty() && info.city.isEmpty())
+        {
+            continue; // not actually the connect line - keep looking
+        }
+        break;
+    }
+    return info;
+}
+
+QString parseIpFromConnectOutput(const QString& output)
+{
+    static const QRegularExpression re(
+        QStringLiteral(R"(Your new IP address is ([0-9.a-fA-F:]+)\.)"));
+    const QRegularExpressionMatch match = re.match(output);
+    return match.hasMatch() ? match.captured(1) : QString();
 }
 
 QList<Country> parseCountriesTable(const QString& text)

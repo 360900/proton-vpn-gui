@@ -58,9 +58,13 @@ Item {
                     spacing: Theme.spacingSm
 
                     Image {
+                        // proton-vpn-logo.svg is a white wordmark (dark themes),
+                        // proton-vpn-logo-light.svg a dark wordmark (light themes).
                         source: mainView.sidebarCollapsed
                                 ? "qrc:/assets/proton-vpn-gui.svg"
-                                : "qrc:/assets/proton-vpn-logo.svg"
+                                : Theme.dark
+                                  ? "qrc:/assets/proton-vpn-logo.svg"
+                                  : "qrc:/assets/proton-vpn-logo-light.svg"
                         sourceSize: mainView.sidebarCollapsed
                                     ? Qt.size(28, 28)
                                     : Qt.size(150, 38)
