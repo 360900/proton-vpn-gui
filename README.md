@@ -11,6 +11,16 @@ link drops, and remembering your favorites so the next time is one click.
 > the brand, and the CLI. We are not Proton AG. Proton and ProtonVPN are
 > trademarks of Proton AG.
 
+## Screenshots
+
+| Main server list | Protected while connected |
+|---|---|
+| ![Main server list](screenshots/main-page.png) | ![Protected while connected](screenshots/protected-page.png) |
+
+| Connecting | Settings |
+|---|---|
+| ![Connecting](screenshots/connecting-page.png) | ![Settings](screenshots/settings-page.png) |
+
 ## What you get
 
 - A clear main screen with a big Connect button and the country you're in.
@@ -167,9 +177,9 @@ cd build
 ctest --output-on-failure
 ```
 
-Thirteen tests cover parsers, the connection state machine, the process
+Twelve tests cover parsers, the connection state machine, the process
 runner, status polling, the VPN service, NAT-PMP, configuration, connection
-history, geo helpers, the Flatpak bridge, and UI helpers. Native, Flatpak,
+history, geo helpers, and the Flatpak bridge. Native, Flatpak,
 and AppImage builds are wired into CI on every pull request to `main` or
 `dev`.
 
