@@ -48,7 +48,8 @@ public:
     bool reduceMotion() const;
     void setReduceMotion(bool value);
 
-    // XDG autostart entry (written to the host config dir under Flatpak).
+    // "Launch on Startup": writes an XDG autostart .desktop on native installs,
+    // or asks the host XDG autostart portal when sandboxed (mirrored in AppConfig).
     bool autoStart() const;
     void setAutoStart(bool enable);
     QString autoStartError() const { return m_autoStartError; }

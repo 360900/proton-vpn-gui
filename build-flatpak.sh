@@ -12,12 +12,12 @@
 #   flatpak, plus either flatpak-builder or the org.flatpak.Builder Flatpak.
 #
 # The output bundle is written to:
-#   dist/io.github._360900.ProtonVpnGui.flatpak
+#   dist/io.github._360900.Proton-vpn-gui.flatpak
 
 set -euo pipefail
 
-MANIFEST="io.github._360900.ProtonVpnGui.yml"
-APP_ID="io.github._360900.ProtonVpnGui"
+MANIFEST="io.github._360900.Proton-vpn-gui.yml"
+APP_ID="io.github._360900.Proton-vpn-gui"
 BUILD_DIR=".flatpak-build"
 REPO_DIR=".flatpak-repo"
 BUNDLE="dist/${APP_ID}.flatpak"
@@ -86,14 +86,20 @@ LOCAL_MANIFEST=""
 
 if [[ "$LOCAL_BUILD" == true ]]; then
     # Build the working tree, not the pinned release tag: copy the manifest and
-    # swap its git source for a dir source (the sources block is last in the
-    # file). The tracked manifest is left untouched.
+    # swap the LAST module's (the GUI's) git source for a dir source. The
+    # tracked manifest is left untouched.
     # Kept inside the repo so the org.flatpak.Builder sandbox can read it;
     # removed automatically on exit.
     LOCAL_MANIFEST="$(mktemp ./.${APP_ID}.local.XXXXXX.yml)"
     trap 'rm -f "$LOCAL_MANIFEST"' EXIT
-    sed '/^    sources:/,$d' "$MANIFEST" > "$LOCAL_MANIFEST"
-    printf '    sources:\n      - type: dir\n        path: %s\n' "$PWD" >> "$LOCAL_MANIFEST"
+    # Truncate at the last "    sources:" block (the GUI module is last in the
+    # file); everything before it is kept as-is.
+    awk 'BEGIN { last = 0 }
+         /^    sources:/ { last = NR }
+         { lines[NR] = $0 }
+         END { for (i = 1; i <= length(lines); i++) if (i < last) print lines[i] }' \
+        "$MANIFEST" > "$LOCAL_MANIFEST"
+    printf '    sources:\n      - type: dir\n        path: %s\n        skip:\n          - .git\n          - .flatpak-build\n          - .flatpak-repo\n          - dist\n' "$PWD" >> "$LOCAL_MANIFEST"
     BUILD_MANIFEST="$LOCAL_MANIFEST"
     info "Local test build: compiling the current checkout instead of the pinned tag."
 else

@@ -3,11 +3,11 @@
 
 #include "protonCliSettings.h"
 
-#include <QDir>
 #include <QFile>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QStandardPaths>
 
 namespace
 {
@@ -25,9 +25,13 @@ QString boolStr(const bool b)
 namespace ProtonCliSettings
 {
 
+// The CLI resolves its config dir through $XDG_CONFIG_HOME (via pyxdg).
+// Use the same base so the GUI reads the settings file the CLI writes:
+// natively this is ~/.config, under Flatpak it is the app-private config dir.
 QString settingsFilePath()
 {
-    return QDir::homePath() + QStringLiteral("/.config/Proton/VPN/settings.json");
+    return QStandardPaths::writableLocation(QStandardPaths::GenericConfigLocation)
+        + QStringLiteral("/Proton/VPN/settings.json");
 }
 
 QMap<QString, QString> parseSettingsJson(const QByteArray& json)

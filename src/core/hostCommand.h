@@ -1,10 +1,11 @@
 #pragma once
 // hostCommand.h
-// Shared utilities for detecting and adapting to a Flatpak sandbox environment.
+// Shared utilities for detecting a Flatpak sandbox environment.
 //
-// Every QProcess spawn in the application must go through buildHostCommand()
-// (or a ProcessRunner, which calls it) so commands are transparently forwarded
-// to the host via flatpak-spawn when sandboxed.
+// The protonvpn CLI is bundled inside the sandbox, so every QProcess spawn goes
+// through buildHostCommand() (or a ProcessRunner, which calls it) which always
+// runs the bundled program directly in-sandbox. No flatpak-spawn --host
+// delegation is needed anymore.
 
 #include "appImageUtils.h"
 
@@ -19,21 +20,16 @@ inline bool isRunningAsFlatpak()
     return qEnvironmentVariableIsSet("FLATPAK_ID");
 }
 
-// Returns {program, fullArgs} to run an arbitrary host command via QProcess.
-// - Inside Flatpak: forwards to the host via flatpak-spawn --host.
-// - Otherwise (native or AppImage): returned unchanged; the system PATH is used.
+// Returns {program, fullArgs} to run a command via QProcess.
+// The bundled CLI is on PATH both natively and inside the sandbox, so the
+// program is always returned unchanged (previously it was forwarded to the
+// host via flatpak-spawn --host; that delegation no longer exists).
 //
 // Example:
-//   auto [prog, args] = buildHostCommand("protonvpn", {"connect"});
+//   auto [prog, args] = buildHostCommand("protonvpn", {"connect", country});
 //   process.start(prog, args);
 inline std::pair<QString, QStringList> buildHostCommand(const QString& program,
                                                         const QStringList& args = {})
 {
-    if (isRunningAsFlatpak())
-    {
-        QStringList spawnArgs;
-        spawnArgs << QStringLiteral("--host") << program << args;
-        return {QStringLiteral("flatpak-spawn"), spawnArgs};
-    }
     return {program, args};
 }

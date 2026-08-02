@@ -82,16 +82,21 @@ jobs:
       - name: Patch manifest runtime-version
         run: |
           sed -i "s/^runtime-version:.*/runtime-version: '${{ steps.kde.outputs.version }}'/" \
-            io.github._360900.ProtonVpnGui.yml
+            io.github._360900.Proton-vpn-gui.yml
 
       # The shipped manifest pins a release tag for Flathub reproducibility,
       # but the tag does not exist yet while this workflow runs. Build the
-      # current checkout instead (the sources block is the last block in the
-      # manifest).
+      # current checkout instead: truncate at the LAST module's sources block
+      # (the GUI module) and swap it for a dir source.
       - name: Point manifest source at the checkout
         run: |
-          sed -i '/^    sources:/,$d' io.github._360900.ProtonVpnGui.yml
-          printf '    sources:\n      - type: dir\n        path: .\n' >> io.github._360900.ProtonVpnGui.yml
+          awk 'BEGIN { last = 0 }
+               /^    sources:/ { last = NR }
+               { lines[NR] = $0 }
+               END { for (i = 1; i <= length(lines); i++) if (i < last) print lines[i] }' \
+            io.github._360900.Proton-vpn-gui.yml > /tmp/rel.yml
+          mv /tmp/rel.yml io.github._360900.Proton-vpn-gui.yml
+          printf '    sources:\n      - type: dir\n        path: .\n' >> io.github._360900.Proton-vpn-gui.yml
 
       - name: Install KDE runtime and SDK
         run: |
@@ -105,20 +110,20 @@ jobs:
             --force-clean \
             --repo=.flatpak-repo \
             .flatpak-build \
-            io.github._360900.ProtonVpnGui.yml
+            io.github._360900.Proton-vpn-gui.yml
 
       - name: Export bundle
         run: |
           flatpak build-bundle \
             .flatpak-repo \
-            io.github._360900.ProtonVpnGui.flatpak \
-            io.github._360900.ProtonVpnGui
+            io.github._360900.Proton-vpn-gui.flatpak \
+            io.github._360900.Proton-vpn-gui
 
       - name: Upload Flatpak artifact
         uses: actions/upload-artifact@v4
         with:
           name: flatpak-bundle
-          path: io.github._360900.ProtonVpnGui.flatpak
+          path: io.github._360900.Proton-vpn-gui.flatpak
 
   build-appimage-standalone:
     name: Build AppImage Standalone (Ubuntu)
@@ -297,7 +302,7 @@ jobs:
             | `ProtonVPN-GUI-${{ steps.tag.outputs.VERSION }}-standalone-compat-x86_64.AppImage` | AppImage — same as Standalone, but built for compatibility with older (pre-2015-ish, pre-AVX2) CPUs |
             | `ProtonVPN-GUI-${{ steps.tag.outputs.VERSION }}-lite-x86_64.AppImage` | AppImage — Qt app only; requires the Proton VPN CLI installed on your system |
             | `proton-vpn-gui-linux-x86_64.tar.gz` | Native binary (requires Proton VPN CLI on host) |
-            | `io.github._360900.ProtonVpnGui.flatpak` | Flatpak bundle (requires Proton VPN CLI on host) |
+            | `io.github._360900.Proton-vpn-gui.flatpak` | Flatpak bundle (ships its own bundled Proton VPN CLI) |
 
             ### AppImage — Standalone vs Lite
 
@@ -321,8 +326,8 @@ jobs:
             The Flatpak calls the host's `protonvpn` CLI via `flatpak-spawn --host`, so the [Proton VPN Linux CLI](https://protonvpn.com/support/linux-vpn-tool/) must be installed on your host system.
 
             ```bash
-            flatpak install io.github._360900.ProtonVpnGui.flatpak
-            flatpak run io.github._360900.ProtonVpnGui
+            flatpak install io.github._360900.Proton-vpn-gui.flatpak
+            flatpak run io.github._360900.Proton-vpn-gui
             ```
 
             > This is a community build. See the [README](https://github.com/${{ github.repository }}/blob/main/README.md) for requirements and usage.
@@ -331,6 +336,6 @@ jobs:
             ProtonVPN-GUI-${{ steps.tag.outputs.VERSION }}-standalone-compat-x86_64.AppImage
             ProtonVPN-GUI-${{ steps.tag.outputs.VERSION }}-lite-x86_64.AppImage
             proton-vpn-gui-linux-x86_64.tar.gz
-            io.github._360900.ProtonVpnGui.flatpak
+            io.github._360900.Proton-vpn-gui.flatpak
           prerelease: ${{ steps.tag.outputs.PRERELEASE == 'true' }}
           make_latest: true

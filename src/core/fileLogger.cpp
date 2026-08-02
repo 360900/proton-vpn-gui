@@ -26,7 +26,7 @@ constexpr qint64 LOG_TRIM_TARGET_BYTES = MAX_LOG_FILE_SIZE_BYTES * LOG_TRIM_KEEP
 // QStandardPaths::GenericStateLocation resolves to:
 //   - Native install / AppImage: ~/.local/state/ (AppImage is unsandboxed
 //     and shares the host's XDG paths, unlike Flatpak)
-//   - Flatpak sandbox          : ~/.var/app/io.github._360900.ProtonVpnGui/state/
+//   - Flatpak sandbox          : ~/.var/app/io.github._360900.Proton-vpn-gui/state/
 QString logDir()
 {
     return QStandardPaths::writableLocation(QStandardPaths::GenericStateLocation)

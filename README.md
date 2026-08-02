@@ -64,7 +64,7 @@ you can build and install it from this repository with the included script.
 git clone https://github.com/360900/proton-vpn-gui.git
 cd proton-vpn-gui
 ./build-flatpak.sh --local --install
-flatpak run io.github._360900.ProtonVpnGui
+flatpak run io.github._360900.Proton-vpn-gui
 ```
 
 This builds inside the KDE runtime and is the same pipeline that produces the
@@ -107,11 +107,13 @@ The build produces a single `proton_vpn_gui` binary that you can run directly.
 
 This app is a friendly face for the **Proton VPN Linux CLI**. The CLI does the
 real work: signing in, opening the tunnel, switching servers, and applying your
-settings. You need to install it once before the GUI can do anything, even on
-Flatpak. The Flatpak version calls the CLI on your host through Flatpak's
-bridge, so the CLI has to be on your host system, not inside the Flatpak.
+settings. For native/AppImage builds you need to install the CLI once before
+the GUI can do anything. The Flatpak bundles a copy of the CLI, so no host
+installation is needed there; it reaches your host's NetworkManager daemon
+over D-Bus.
 
-If you don't have it yet, follow Proton's official Linux guide:
+If you don't have it yet (native builds only), follow Proton's official Linux
+guide:
 [protonvpn.com/support/linux-vpn-tool](https://protonvpn.com/support/linux-vpn-tool/).
 
 > Warning: the official Proton VPN GTK app and this app cannot run at the same
@@ -131,7 +133,9 @@ If you don't have it yet, follow Proton's official Linux guide:
   Plus plan.
 - Connecting to a server that supports port forwarding enables automatic
   port forwarding. You need the optional `libnatpmp` package (Debian, Ubuntu,
-  Fedora, Arch) and a Plus plan.
+  Fedora, Arch) and a Plus plan. Note: inside the Flatpak the `natpmpc` host
+  tool is not available, so port forwarding relies on the bundled CLI's own
+  tunnel handling there.
 
 ## Common questions
 
@@ -155,7 +159,7 @@ usually be the same one. If that works, the GUI will work on the next attempt.
 
 **Can other tools talk to this app?**
 Yes. It publishes a session-bus interface at
-`io.github._360900.ProtonVpnGui` with status and basic connect, disconnect,
+`io.github._360900.Proton-vpn-gui` with status and basic connect, disconnect,
 and raise-window methods. Scripts and other apps can use it to react to the
 VPN state.
 
@@ -207,7 +211,7 @@ What this project adds on top:
   connection state machine, status polling, settings management, and D-Bus
   interfaces. Everything in this layer has unit tests.
 - A session D-Bus control interface at
-  `io.github._360900.ProtonVpnGui`.
+  `io.github._360900.Proton-vpn-gui`.
 - Light and dark theme support with live system-theme following and a
   reduced-motion option.
 - New AppStream metadata, an AUR package, and modernized CI workflows.

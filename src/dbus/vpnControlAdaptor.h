@@ -7,9 +7,9 @@
 /**
  * D-Bus adaptor that accepts VPN commands on the session bus.
  *
- * Service name : io.github._360900.ProtonVpnGui
+ * Service name : io.github._360900.Proton-vpn-gui
  * Object path  : /io/github/360900/ProtonVpnGui
- * Interface    : io.github._360900.ProtonVpnGui.Control
+ * Interface    : io.github._360900.Proton_vpn_gui.Control
  *
  * Methods:
  *   Connect(country: string, city: string) - connect; empty strings mean
@@ -21,7 +21,7 @@
 class VpnControlAdaptor : public QDBusAbstractAdaptor
 {
     Q_OBJECT
-    Q_CLASSINFO("D-Bus Interface", "io.github._360900.ProtonVpnGui.Control")
+    Q_CLASSINFO("D-Bus Interface", "io.github._360900.Proton_vpn_gui.Control")
 
 public:
     explicit VpnControlAdaptor(VpnService* parent);

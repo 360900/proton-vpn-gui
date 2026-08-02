@@ -35,6 +35,7 @@ public:
     bool logToFile() const;
     bool sidebarCollapsed() const;
     bool reduceMotion() const;
+    bool autoStart() const;
 
     void setAutoConnect(bool value);
     void setAutoConnectServer(const QString& value);
@@ -50,6 +51,7 @@ public:
     void setLogToFile(bool value);
     void setSidebarCollapsed(bool value);
     void setReduceMotion(bool value);
+    void setAutoStart(bool value);
 
     // Resets every setting to its compile-time default and deletes the config
     // file. The in-memory state is usable immediately; the file will not be
@@ -75,4 +77,5 @@ private:
     bool m_logToFile = false;
     bool m_sidebarCollapsed = false;
     bool m_reduceMotion = false;
+    bool m_autoStart = false;
 };
