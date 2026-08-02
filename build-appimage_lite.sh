@@ -22,7 +22,7 @@ BUILD_ROOT="${SCRIPT_DIR}/.appimage-build"
 APPDIR="${BUILD_ROOT}/AppDir-lite"
 TOOLS_DIR="${BUILD_ROOT}/tools"
 OUTPUT_DIR="${SCRIPT_DIR}/dist"
-APP_ID="io.github._360900.ProtonVpnGui"
+APP_ID="io.github._360900.Proton-vpn-gui"
 
 # -- Read version --------------------------------------------------------------
 VERSION=$(python3 -c "import json; print(json.load(open('${SCRIPT_DIR}/src/version.json'))['app_version'])")

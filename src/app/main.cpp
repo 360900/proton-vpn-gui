@@ -53,7 +53,7 @@ int main(int argc, char* argv[])
     // Match the installed .desktop file so the launcher groups windows
     // correctly: Flatpak renames it to the app-id, native keeps its own name.
     QApplication::setDesktopFileName(isRunningAsFlatpak()
-                                         ? QStringLiteral("io.github._360900.ProtonVpnGui")
+                                         ? QStringLiteral("io.github._360900.Proton-vpn-gui")
                                          : QStringLiteral("proton-vpn-gui"));
     QApplication::setQuitOnLastWindowClosed(false); // window closes to tray
 
@@ -85,7 +85,7 @@ int main(int argc, char* argv[])
     AppConfig::instance().logLoadedConfig();
 
     // Single-instance guard: D-Bus name ownership, lock-file fallback.
-    const QString dbusServiceName = QStringLiteral("io.github._360900.ProtonVpnGui");
+    const QString dbusServiceName = QStringLiteral("io.github._360900.Proton-vpn-gui");
     QDBusConnection sessionBus = QDBusConnection::sessionBus();
     QLockFile lockFile(QDir::tempPath() + QStringLiteral("/proton-vpn-gui.lock"));
     if (sessionBus.isConnected())
@@ -97,7 +97,7 @@ int main(int argc, char* argv[])
             QDBusMessage raise = QDBusMessage::createMethodCall(
                 dbusServiceName,
                 QStringLiteral("/io/github/360900/ProtonVpnGui"),
-                QStringLiteral("io.github._360900.ProtonVpnGui.Control"),
+                QStringLiteral("io.github._360900.Proton_vpn_gui.Control"),
                 QStringLiteral("Raise"));
             sessionBus.call(raise, QDBus::Block, DBUS_RAISE_TIMEOUT_MS);
             return 0;

@@ -12,14 +12,44 @@
 #include "../geoUtils.h"
 
 #include <QCoreApplication>
+#include <QDBusConnection>
+#include <QDBusMessage>
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
 #include <QStandardPaths>
+#include <QUuid>
 
 namespace
 {
 AppSettings* s_instance = nullptr;
+
+// org.freedesktop.portal.Background - used to request autostart without
+// needing --filesystem=xdg-config/autostart (which Flathub lint rejects).
+constexpr auto PORTAL_BUS      = "org.freedesktop.portal.Desktop";
+constexpr auto PORTAL_PATH     = "/org/freedesktop/portal/desktop";
+constexpr auto PORTAL_INTERFACE = "org.freedesktop.portal.Background";
+constexpr char PORTAL_METHOD[] = "RequestBackground";
+
+// Fire a portal autostart request and (optimistically) set the mirror so the
+// toggle reflects quickly. The portal applies the request asynchronously.
+void portalRequestAutoStart(const bool enable)
+{
+    QDBusMessage msg = QDBusMessage::createMethodCall(
+        QString::fromLatin1(PORTAL_BUS), QString::fromLatin1(PORTAL_PATH),
+        QString::fromLatin1(PORTAL_INTERFACE), QString::fromLatin1(PORTAL_METHOD));
+
+    QVariantMap options;
+    options.insert(QStringLiteral("handle_token"),
+                   QString::fromLatin1("pvg_") + QUuid::createUuid().toString(QUuid::WithoutBraces));
+    options.insert(QStringLiteral("reason"),
+                   QStringLiteral("Launch Proton VPN GUI at login."));
+    options.insert(QStringLiteral("autostart"), enable);
+
+    msg << QString() /* parent_window */ << QVariant(options);
+    // fire-and-forget: the portal reply is not needed to reflect the toggle
+    QDBusConnection::sessionBus().call(msg, QDBus::NoBlock);
+}
 } // namespace
 
 AppSettings* AppSettings::instance()
@@ -121,23 +151,36 @@ void AppSettings::setReduceMotion(const bool value)
 
 QString AppSettings::autoStartFilePath()
 {
-    // Inside a Flatpak sandbox, ConfigLocation resolves to the app-private
-    // dir the host never reads; write to the real ~/.config/autostart, which
-    // the manifest exposes via xdg-config/autostart.
-    const QString configDir = isRunningAsFlatpak()
-        ? QDir::homePath() + QStringLiteral("/.config")
-        : QStandardPaths::writableLocation(QStandardPaths::ConfigLocation);
+    // Native installs write the real ~/.config/autostart desktop file.
+    const QString configDir = QStandardPaths::writableLocation(QStandardPaths::ConfigLocation);
     return configDir + QStringLiteral("/autostart/proton-vpn-gui.desktop");
 }
 
 bool AppSettings::autoStart() const
 {
+    if (isRunningAsFlatpak())
+    {
+        // The portal owns the autostart entry on the host; we mirror what we
+        // last requested so the toggle is stable across launches.
+        return AppConfig::instance().autoStart();
+    }
     return QFileInfo::exists(autoStartFilePath());
 }
 
 void AppSettings::setAutoStart(const bool enable)
 {
     m_autoStartError.clear();
+
+    if (isRunningAsFlatpak())
+    {
+        // Ask the host portal to start/stop us at login. The portal applies
+        // the request asynchronously; the mirror is updated optimistically.
+        portalRequestAutoStart(enable);
+        AppConfig::instance().setAutoStart(enable);
+        emit changed();
+        return;
+    }
+
     const QString filePath = autoStartFilePath();
 
     if (enable)
@@ -153,11 +196,9 @@ void AppSettings::setAutoStart(const bool enable)
 
         // The AppImage runtime mounts the bundle under /tmp/.mount_XXXX which
         // disappears on unmount; the persistent $APPIMAGE path survives reboot.
-        const QString exec = isRunningAsFlatpak()
-            ? QStringLiteral("flatpak run ") + QString::fromUtf8(qgetenv("FLATPAK_ID"))
-            : isRunningAsAppImage()
-              ? QString::fromUtf8(qgetenv("APPIMAGE"))
-              : QCoreApplication::applicationFilePath();
+        const QString exec = isRunningAsAppImage()
+            ? QString::fromUtf8(qgetenv("APPIMAGE"))
+            : QCoreApplication::applicationFilePath();
         content.replace(QStringLiteral("@EXEC@"), exec);
 
         QDir targetDir = QFileInfo(filePath).dir();

@@ -13,7 +13,7 @@ namespace
 // Easy-to-change config location
 // QStandardPaths::GenericConfigLocation resolves to:
 //   - Native install : ~/.config/ProtonVPN-GUI/
-//   - Flatpak sandbox: ~/.var/app/io.github._360900.ProtonVpnGui/config/ProtonVPN-GUI/
+//   - Flatpak sandbox: ~/.var/app/io.github._360900.Proton-vpn-gui/config/ProtonVPN-GUI/
 QString configDir()
 {
     return QStandardPaths::writableLocation(QStandardPaths::GenericConfigLocation)
@@ -56,6 +56,7 @@ void AppConfig::load()
     m_logToFile = obj.value(QStringLiteral("log_to_file")).toBool(false);
     m_sidebarCollapsed = obj.value(QStringLiteral("sidebar_collapsed")).toBool(false);
     m_reduceMotion = obj.value(QStringLiteral("reduce_motion")).toBool(false);
+    m_autoStart = obj.value(QStringLiteral("auto_start")).toBool(false);
 
     const QString themeStr = obj.value(QStringLiteral("theme")).toString(QStringLiteral("system"));
     if (themeStr == QStringLiteral("dark"))
@@ -104,6 +105,7 @@ void AppConfig::logLoadedConfig() const
     DBG_SETTINGS(QStringLiteral("  log_to_file              = ") + (m_logToFile ? QStringLiteral("true") : QStringLiteral("false")));
     DBG_SETTINGS(QStringLiteral("  sidebar_collapsed        = ") + (m_sidebarCollapsed ? QStringLiteral("true") : QStringLiteral("false")));
     DBG_SETTINGS(QStringLiteral("  reduce_motion            = ") + (m_reduceMotion ? QStringLiteral("true") : QStringLiteral("false")));
+    DBG_SETTINGS(QStringLiteral("  auto_start               = ") + (m_autoStart ? QStringLiteral("true") : QStringLiteral("false")));
     DBG_SETTINGS(QStringLiteral("  theme                    = ") + themeStr);
 }
 
@@ -132,6 +134,7 @@ bool AppConfig::save() const
     obj[QStringLiteral("log_to_file")] = m_logToFile;
     obj[QStringLiteral("sidebar_collapsed")] = m_sidebarCollapsed;
     obj[QStringLiteral("reduce_motion")] = m_reduceMotion;
+    obj[QStringLiteral("auto_start")] = m_autoStart;
 
     QString themeStr;
     switch (m_theme)
@@ -296,6 +299,16 @@ void AppConfig::setReduceMotion(const bool value)
     (void)save();
 }
 
+bool AppConfig::autoStart() const { return m_autoStart; }
+
+void AppConfig::setAutoStart(const bool value)
+{
+    if (m_autoStart == value) return;
+    DBG_SETTINGS(QStringLiteral("Setting changed: auto_start = ") + (value ? QStringLiteral("true") : QStringLiteral("false")));
+    m_autoStart = value;
+    (void)save();
+}
+
 void AppConfig::resetToDefaults()
 {
     DBG_SETTINGS(QStringLiteral("AppConfig::resetToDefaults() - deleting config file and resetting all values"));
@@ -318,6 +331,7 @@ void AppConfig::resetToDefaults()
     m_logToFile              = false;
     m_sidebarCollapsed       = false;
     m_reduceMotion           = false;
+    m_autoStart              = false;
     FileLogger::instance().setEnabled(false);
 }
 

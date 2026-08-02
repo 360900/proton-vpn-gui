@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <component type="desktop-application">
-  <id>io.github._360900.ProtonVpnGui</id>
+  <id>io.github._360900.Proton-vpn-gui</id>
   <name>Proton VPN GUI</name>
   <summary>Community Qt interface for the Proton VPN CLI</summary>
   <description>
@@ -10,9 +10,9 @@
       favorites, connection history, and VPN settings.
     </p>
     <p>
-      When running as a Flatpak, the app communicates with the Proton VPN CLI
-      installed on the host system via flatpak-spawn. The CLI must be installed
-      separately.
+      The Flatpak ships a bundled copy of the Proton VPN CLI, so no separate host
+      installation is needed. VPN connections are created on the host
+      NetworkManager daemon over the system D-Bus.
     </p>
   </description>
 
@@ -20,7 +20,7 @@
   <url type="bugtracker">https://github.com/360900/proton-vpn-gui/issues</url>
   <url type="vcs-browser">https://github.com/360900/proton-vpn-gui</url>
 
-  <launchable type="desktop-id">io.github._360900.ProtonVpnGui.desktop</launchable>
+  <launchable type="desktop-id">io.github._360900.Proton-vpn-gui.desktop</launchable>
 
   <provides>
     <binary>proton_vpn_gui</binary>
@@ -42,23 +42,33 @@
   <screenshots>
     <screenshot type="default">
       <caption>Main server list</caption>
-      <image type="source" width="1437" height="971">https://raw.githubusercontent.com/360900/proton-vpn-gui/v2.0.3/screenshots/main-page.png</image>
+      <image type="source" width="1437" height="971">https://raw.githubusercontent.com/360900/proton-vpn-gui/v2.0.4/screenshots/main-page.png</image>
     </screenshot>
     <screenshot>
       <caption>Protected while connected</caption>
-      <image type="source" width="1369" height="917">https://raw.githubusercontent.com/360900/proton-vpn-gui/v2.0.3/screenshots/protected-page.png</image>
+      <image type="source" width="1369" height="917">https://raw.githubusercontent.com/360900/proton-vpn-gui/v2.0.4/screenshots/protected-page.png</image>
     </screenshot>
     <screenshot>
       <caption>Connecting</caption>
-      <image type="source" width="1468" height="953">https://raw.githubusercontent.com/360900/proton-vpn-gui/v2.0.3/screenshots/connecting-page.png</image>
+      <image type="source" width="1468" height="953">https://raw.githubusercontent.com/360900/proton-vpn-gui/v2.0.4/screenshots/connecting-page.png</image>
     </screenshot>
     <screenshot>
       <caption>Settings</caption>
-      <image type="source" width="1402" height="894">https://raw.githubusercontent.com/360900/proton-vpn-gui/v2.0.3/screenshots/settings-page.png</image>
+      <image type="source" width="1402" height="894">https://raw.githubusercontent.com/360900/proton-vpn-gui/v2.0.4/screenshots/settings-page.png</image>
     </screenshot>
   </screenshots>
 
   <releases>
+    <release version="2.0.4" date="2026-08-02">
+      <description>
+        <p>Bundled the Proton VPN CLI into the Flatpak.</p>
+        <ul>
+          <li>The Flatpak now ships its own copy of the protonvpn CLI plus its Python dependencies, so it no longer depends on a CLI installed on the host system.</li>
+          <li>VPN connections are created directly on the host NetworkManager daemon over the shared D-Bus, so no extra host software is required.</li>
+          <li>Command execution is simplified: all bundled CLI interactions run in-sandbox (no more flatpak-spawn delegation).</li>
+        </ul>
+      </description>
+    </release>
     <release version="2.0.3" date="2026-08-02">
       <description>
         <p>Larger default window and a sidebar that scales with it.</p>

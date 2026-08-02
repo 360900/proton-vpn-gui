@@ -117,12 +117,13 @@ private slots:
         });
     }
 
-    void checkInstalled_flatpakSpawnFailure_isNotInstalled()
+    void checkInstalled_noOutput_isNotInstalled()
     {
         FakeProcessRunner runner;
         ProcessRunner::Result canned;
         canned.exitCode = 1;
-        canned.stdErr = QStringLiteral("Portal call failed: Failed to start command\n");
+        // An empty response (command failed to start or produced nothing) means
+        // the CLI is not usable.
         runner.cannedResults.append(canned);
 
         ProtonVpnCliClient client(&runner);

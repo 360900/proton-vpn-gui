@@ -4,7 +4,7 @@
 
 // Tests for the inline helpers in core/hostCommand.h:
 //   isRunningAsFlatpak()   - env-var detection
-//   buildHostCommand()     - transparent flatpak-spawn wrapping
+//   buildHostCommand()     - returns the bundled CLI (in-sandbox) unchanged
 
 class TstFlatpakUtils : public QObject
 {
@@ -18,7 +18,7 @@ private:
     {
         if (set)
         {
-            qputenv("FLATPAK_ID", "io.github._360900.ProtonVpnGui");
+            qputenv("FLATPAK_ID", "io.github._360900.Proton-vpn-gui");
         }
         else
         {
@@ -38,7 +38,7 @@ private slots:
     void cleanup()
     {
         if (m_hadFlatpakId)
-            qputenv("FLATPAK_ID", "io.github._360900.ProtonVpnGui");
+            qputenv("FLATPAK_ID", "io.github._360900.Proton-vpn-gui");
         else
             qunsetenv("FLATPAK_ID");
     }
@@ -77,36 +77,16 @@ private slots:
         QVERIFY(args.isEmpty());
     }
 
-    void buildHostCommand_inFlatpak_programIsFlatpakSpawn()
+    void buildHostCommand_inFlatpak_returnsBundledProgramUnchanged()
     {
         setFlatpakEnv(true);
         const auto [prog, args] =
             buildHostCommand(QStringLiteral("protonvpn"),
                              {QStringLiteral("status")});
 
-        QCOMPARE(prog, QStringLiteral("flatpak-spawn"));
-    }
-
-    void buildHostCommand_inFlatpak_firstArgIsHost()
-    {
-        setFlatpakEnv(true);
-        const auto [prog, args] =
-            buildHostCommand(QStringLiteral("protonvpn"),
-                             {QStringLiteral("status")});
-
-        QVERIFY(!args.isEmpty());
-        QCOMPARE(args.first(), QStringLiteral("--host"));
-    }
-
-    void buildHostCommand_inFlatpak_originalProgramIsSecondArg()
-    {
-        setFlatpakEnv(true);
-        const auto [prog, args] =
-            buildHostCommand(QStringLiteral("protonvpn"),
-                             {QStringLiteral("connect")});
-
-        QVERIFY(args.size() >= 2);
-        QCOMPARE(args.at(1), QStringLiteral("protonvpn"));
+        // The CLI is bundled in the sandbox: no flatpak-spawn --host wrapping.
+        QCOMPARE(prog, QStringLiteral("protonvpn"));
+        QCOMPARE(args, (QStringList{QStringLiteral("status")}));
     }
 
     void buildHostCommand_inFlatpak_originalArgsAppended()
@@ -116,14 +96,12 @@ private slots:
             buildHostCommand(QStringLiteral("protonvpn"),
                              {QStringLiteral("connect"), QStringLiteral("--cc"), QStringLiteral("DE")});
 
-        // Expected: { "--host", "protonvpn", "connect", "--cc", "DE" }
-        QCOMPARE(args.size(), 5);
-        QCOMPARE(args.at(2), QStringLiteral("connect"));
-        QCOMPARE(args.at(3), QStringLiteral("--cc"));
-        QCOMPARE(args.at(4), QStringLiteral("DE"));
+        QCOMPARE(prog, QStringLiteral("protonvpn"));
+        QCOMPARE(args, (QStringList{QStringLiteral("connect"),
+                                    QStringLiteral("--cc"),
+                                    QStringLiteral("DE")}));
     }
 };
 
 QTEST_MAIN(TstFlatpakUtils)
 #include "tst_flatpakUtils.moc"
-

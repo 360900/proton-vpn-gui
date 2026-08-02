@@ -153,7 +153,7 @@ install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/../proton-vpn-gui.svg
         RENAME proton-vpn-gui.svg
 )
 
-install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/../io.github._360900.ProtonVpnGui.metainfo.xml
+install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/../io.github._360900.Proton-vpn-gui.metainfo.xml
         DESTINATION share/metainfo
 )
 

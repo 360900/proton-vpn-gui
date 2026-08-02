@@ -124,11 +124,10 @@ void ProtonVpnCliClient::checkInstalled(const std::function<void(bool)>& done)
     run({QStringLiteral("--help")}, TIMEOUT_HELP_MS,
         [done](const ProcessRunner::Result& r)
         {
-            // Under Flatpak, flatpak-spawn itself starts fine even when the
-            // host has no protonvpn binary; the failure arrives as
-            // "Failed to start command" on stderr.
-            const bool spawnFailed = r.stdErr.contains(QStringLiteral("Failed to start command"));
-            const bool installed = r.failedToStart == false && spawnFailed == false &&
+            // The CLI is bundled in the sandbox or installed on the host PATH;
+            // presence is decided by whether the process started and produced
+            // output at all.
+            const bool installed = r.failedToStart == false &&
                                    (r.stdOut.isEmpty() == false || r.stdErr.isEmpty() == false);
             done(installed);
         });

@@ -47,7 +47,9 @@ auto [prog, args] = buildHostCommand("protonvpn", {"connect", country});
 process->start(prog, args);
 ```
 
-This transparently wraps commands with `flatpak-spawn --host` when inside a Flatpak sandbox (detected via `$FLATPAK_ID`). Never call `QProcess::start("protonvpn", ...)` directly.
+The `protonvpn` CLI is **bundled inside the sandbox** and on `PATH`, so `buildHostCommand()` returns the program unchanged (no `flatpak-spawn --host` delegation; that was removed). It still exists as the single QProcess funnel. Never call `QProcess::start("protonvpn", ...)` directly.
+
+The CLI's NetworkManager backend reaches the **host** NetworkManager daemon over the shared system bus via the `--system-talk-name=org.freedesktop.NetworkManager` finish-arg (same permission as the official `com.protonvpn.www`). The sandbox ships a source-built `libnm` + `NetworkManager-1.0.typelib`; the in-sandbox NM daemon binary is never launched.
 
 ## Key Files
 
@@ -59,7 +61,7 @@ This transparently wraps commands with `flatpak-spawn --host` when inside a Flat
 | `core/cliParsers.h/cpp` | Pure parsers for status fields, server info, command output |
 | `core/statusPoller.h/cpp` | Background `protonvpn status` polling subprocess via `processRunner` |
 | `core/processRunner.h/cpp` | Thin QProcess wrapper (start, output capture, cancellation) |
-| `core/hostCommand.h` | `buildHostCommand()` for Flatpak-safe subprocess spawning |
+| `core/hostCommand.h` | `buildHostCommand()` subprocess funnel (CLI is bundled in-sandbox; returns program unchanged) |
 | `core/natPmpService.h/cpp` | Port-forwarding (NAT-PMP) support |
 | `app/vpnFacade.h/cpp` | QML-exposed facade bridging `VpnService` and QML views |
 | `app/serverListModel.h/cpp` | `QAbstractListModel` feeding country/city lists to QML |

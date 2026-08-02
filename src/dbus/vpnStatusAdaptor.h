@@ -7,9 +7,9 @@
 /**
  * D-Bus adaptor that exposes the VPN connection status on the session bus.
  *
- * Service name : io.github._360900.ProtonVpnGui
+ * Service name : io.github._360900.Proton-vpn-gui
  * Object path  : /io/github/360900/ProtonVpnGui
- * Interface    : io.github._360900.ProtonVpnGui.Status
+ * Interface    : io.github._360900.Proton_vpn_gui.Status
  *
  * Properties (read-only):
  *   Status          – "unknown" | "disconnected" | "connecting" |
@@ -23,7 +23,7 @@
 class VpnStatusAdaptor : public QDBusAbstractAdaptor
 {
     Q_OBJECT
-    Q_CLASSINFO("D-Bus Interface", "io.github._360900.ProtonVpnGui.Status")
+    Q_CLASSINFO("D-Bus Interface", "io.github._360900.Proton_vpn_gui.Status")
 
     Q_PROPERTY(QString Status          READ status)
     Q_PROPERTY(QString ConnectedServer READ connectedServer)
