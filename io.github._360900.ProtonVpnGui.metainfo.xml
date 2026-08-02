@@ -63,6 +63,17 @@
   </screenshots>
 
   <releases>
+    <release version="2.0.1" date="2026-08-02">
+      <description>
+        <p>Bug fixes and polish.</p>
+        <ul>
+          <li>Fixed the connection status parsing: the server and IP shown during an active session now come from the connect command instead of a status field that does not exist.</li>
+          <li>Signing out no longer leaves the interface stuck showing an active connection.</li>
+          <li>Failed city/server list fetches no longer leave the loading spinner running forever.</li>
+          <li>Notifications are suppressed the first time the tray app starts.</li>
+        </ul>
+      </description>
+    </release>
     <release version="2.0.0" date="2026-08-01">
       <description>
         <p>Complete overhaul: new Qt Quick interface on a rewritten, tested core.</p>
