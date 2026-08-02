@@ -63,6 +63,15 @@
   </screenshots>
 
   <releases>
+    <release version="2.0.2" date="2026-08-02">
+      <description>
+        <p>Removed the legacy QtWidgets interface.</p>
+        <ul>
+          <li>The Qt Quick UI is now the only interface; the old QtWidgets fallback and its build option were removed.</li>
+          <li>This also drops the now-unused Qt SVG-Widgets dependency from the build.</li>
+        </ul>
+      </description>
+    </release>
     <release version="2.0.1" date="2026-08-02">
       <description>
         <p>Bug fixes and polish.</p>
