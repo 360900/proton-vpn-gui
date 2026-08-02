@@ -6,10 +6,10 @@ import ProtonVpnGui
 ApplicationWindow {
     id: root
 
-    width: 980
-    height: 660
-    minimumWidth: 720
-    minimumHeight: 540
+    width: 1280
+    height: 800
+    minimumWidth: 900
+    minimumHeight: 600
     title: Qt.application.name
     color: Theme.bgPage
 

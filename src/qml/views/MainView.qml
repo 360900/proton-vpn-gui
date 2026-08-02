@@ -14,7 +14,16 @@ Item {
     readonly property bool sidebarCollapsed: AppSettings.sidebarCollapsed
     readonly property bool loggedIn: VpnFacade.uiState === VpnFacade.Main
 
-    readonly property int sidebarExpandedWidth: 300
+    // The expanded sidebar tracks the window width (5/16 of it) so country
+    // names keep their full width on larger windows, clamped to keep the
+    // layout sane at the minimum size.
+    readonly property int sidebarFractionBase: 5
+    readonly property int sidebarFractionDiv: 16
+    readonly property int sidebarExpandedMin: 300
+    readonly property int sidebarExpandedMax: 460
+    readonly property int sidebarExpandedWidth: Math.max(sidebarExpandedMin,
+        Math.min(sidebarExpandedMax,
+                 Math.round(mainView.width * sidebarFractionBase / sidebarFractionDiv)))
     readonly property int sidebarCollapsedWidth: 64
 
     ServerListModel {

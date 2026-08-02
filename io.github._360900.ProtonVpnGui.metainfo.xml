@@ -22,6 +22,14 @@
 
   <launchable type="desktop-id">io.github._360900.ProtonVpnGui.desktop</launchable>
 
+  <provides>
+    <binary>proton_vpn_gui</binary>
+  </provides>
+
+  <categories>
+    <category>Network</category>
+  </categories>
+
   <developer id="io.github._360900">
     <name>360900</name>
   </developer>
@@ -33,36 +41,33 @@
 
   <screenshots>
     <screenshot type="default">
-      <caption>Main connection page</caption>
-      <image type="source" width="773" height="614">https://raw.githubusercontent.com/360900/proton-vpn-gui/v2.0.0/screenshots/main-page_normal-width.png</image>
+      <caption>Main server list</caption>
+      <image type="source" width="1437" height="971">https://raw.githubusercontent.com/360900/proton-vpn-gui/v2.0.3/screenshots/main-page.png</image>
     </screenshot>
     <screenshot>
-      <caption>Countries list</caption>
-      <image type="source" width="626" height="694">https://raw.githubusercontent.com/360900/proton-vpn-gui/v2.0.0/screenshots/countries-list_normal-width.png</image>
+      <caption>Protected while connected</caption>
+      <image type="source" width="1369" height="917">https://raw.githubusercontent.com/360900/proton-vpn-gui/v2.0.3/screenshots/protected-page.png</image>
     </screenshot>
     <screenshot>
-      <caption>Account page</caption>
-      <image type="source" width="626" height="694">https://raw.githubusercontent.com/360900/proton-vpn-gui/v2.0.0/screenshots/account-page.png</image>
+      <caption>Connecting</caption>
+      <image type="source" width="1468" height="953">https://raw.githubusercontent.com/360900/proton-vpn-gui/v2.0.3/screenshots/connecting-page.png</image>
     </screenshot>
     <screenshot>
-      <caption>Settings: VPN tab</caption>
-      <image type="source" width="626" height="694">https://raw.githubusercontent.com/360900/proton-vpn-gui/v2.0.0/screenshots/settings-page_vpn-tab.png</image>
-    </screenshot>
-    <screenshot>
-      <caption>Settings: App tab</caption>
-      <image type="source" width="626" height="694">https://raw.githubusercontent.com/360900/proton-vpn-gui/v2.0.0/screenshots/settings-page_app-tab-1.png</image>
-    </screenshot>
-    <screenshot>
-      <caption>Settings: App tab (continued)</caption>
-      <image type="source" width="626" height="694">https://raw.githubusercontent.com/360900/proton-vpn-gui/v2.0.0/screenshots/settings-page_app-tab-2.png</image>
-    </screenshot>
-    <screenshot>
-      <caption>Settings: Appearance tab</caption>
-      <image type="source" width="626" height="694">https://raw.githubusercontent.com/360900/proton-vpn-gui/v2.0.0/screenshots/settings-page_appearance-tab.png</image>
+      <caption>Settings</caption>
+      <image type="source" width="1402" height="894">https://raw.githubusercontent.com/360900/proton-vpn-gui/v2.0.3/screenshots/settings-page.png</image>
     </screenshot>
   </screenshots>
 
   <releases>
+    <release version="2.0.3" date="2026-08-02">
+      <description>
+        <p>Larger default window and a sidebar that scales with it.</p>
+        <ul>
+          <li>The app now opens at 1280x800 instead of 980x660, so long country names are no longer cut off.</li>
+          <li>The expanded server list sidebar scales with the window width (clamped to a sensible range) instead of staying a fixed 300px.</li>
+        </ul>
+      </description>
+    </release>
     <release version="2.0.2" date="2026-08-02">
       <description>
         <p>Removed the legacy QtWidgets interface.</p>

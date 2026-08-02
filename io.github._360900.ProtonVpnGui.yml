@@ -30,7 +30,6 @@ finish-args:
 modules:
   - name: proton_vpn_gui
     buildsystem: cmake-ninja
-    builddir: true
     config-opts:
       - -DCMAKE_BUILD_TYPE=Release
     subdir: src
@@ -50,8 +49,8 @@ modules:
     sources:
       - type: git
         url: https://github.com/360900/proton-vpn-gui.git
-        tag: v2.0.0
-        commit: 6ab71f8e400834a81baa3d9b6fa03b6f1303e84d
+        tag: v2.0.3
+        # commit: filled in after the release tag exists (see CI note below)
         # Flathub requires both the release tag and its full commit.
         x-checker-data:
           type: git
