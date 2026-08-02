@@ -268,9 +268,7 @@ modules:
       - type: git
         url: https://github.com/360900/proton-vpn-gui.git
         tag: v2.0.4
-        commit: 93718b4a6024dc6a7e34d2eb18636320d9f691f4
-        # NOTE: commit is updated to the real v2.0.4 tag sha when the release
-        # is tagged and pushed. Local test builds use: ./build-flatpak.sh --local
+        commit: e844e4f02447f1f8d046e3dcf6fea7797831ea6c
         x-checker-data:
           type: git
           tag-pattern: ^v(\d+\.\d+\.\d+)$
