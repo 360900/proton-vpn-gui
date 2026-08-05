@@ -1,6 +1,6 @@
 import QtQuick
 import QtQuick.Layouts
-import ProtonVpnGui
+import Vela
 
 // Shown when the protonvpn CLI is not found on the host.
 Item {

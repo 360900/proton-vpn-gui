@@ -1,7 +1,7 @@
 import QtQuick
 import QtQuick.Controls.Basic
 import QtQuick.Layouts
-import ProtonVpnGui
+import Vela
 
 // CollapsibleSection - a labelled, expandable/collapsible vertical group.
 // Replaces the old side-panel "tab" row with three independent foldable

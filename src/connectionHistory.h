@@ -7,8 +7,8 @@
 
 /*
 // ConnectionHistory – persists recent VPN connections to
-//   $XDG_DATA_HOME/ProtonVPN-GUI/history.json
-//   (falls back to ~/.local/share/ProtonVPN-GUI/history.json)
+//   $XDG_DATA_HOME/Vela/history.json
+//   (falls back to ~/.local/share/Vela/history.json)
 */
 struct ConnectionEntry
 {

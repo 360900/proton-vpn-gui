@@ -1,5 +1,5 @@
 import QtQuick
-import ProtonVpnGui
+import Vela
 
 // Country flag from the embedded flag set (4:3), DPI-crisp via the C++
 // image provider, with a subtle border and a lettered fallback.

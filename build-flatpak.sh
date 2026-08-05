@@ -12,18 +12,18 @@
 #   flatpak, plus either flatpak-builder or the org.flatpak.Builder Flatpak.
 #
 # The output bundle is written to:
-#   dist/io.github._360900.Proton-vpn-gui.flatpak
+#   dist/io.github._360900.Vela.flatpak
 
 set -euo pipefail
 
-MANIFEST="io.github._360900.Proton-vpn-gui.yml"
-APP_ID="io.github._360900.Proton-vpn-gui"
+MANIFEST="io.github._360900.Vela.yml"
+APP_ID="io.github._360900.Vela"
 BUILD_DIR=".flatpak-build"
 REPO_DIR=".flatpak-repo"
 BUNDLE="dist/${APP_ID}.flatpak"
 RUNTIME="org.kde.Platform"
 RUNTIME_VERSION=""   # resolved dynamically from Flathub at runtime
-SOURCE_URL="https://github.com/360900/proton-vpn-gui.git"
+SOURCE_URL="https://github.com/360900/vela.git"
 
 # ── Resolve latest KDE runtime version from Flathub ──────────────────────────
 resolve_runtime_version() {

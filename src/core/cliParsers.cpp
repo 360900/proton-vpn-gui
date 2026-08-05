@@ -298,7 +298,7 @@ QString parseCliVersion(const QString& combined)
 QString vpnStateToString(const VpnState state)
 {
     // Lowercase strings are part of the public D-Bus contract
-    // (io.github._360900.Proton_vpn_gui.Status, consumed by e.g. waybar).
+    // (io.github._360900.Vela.Status, consumed by e.g. waybar).
     switch (state)
     {
         case VpnState::Disconnected:

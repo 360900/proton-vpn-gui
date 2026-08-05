@@ -1,5 +1,5 @@
 import QtQuick
-import ProtonVpnGui
+import Vela
 
 // Small pill label for server features (P2P, TOR) and tier markers (PLUS).
 Rectangle {

@@ -81,27 +81,27 @@ void TrayController::updateState(const VpnState state)
     switch (state)
     {
         case VpnState::Connected:
-            m_trayIcon->setToolTip(tr("Proton VPN - Connected"));
+            m_trayIcon->setToolTip(tr("Vela - Connected"));
             m_toggleAction->setText(tr("Disconnect"));
             m_toggleAction->setEnabled(true);
             break;
         case VpnState::Connecting:
-            m_trayIcon->setToolTip(tr("Proton VPN - Connecting…"));
+            m_trayIcon->setToolTip(tr("Vela - Connecting…"));
             m_toggleAction->setText(tr("Disconnect"));
             m_toggleAction->setEnabled(true);
             break;
         case VpnState::Disconnecting:
-            m_trayIcon->setToolTip(tr("Proton VPN - Disconnecting…"));
+            m_trayIcon->setToolTip(tr("Vela - Disconnecting…"));
             m_toggleAction->setText(tr("Connect"));
             m_toggleAction->setEnabled(false);
             break;
         case VpnState::Error:
-            m_trayIcon->setToolTip(tr("Proton VPN - Connection error"));
+            m_trayIcon->setToolTip(tr("Vela - Connection error"));
             m_toggleAction->setText(tr("Connect"));
             m_toggleAction->setEnabled(true);
             break;
         default:
-            m_trayIcon->setToolTip(tr("Proton VPN - Disconnected"));
+            m_trayIcon->setToolTip(tr("Vela - Disconnected"));
             m_toggleAction->setText(tr("Connect"));
             m_toggleAction->setEnabled(true);
             break;
@@ -114,7 +114,7 @@ void TrayController::notify(const QString& title, const QString& message) const
     {
         return;
     }
-    QSvgRenderer renderer(QStringLiteral(":/assets/proton-vpn-gui.svg"));
+    QSvgRenderer renderer(QStringLiteral(":/assets/vela-icon.svg"));
     QPixmap iconPix(NOTIFICATION_ICON_SIZE, NOTIFICATION_ICON_SIZE);
     iconPix.fill(Qt::transparent);
     QPainter p(&iconPix);

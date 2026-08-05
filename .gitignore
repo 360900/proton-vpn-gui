@@ -50,8 +50,8 @@ CMakeLists.txt.user*
 
 # Binaries (including CI release artifacts reproduced locally)
 dist/
-io.github._360900.Proton-vpn-gui.flatpak
-proton-vpn-gui-linux-x86_64.tar.gz
+io.github._360900.Vela.flatpak
+vela-linux-x86_64.tar.gz
 
 # AppImage Building
 .appimage-build/

@@ -1,11 +1,11 @@
-# AGENTS.md — Proton VPN GUI
+# AGENTS.md — Vela
 
 ## Architecture Overview
 
 This is a **Qt6/C++23 desktop GUI** (Linux) that wraps the `protonvpn` CLI tool. The app has **no direct VPN or network logic** — it drives everything through `QProcess` calls to the `protonvpn` command-line binary.
 
 ```
-ProtonVpnGui (QML UI, module URI ProtonVpnGui)
+Vela (QML UI, module URI Vela)
   ├── qml/views/    (LoadingView, LoginView, NotInstalledView, MainView, SettingsView, AccountView)
   ├── qml/components/ (P* primitives: PButton, PSwitch, PTextField, PToast, ...)
   ├── app/          (QML app layer: VpnFacade, serverListModel, trayController, main.cpp)
@@ -31,7 +31,7 @@ cmake -B build -DCMAKE_BUILD_TYPE=Debug
 # Build
 cmake --build build
 # Run
-./build/proton_vpn_gui
+./build/vela
 # Run all tests
 cd build && ctest --output-on-failure
 ```
@@ -69,11 +69,11 @@ The CLI's NetworkManager backend reaches the **host** NetworkManager daemon over
 | `app/main.cpp` | QML engine, D-Bus registration, single-instance lock, version from `version.json` |
 | `qml/Main.qml` | Root window / view stack of the QML UI |
 | `qml/theme/Theme.qml` | Singleton color/palette properties for the QML UI |
-| `appConfig.h/cpp` | App preferences → `~/.config/ProtonVPN-GUI/app.json` |
-| `connectionHistory.h/cpp` | Recent connections → `$XDG_DATA_HOME/ProtonVPN-GUI/history.json` |
+| `appConfig.h/cpp` | App preferences → `~/.config/Vela/app.json` |
+| `connectionHistory.h/cpp` | Recent connections → `$XDG_DATA_HOME/Vela/history.json` |
 | `favoritesManager.h/cpp` | Favorites (starred cities/servers) |
 | `geoUtils.h/cpp` | Country/continent/coordinate helpers for the map |
-| `i18n/proton_vpn_gui_en.ts` | Translation catalog (QML `qsTr` + C++ `tr` strings) |
+| `i18n/vela_en.ts` | Translation catalog (QML `qsTr` + C++ `tr` strings) |
 | `version.json` | Single source of truth for `app_version` and tested CLI range |
 
 ## Conventions
@@ -84,7 +84,7 @@ The CLI's NetworkManager backend reaches the **host** NetworkManager daemon over
 - **Logging**: use `DBG_APP(msg)`, `DBG_CLI(msg)`, `DBG_SETTINGS(msg)` macros (stdout, tagged+timestamped). Never use `qDebug()`.
 - **Versioning**: single source of truth is `src/version.json` (keys: `app_version`, `cli_version_tested_min`, `cli_version_tested_max`, optional `prerelease`); read at runtime via embedded resource `:/version.json`
 - **Palette**: dark Proton-branded theme (bg `#1a1a2e`, accent purple `#6d4aff`); QML reads it from the `Theme.qml` singleton
-- **Translations**: Qt Linguist, source file `i18n/proton_vpn_gui_en.ts`; QML strings use `qsTr()` (context = file basename), C++ uses `tr()`. Regenerate with `lupdate6` over `app/` and `qml/`, compiled by `qt_add_translations` into `:/i18n/proton_vpn_gui_en.qm`.
+- **Translations**: Qt Linguist, source file `i18n/vela_en.ts`; QML strings use `qsTr()` (context = file basename), C++ uses `tr()`. Regenerate with `lupdate6` over `app/` and `qml/`, compiled by `qt_add_translations` into `:/i18n/vela_en.qm`.
 - **Language**: American English only — variable names, comments, and default/fallback text strings (e.g. `color` not `colour`, `canceled` not `cancelled`, `initialize` not `initialise`)
 
 ### Code Style

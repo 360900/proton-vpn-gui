@@ -4,7 +4,7 @@
 // (latitude / longitude). Used by the GlobeView connection animation to plot
 // the origin (user country) and the destination (connected country).
 //
-// Registered as a QML singleton: import ProtonVpnGui; GeoCoords.coordsFor("US").
+// Registered as a QML singleton: import Vela; GeoCoords.coordsFor("US").
 // Coordinates are approximate country centroids - good enough for a visual,
 // not for navigation. Registered as a QML singleton.
 

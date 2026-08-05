@@ -4,7 +4,7 @@
 // state as bindable properties, forwards user actions, and orchestrates the
 // startup flow (install check -> login check -> auto-connect).
 //
-// Registered as a QML singleton (import ProtonVpnGui; VpnFacade.xxx). The C++
+// Registered as a QML singleton (import Vela; VpnFacade.xxx). The C++
 // side (tray, D-Bus wiring in main.cpp) reaches it via instance().
 
 #include "../core/cliTypes.h"

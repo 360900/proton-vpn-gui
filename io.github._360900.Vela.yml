@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: MIT
-# Flatpak manifest for Proton VPN GUI.
+# Flatpak manifest for Vela.
 #
 # The GUI bundles a self-contained `protonvpn` CLI so it no longer shells out to
 # the host. The CLI's NetworkManager backend (python-proton-vpn-api-core) talks
@@ -18,11 +18,11 @@
 #
 # Reference: https://github.com/flathub/com.protonvpn.www
 
-app-id: io.github._360900.Proton-vpn-gui
+app-id: io.github._360900.Vela
 runtime: org.kde.Platform
 runtime-version: '6.11'
 sdk: org.kde.Sdk
-command: proton_vpn_gui
+command: vela
 finish-args:
   # Display
   - --share=ipc
@@ -249,24 +249,24 @@ modules:
         url: https://github.com/iproute2/iproute2/archive/refs/tags/v6.17.0.tar.gz
         sha256: fcf83a51254fc3de6afe7a110c7a91e10e723898283ff232f319bbc90c9f0666
 
-  - name: proton_vpn_gui
+  - name: vela
     buildsystem: cmake-ninja
     config-opts:
       - -DCMAKE_BUILD_TYPE=Release
     subdir: src
     post-install:
-      - mv /app/share/icons/hicolor/scalable/apps/proton-vpn-gui.svg
-          /app/share/icons/hicolor/scalable/apps/io.github._360900.Proton-vpn-gui.svg
-      - sed -i 's/^Icon=.*/Icon=io.github._360900.Proton-vpn-gui/'
-          /app/share/applications/proton-vpn-gui.desktop
-      - sed -i 's/^Exec=.*/Exec=proton_vpn_gui/'
-          /app/share/applications/proton-vpn-gui.desktop
-      - mv /app/share/applications/proton-vpn-gui.desktop
-          /app/share/applications/io.github._360900.Proton-vpn-gui.desktop
+      - mv /app/share/icons/hicolor/scalable/apps/vela.svg
+          /app/share/icons/hicolor/scalable/apps/io.github._360900.Vela.svg
+      - sed -i 's/^Icon=.*/Icon=io.github._360900.Vela/'
+          /app/share/applications/vela.desktop
+      - sed -i 's/^Exec=.*/Exec=vela/'
+          /app/share/applications/vela.desktop
+      - mv /app/share/applications/vela.desktop
+          /app/share/applications/io.github._360900.Vela.desktop
 
     sources:
       - type: git
-        url: https://github.com/360900/proton-vpn-gui.git
+        url: https://github.com/360900/vela.git
         tag: v2.0.4
         commit: e844e4f02447f1f8d046e3dcf6fea7797831ea6c
         x-checker-data:

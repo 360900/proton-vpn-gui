@@ -1,7 +1,7 @@
 import QtQuick
 import QtQuick.Controls.Basic
 import QtQuick.Layouts
-import ProtonVpnGui
+import Vela
 
 // PDialog - the standard modal dialog: themed surface, consistent padding,
 // and a gentle fade + settle entrance/exit (the Basic style has none).

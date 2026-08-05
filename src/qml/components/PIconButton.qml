@@ -1,6 +1,6 @@
 import QtQuick
 import QtQuick.Controls.Basic
-import ProtonVpnGui
+import Vela
 
 // Small square icon-only button. `icon` is a name under :/assets/
 // (without .svg), served tinted by the icon image provider.

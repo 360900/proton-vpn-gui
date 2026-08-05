@@ -1,5 +1,5 @@
 import QtQuick
-import ProtonVpnGui
+import Vela
 
 // Tinted monochrome icon from :/assets/<name>.svg, rendered by the C++
 // image provider at the correct devicePixelRatio (crisp on HiDPI).

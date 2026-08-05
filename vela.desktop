@@ -1,12 +1,12 @@
 [Desktop Entry]
-Name=Proton VPN GUI
+Name=Vela
 GenericName=VPN Client
 Comment=Qt GUI frontend for Proton VPN CLI
-Exec=proton_vpn_gui
-Icon=proton-vpn-gui
+Exec=vela
+Icon=vela
 Terminal=false
 Type=Application
 Categories=Network;
 Keywords=VPN;Proton;Network;Security;
 StartupNotify=true
-StartupWMClass=proton_vpn_gui
+StartupWMClass=vela

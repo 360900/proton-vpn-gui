@@ -1,7 +1,7 @@
 import QtQuick
 import QtQuick.Controls.Basic
 import QtQuick.Layouts
-import ProtonVpnGui
+import Vela
 
 ApplicationWindow {
     id: root
@@ -73,7 +73,7 @@ ApplicationWindow {
                 text: qsTr("View release")
                 onClicked: {
                     Qt.openUrlExternally(
-                        "https://github.com/360900/proton-vpn-gui/releases/latest")
+                        "https://github.com/360900/vela/releases/latest")
                     updateDialog.close()
                 }
             }
@@ -89,7 +89,7 @@ ApplicationWindow {
         Text {
             textFormat: Text.RichText
             text: qsTr("See what changed in the " +
-                       "<a href='https://github.com/360900/proton-vpn-gui/releases'>" +
+                       "<a href='https://github.com/360900/vela/releases'>" +
                        "release notes</a>.")
             color: Theme.textSecondary
             font.pixelSize: Theme.fontBody
@@ -110,7 +110,7 @@ ApplicationWindow {
     PDialog {
         id: quitDialog
         width: Math.min(parent.width - Theme.spacingXl * 2, 440)
-        dialogTitle: qsTr("Quit Proton VPN?")
+        dialogTitle: qsTr("Quit Vela?")
 
         Text {
             text: VpnFacade.forwardedPort > 0

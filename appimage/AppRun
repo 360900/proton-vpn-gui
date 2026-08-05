@@ -1,5 +1,5 @@
 #!/bin/bash
-# AppRun – Proton VPN GUI AppImage launcher.
+# AppRun – Vela AppImage launcher.
 #
 # The AppImage runtime sets $APPIMAGE (path to the .AppImage file) and
 # $APPDIR (mount point of the squashfs filesystem) before executing this
@@ -32,4 +32,4 @@ export QT_QPA_PLATFORM_PLUGIN_PATH="${APPDIR}/usr/plugins/platforms"
 
 
 # ── Launch ────────────────────────────────────────────────────────────────────
-exec "${APPDIR}/usr/bin/proton_vpn_gui" "$@"
+exec "${APPDIR}/usr/bin/vela" "$@"

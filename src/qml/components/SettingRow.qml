@@ -1,6 +1,6 @@
 import QtQuick
 import QtQuick.Layouts
-import ProtonVpnGui
+import Vela
 
 // One settings row: title + optional description on the left, an arbitrary
 // control (switch, combo, button...) on the right.

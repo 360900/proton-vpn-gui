@@ -1,4 +1,4 @@
-# Proton VPN GUI
+# Vela
 
 A friendly Linux desktop app for [Proton VPN](https://protonvpn.com).
 
@@ -46,12 +46,12 @@ The package is not published on the AUR yet, but the repo includes a ready-to-us
 `PKGBUILD`. Build and install it locally with:
 
 ```bash
-git clone https://github.com/360900/proton-vpn-gui.git
-cd proton-vpn-gui/packaging/aur
+git clone https://github.com/360900/vela.git
+cd vela/packaging/aur
 makepkg -si
 ```
 
-A `Proton VPN GUI` launcher appears in your application menu. Pushing it to the
+A `Vela` launcher appears in your application menu. Pushing it to the
 AUR as an official package is a manual step the maintainers have not done yet.
 
 ### Build a Flatpak yourself (most other distros)
@@ -60,10 +60,10 @@ The Flatpak is not published on Flathub yet. While the submission is prepared,
 you can build and install it from this repository with the included script.
 
 ```bash
-git clone https://github.com/360900/proton-vpn-gui.git
-cd proton-vpn-gui
+git clone https://github.com/360900/vela.git
+cd vela
 ./build-flatpak.sh --local --install
-flatpak run io.github._360900.Proton-vpn-gui
+flatpak run io.github._360900.Vela
 ```
 
 This builds inside the KDE runtime and is the same pipeline that produces the
@@ -81,11 +81,11 @@ LTS releases ship too-old Qt):
 ```bash
 sudo apt install cmake ninja-build qt6-base-dev qt6-declarative-dev \
   qt6-svg-dev qt6-tools-dev
-git clone https://github.com/360900/proton-vpn-gui.git
-cd proton-vpn-gui/src
+git clone https://github.com/360900/vela.git
+cd vela/src
 cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
 cmake --build build
-./build/proton_vpn_gui
+./build/vela
 ```
 
 Fedora:
@@ -93,14 +93,14 @@ Fedora:
 ```bash
 sudo dnf install cmake ninja-build qt6-qtbase-devel qt6-qtdeclarative-devel \
   qt6-qtsvg-devel qt6-qttools-devel
-git clone https://github.com/360900/proton-vpn-gui.git
-cd proton-vpn-gui/src
+git clone https://github.com/360900/vela.git
+cd vela/src
 cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
 cmake --build build
-./build/proton_vpn_gui
+./build/vela
 ```
 
-The build produces a single `proton_vpn_gui` binary that you can run directly.
+The build produces a single `vela` binary that you can run directly.
 
 ## Before you start
 
@@ -145,7 +145,7 @@ extra telemetry from this GUI.
 
 **Will my settings and servers carry over?**
 Yes. Your favorites, recent connections, and preferences live under
-`~/.config/ProtonVPN-GUI/` (or the equivalent Flatpak config path) and stay
+`~/.config/Vela/` (or the equivalent Flatpak config path) and stay
 between upgrades.
 
 **Why does it ask for a 2FA code?**
@@ -158,7 +158,7 @@ usually be the same one. If that works, the GUI will work on the next attempt.
 
 **Can other tools talk to this app?**
 Yes. It publishes a session-bus interface at
-`io.github._360900.Proton-vpn-gui` with status and basic connect, disconnect,
+`io.github._360900.Vela` with status and basic connect, disconnect,
 and raise-window methods. Scripts and other apps can use it to react to the
 VPN state.
 
@@ -210,16 +210,18 @@ What this project adds on top:
   connection state machine, status polling, settings management, and D-Bus
   interfaces. Everything in this layer has unit tests.
 - A session D-Bus control interface at
-  `io.github._360900.Proton-vpn-gui`.
+  `io.github._360900.Vela`.
 - Light and dark theme support with live system-theme following and a
   reduced-motion option.
 - New AppStream metadata, an AUR package, and modernized CI workflows.
 
-The app icons are GPL-3.0 symbolic Proton VPN icons from
+The Vela sail logo and app icon are the project's own artwork. The tray
+state icons were originally derived from GPL-3.0 symbolic Proton VPN icons from
 [MoshiurRahmanAdib/ProtonVPN-symbolic-icons](https://github.com/MoshiurRahmanAdib/ProtonVPN-symbolic-icons),
 originally from the
 [Papirus](https://github.com/PapirusDevelopmentTeam/papirus-icon-theme) icon
-theme.
+theme; their Proton shield glyphs have since been replaced with the Vela sail
+mark.
 
 ## License
 

@@ -1,5 +1,5 @@
 import QtQuick
-import ProtonVpnGui
+import Vela
 
 // Uppercase section label used to group settings rows.
 Text {

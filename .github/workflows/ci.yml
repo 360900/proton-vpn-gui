@@ -41,13 +41,13 @@ jobs:
           QT_QPA_PLATFORM: offscreen
 
       - name: Confirm binary exists
-        run: test -f build/proton_vpn_gui
+        run: test -f build/vela
 
       - name: Upload binary artifact
         uses: actions/upload-artifact@v4
         with:
           name: native-binary-ci
-          path: build/proton_vpn_gui
+          path: build/vela
           retention-days: 7
 
   build-flatpak:
@@ -87,7 +87,7 @@ jobs:
       - name: Patch manifest runtime-version
         run: |
           sed -i "s/^runtime-version:.*/runtime-version: '${{ steps.kde.outputs.version }}'/" \
-            io.github._360900.Proton-vpn-gui.yml
+            io.github._360900.Vela.yml
 
       # The shipped manifest pins a release tag for Flathub reproducibility.
       # CI builds must compile the PR checkout instead, so swap the LAST
@@ -98,9 +98,9 @@ jobs:
                /^    sources:/ { last = NR }
                { lines[NR] = $0 }
                END { for (i = 1; i <= length(lines); i++) if (i < last) print lines[i] }' \
-            io.github._360900.Proton-vpn-gui.yml > /tmp/ci.yml
-          mv /tmp/ci.yml io.github._360900.Proton-vpn-gui.yml
-          printf '    sources:\n      - type: dir\n        path: .\n' >> io.github._360900.Proton-vpn-gui.yml
+            io.github._360900.Vela.yml > /tmp/ci.yml
+          mv /tmp/ci.yml io.github._360900.Vela.yml
+          printf '    sources:\n      - type: dir\n        path: .\n' >> io.github._360900.Vela.yml
 
       - name: Install KDE runtime and SDK
         run: |
@@ -114,23 +114,23 @@ jobs:
             --force-clean \
             --repo=.flatpak-repo \
             .flatpak-build \
-            io.github._360900.Proton-vpn-gui.yml
+            io.github._360900.Vela.yml
 
       - name: Export bundle
         run: |
           flatpak build-bundle \
             .flatpak-repo \
-            io.github._360900.Proton-vpn-gui.flatpak \
-            io.github._360900.Proton-vpn-gui
+            io.github._360900.Vela.flatpak \
+            io.github._360900.Vela
 
       - name: Confirm bundle exists
-        run: test -f io.github._360900.Proton-vpn-gui.flatpak
+        run: test -f io.github._360900.Vela.flatpak
 
       - name: Upload Flatpak artifact
         uses: actions/upload-artifact@v4
         with:
           name: flatpak-ci
-          path: io.github._360900.Proton-vpn-gui.flatpak
+          path: io.github._360900.Vela.flatpak
           retention-days: 7
 
   build-appimage-standalone:

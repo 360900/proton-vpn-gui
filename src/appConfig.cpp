@@ -12,12 +12,12 @@ namespace
 {
 // Easy-to-change config location
 // QStandardPaths::GenericConfigLocation resolves to:
-//   - Native install : ~/.config/ProtonVPN-GUI/
-//   - Flatpak sandbox: ~/.var/app/io.github._360900.Proton-vpn-gui/config/ProtonVPN-GUI/
+//   - Native install : ~/.config/Vela/
+//   - Flatpak sandbox: ~/.var/app/io.github._360900.Vela/config/Vela/
 QString configDir()
 {
     return QStandardPaths::writableLocation(QStandardPaths::GenericConfigLocation)
-           + QStringLiteral("/ProtonVPN-GUI");
+           + QStringLiteral("/Vela");
 }
 QString configFile() { return configDir() + QStringLiteral("/app.json"); }
 

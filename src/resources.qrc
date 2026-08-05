@@ -1,9 +1,9 @@
 <!DOCTYPE RCC>
 <RCC version="1.0">
     <qresource prefix="/assets">
-        <file alias="proton-vpn-logo.svg">assets/proton-vpn-logo.svg</file>
-        <file alias="proton-vpn-logo-light.svg">assets/proton-vpn-logo-light.svg</file>
-        <file alias="proton-vpn-gui.svg">assets/proton-vpn-gui.svg</file>
+        <file alias="vela-icon.svg">assets/vela-icon.svg</file>
+        <file alias="vela-logo.svg">assets/vela-logo.svg</file>
+        <file alias="vela-logo-light.svg">assets/vela-logo-light.svg</file>
         <file alias="state-connected.svg">assets/state-connected.svg</file>
         <file alias="state-disconnected.svg">assets/state-disconnected.svg</file>
         <file alias="state-connecting.svg">assets/state-connecting.svg</file>
@@ -40,6 +40,6 @@
         <file>version.json</file>
     </qresource>
     <qresource prefix="/autostart">
-        <file alias="proton-vpn-gui.desktop">autostart/proton-vpn-gui.desktop</file>
+        <file alias="vela.desktop">autostart/vela.desktop</file>
     </qresource>
 </RCC>

@@ -1,7 +1,7 @@
 import QtQuick
 import QtQuick.Controls.Basic
 import QtQuick.Layouts
-import ProtonVpnGui
+import Vela
 
 // A favorites / recents row. Same shape and behavior as CountryDelegate's
 // header row, scoped to a single destination instead of a country list.

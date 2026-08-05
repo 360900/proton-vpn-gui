@@ -1,8 +1,8 @@
-pkgbase = proton-vpn-gui
+pkgbase = vela
 	pkgdesc = Qt 6 graphical interface for the Proton VPN Linux CLI
 	pkgver = 2.0.0
 	pkgrel = 1
-	url = https://github.com/360900/proton-vpn-gui
+	url = https://github.com/360900/vela
 	arch = x86_64
 	license = GPL-3.0-only
 	makedepends = cmake
@@ -13,7 +13,7 @@ pkgbase = proton-vpn-gui
 	depends = qt6-declarative
 	depends = qt6-svg
 	optdepends = libnatpmp: port forwarding support
-	source = git+https://github.com/360900/proton-vpn-gui.git#tag=v2.0.0
+	source = git+https://github.com/360900/vela.git#tag=v2.0.0
 	sha256sums = SKIP
 
-pkgname = proton-vpn-gui
+pkgname = vela

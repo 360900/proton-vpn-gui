@@ -1,6 +1,6 @@
 import QtQuick
 import QtQuick.Controls.Basic
-import ProtonVpnGui
+import Vela
 
 // Standard button. Variants: "primary" (accent fill), "secondary" (outline),
 // "ghost" (borderless), "danger" (red fill).

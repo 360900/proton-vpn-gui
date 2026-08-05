@@ -5,7 +5,7 @@
 
 // ---------------------------------------------------------------------------
 // AppConfig – persists app-level preferences to
-//   ~/.config/ProtonVPN-GUI/app.json
+//   ~/.config/Vela/app.json
 // ---------------------------------------------------------------------------
 class AppConfig
 {

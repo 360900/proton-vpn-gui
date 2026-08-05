@@ -1,6 +1,6 @@
 import QtQuick
 import QtQuick.Controls.Basic
-import ProtonVpnGui
+import Vela
 
 // Standard single-line input. `secret: true` masks input and shows a
 // reveal toggle.

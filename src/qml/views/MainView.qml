@@ -1,7 +1,7 @@
 import QtQuick
 import QtQuick.Controls.Basic
 import QtQuick.Layouts
-import ProtonVpnGui
+import Vela
 
 // The signed-in shell: a collapsible server-list sidebar on the left, and a
 // right pane hosting the connection card with Settings/Account pushed on top.
@@ -67,13 +67,13 @@ Item {
                     spacing: Theme.spacingSm
 
                     Image {
-                        // proton-vpn-logo.svg is a white shield (dark themes),
-                        // proton-vpn-logo-light.svg a dark shield (light themes).
+                        // vela-logo.svg is a white sail (dark themes),
+                        // vela-logo-light.svg a dark sail (light themes).
                         source: mainView.sidebarCollapsed
-                                ? "qrc:/assets/proton-vpn-gui.svg"
+                                ? "qrc:/assets/vela-icon.svg"
                                 : Theme.dark
-                                  ? "qrc:/assets/proton-vpn-logo.svg"
-                                  : "qrc:/assets/proton-vpn-logo-light.svg"
+                                  ? "qrc:/assets/vela-logo.svg"
+                                  : "qrc:/assets/vela-logo-light.svg"
                         sourceSize: mainView.sidebarCollapsed
                                     ? Qt.size(28, 28)
                                     : Qt.size(150, 38)

@@ -5,7 +5,7 @@
 
 // AppConfig is a singleton, so all test slots share the same instance.
 // We use QStandardPaths::setTestModeEnabled(true) to redirect file I/O to a
-// throwaway location so we never touch the real ~/.config/ProtonVPN-GUI/.
+// throwaway location so we never touch the real ~/.config/Vela/.
 
 class TstAppConfig : public QObject
 {

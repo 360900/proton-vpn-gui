@@ -43,7 +43,7 @@ void portalRequestAutoStart(const bool enable)
     options.insert(QStringLiteral("handle_token"),
                    QString::fromLatin1("pvg_") + QUuid::createUuid().toString(QUuid::WithoutBraces));
     options.insert(QStringLiteral("reason"),
-                   QStringLiteral("Launch Proton VPN GUI at login."));
+                   QStringLiteral("Launch Vela at login."));
     options.insert(QStringLiteral("autostart"), enable);
 
     msg << QString() /* parent_window */ << QVariant(options);
@@ -153,7 +153,7 @@ QString AppSettings::autoStartFilePath()
 {
     // Native installs write the real ~/.config/autostart desktop file.
     const QString configDir = QStandardPaths::writableLocation(QStandardPaths::ConfigLocation);
-    return configDir + QStringLiteral("/autostart/proton-vpn-gui.desktop");
+    return configDir + QStringLiteral("/autostart/vela.desktop");
 }
 
 bool AppSettings::autoStart() const
@@ -185,7 +185,7 @@ void AppSettings::setAutoStart(const bool enable)
 
     if (enable)
     {
-        QFile templateFile(QStringLiteral(":/autostart/proton-vpn-gui.desktop"));
+        QFile templateFile(QStringLiteral(":/autostart/vela.desktop"));
         if (templateFile.open(QIODevice::ReadOnly) == false)
         {
             m_autoStartError = tr("Could not read the autostart template resource.");

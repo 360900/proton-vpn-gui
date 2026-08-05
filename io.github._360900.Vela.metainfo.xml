@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <component type="desktop-application">
-  <id>io.github._360900.Proton-vpn-gui</id>
-  <name>Proton VPN GUI</name>
+  <id>io.github._360900.Vela</id>
+  <name>Vela</name>
   <summary>Community Qt interface for the Proton VPN CLI</summary>
   <description>
     <p>
@@ -16,14 +16,14 @@
     </p>
   </description>
 
-  <url type="homepage">https://github.com/360900/proton-vpn-gui</url>
-  <url type="bugtracker">https://github.com/360900/proton-vpn-gui/issues</url>
-  <url type="vcs-browser">https://github.com/360900/proton-vpn-gui</url>
+  <url type="homepage">https://github.com/360900/vela</url>
+  <url type="bugtracker">https://github.com/360900/vela/issues</url>
+  <url type="vcs-browser">https://github.com/360900/vela</url>
 
-  <launchable type="desktop-id">io.github._360900.Proton-vpn-gui.desktop</launchable>
+  <launchable type="desktop-id">io.github._360900.Vela.desktop</launchable>
 
   <provides>
-    <binary>proton_vpn_gui</binary>
+    <binary>vela</binary>
   </provides>
 
   <categories>
@@ -42,19 +42,19 @@
   <screenshots>
     <screenshot type="default">
       <caption>Main server list</caption>
-      <image type="source" width="1437" height="971">https://raw.githubusercontent.com/360900/proton-vpn-gui/v2.0.4/screenshots/main-page.png</image>
+      <image type="source" width="1437" height="971">https://raw.githubusercontent.com/360900/vela/v2.0.4/screenshots/main-page.png</image>
     </screenshot>
     <screenshot>
       <caption>Protected while connected</caption>
-      <image type="source" width="1369" height="917">https://raw.githubusercontent.com/360900/proton-vpn-gui/v2.0.4/screenshots/protected-page.png</image>
+      <image type="source" width="1369" height="917">https://raw.githubusercontent.com/360900/vela/v2.0.4/screenshots/protected-page.png</image>
     </screenshot>
     <screenshot>
       <caption>Connecting</caption>
-      <image type="source" width="1468" height="953">https://raw.githubusercontent.com/360900/proton-vpn-gui/v2.0.4/screenshots/connecting-page.png</image>
+      <image type="source" width="1468" height="953">https://raw.githubusercontent.com/360900/vela/v2.0.4/screenshots/connecting-page.png</image>
     </screenshot>
     <screenshot>
       <caption>Settings</caption>
-      <image type="source" width="1402" height="894">https://raw.githubusercontent.com/360900/proton-vpn-gui/v2.0.4/screenshots/settings-page.png</image>
+      <image type="source" width="1402" height="894">https://raw.githubusercontent.com/360900/vela/v2.0.4/screenshots/settings-page.png</image>
     </screenshot>
   </screenshots>
 

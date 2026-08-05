@@ -1,6 +1,6 @@
 import QtQuick
 import QtQuick.Layouts
-import ProtonVpnGui
+import Vela
 
 // Sign-in flow: credentials, then an inline 2FA step when required.
 Item {
@@ -44,10 +44,10 @@ Item {
             spacing: Theme.spacingMd
 
             Image {
-                // White shield on dark surfaces, dark shield on light.
+                // White sail on dark surfaces, dark sail on light.
                 source: Theme.dark
-                        ? "qrc:/assets/proton-vpn-logo.svg"
-                        : "qrc:/assets/proton-vpn-logo-light.svg"
+                        ? "qrc:/assets/vela-logo.svg"
+                        : "qrc:/assets/vela-logo-light.svg"
                 sourceSize: Qt.size(190, 48)
                 fillMode: Image.PreserveAspectFit
                 Layout.alignment: Qt.AlignHCenter

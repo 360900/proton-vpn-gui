@@ -6,7 +6,7 @@
 
 // ---------------------------------------------------------------------------
 // FavoritesManager – persists favorite VPN locations to
-//   $XDG_DATA_HOME/ProtonVPN-GUI/favorites.json
+//   $XDG_DATA_HOME/Vela/favorites.json
 // ---------------------------------------------------------------------------
 struct FavoriteEntry
 {

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # build-appimage_lite.sh
-# Builds a lightweight AppImage containing only the Proton VPN GUI.
+# Builds a lightweight AppImage containing only the Vela.
 # The Proton VPN CLI must be installed separately on the host system.
 # Analogous to the Flatpak build, but without the sandbox.
 #
@@ -13,7 +13,7 @@
 #   (Qt itself is fetched via aqtinstall — see below — not from the system.)
 #
 # Output:
-#   dist/ProtonVPN-GUI-<version>-lite-x86_64.AppImage
+#   dist/Vela-<version>-lite-x86_64.AppImage
 
 set -euo pipefail
 
@@ -22,11 +22,11 @@ BUILD_ROOT="${SCRIPT_DIR}/.appimage-build"
 APPDIR="${BUILD_ROOT}/AppDir-lite"
 TOOLS_DIR="${BUILD_ROOT}/tools"
 OUTPUT_DIR="${SCRIPT_DIR}/dist"
-APP_ID="io.github._360900.Proton-vpn-gui"
+APP_ID="io.github._360900.Vela"
 
 # -- Read version --------------------------------------------------------------
 VERSION=$(python3 -c "import json; print(json.load(open('${SCRIPT_DIR}/src/version.json'))['app_version'])")
-OUTPUT="${OUTPUT_DIR}/ProtonVPN-GUI-${VERSION}-lite-x86_64.AppImage"
+OUTPUT="${OUTPUT_DIR}/Vela-${VERSION}-lite-x86_64.AppImage"
 
 # -- Color helpers -------------------------------------------------------------
 GREEN='\033[0;32m'; YELLOW='\033[1;33m'; RED='\033[0;31m'; NC='\033[0m'
@@ -82,7 +82,7 @@ export PATH="${QT_DIR}/bin:${PATH}"
 
 # -- Build the Qt app ----------------------------------------------------------
 # -march=x86-64 pins our binary to the generic baseline, regardless of the CI runner's compiler default.
-info "Building Proton VPN GUI (Release)..."
+info "Building Vela (Release)..."
 cmake -S "${SCRIPT_DIR}/src" -B "${BUILD_ROOT}/native-lite" \
       -DCMAKE_BUILD_TYPE=Release -G Ninja \
       -DCMAKE_PREFIX_PATH="${QT_DIR}" \
@@ -100,11 +100,11 @@ ICON_DIR="${APPDIR}/usr/share/icons/hicolor/scalable/apps"
 
 mkdir -p "$(dirname "${DESKTOP_DST}")" "${ICON_DIR}"
 
-cp "${SCRIPT_DIR}/proton-vpn-gui.desktop" "${DESKTOP_DST}"
-sed -i "s|^Exec=.*|Exec=proton_vpn_gui|"  "${DESKTOP_DST}"
+cp "${SCRIPT_DIR}/vela.desktop" "${DESKTOP_DST}"
+sed -i "s|^Exec=.*|Exec=vela|"  "${DESKTOP_DST}"
 sed -i "s|^Icon=.*|Icon=${APP_ID}|"      "${DESKTOP_DST}"
 
-cp "${SCRIPT_DIR}/proton-vpn-gui.svg" "${ICON_DIR}/${APP_ID}.svg"
+cp "${SCRIPT_DIR}/vela.svg" "${ICON_DIR}/${APP_ID}.svg"
 cp "${DESKTOP_DST}"            "${APPDIR}/${APP_ID}.desktop"
 cp "${ICON_DIR}/${APP_ID}.svg" "${APPDIR}/${APP_ID}.svg"
 
@@ -146,14 +146,14 @@ gcc -shared -Wl,-soname,libjxrglue.so.0 -x c /dev/null \
 
 export PATH="${TOOLS_DIR}:${PATH}"
 
-# linuxdeploy resolves proton_vpn_gui's shared library dependencies the same
+# linuxdeploy resolves vela's shared library dependencies the same
 # way ldd does (via LD_LIBRARY_PATH/system paths), not via QMAKE. Since aqt's
 # Qt lives outside any system library path, it must be added explicitly or
 # linuxdeploy can't find libQt6*.so at all.
 LD_LIBRARY_PATH="${QT_DIR}/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}" \
 NO_STRIP=1 APPIMAGE_EXTRACT_AND_RUN=1 "${LINUXDEPLOY}" \
     --appdir       "${APPDIR}" \
-    --executable   "${APPDIR}/usr/bin/proton_vpn_gui" \
+    --executable   "${APPDIR}/usr/bin/vela" \
     --desktop-file "${DESKTOP_DST}" \
     --icon-file    "${ICON_DIR}/${APP_ID}.svg"
 

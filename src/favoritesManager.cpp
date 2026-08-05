@@ -14,7 +14,7 @@ namespace
 QString favoritesFilePath()
 {
     const QString dir = QStandardPaths::writableLocation(QStandardPaths::GenericDataLocation)
-                        + QStringLiteral("/ProtonVPN-GUI");
+                        + QStringLiteral("/Vela");
     return dir + QStringLiteral("/favorites.json");
 }
 } // namespace

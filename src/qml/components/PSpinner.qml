@@ -1,5 +1,5 @@
 import QtQuick
-import ProtonVpnGui
+import Vela
 
 // Indeterminate activity spinner - a rotating arc drawn with Canvas,
 // DPI-crisp at any size.

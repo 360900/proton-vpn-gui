@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.31)
-project(proton_vpn_gui)
+project(vela)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
@@ -27,7 +27,7 @@ find_package(Qt6 COMPONENTS LinguistTools QUIET)
 
 add_subdirectory(core)
 
-qt_add_executable(proton_vpn_gui
+qt_add_executable(vela
         appConfig.h
         appConfig.cpp
         migrations.h
@@ -96,8 +96,8 @@ set_source_files_properties(qml/theme/Theme.qml PROPERTIES
         QT_RESOURCE_ALIAS Theme.qml
 )
 
-qt_add_qml_module(proton_vpn_gui
-        URI ProtonVpnGui
+qt_add_qml_module(vela
+        URI Vela
         VERSION 1.0
         QML_FILES ${APP_QML_FILES}
         SOURCES
@@ -114,9 +114,9 @@ qt_add_qml_module(proton_vpn_gui
 )
 
 # The generated QML type registration includes headers by basename.
-target_include_directories(proton_vpn_gui PRIVATE app)
+target_include_directories(vela PRIVATE app)
 
-target_link_libraries(proton_vpn_gui PRIVATE
+target_link_libraries(vela PRIVATE
         vpncore
         Qt6::Core
         Qt6::Gui
@@ -130,9 +130,9 @@ target_link_libraries(proton_vpn_gui PRIVATE
 )
 
 if(Qt6LinguistTools_FOUND)
-    qt_add_translations(proton_vpn_gui
+    qt_add_translations(vela
             TS_FILES
-                i18n/proton_vpn_gui_en.ts
+                i18n/vela_en.ts
             RESOURCE_PREFIX "/i18n"
             NO_GENERATE_PLURALS_TS_FILE
     )
@@ -140,20 +140,20 @@ else()
     message(WARNING "Qt6LinguistTools not found - translations will not be compiled.")
 endif()
 
-install(TARGETS proton_vpn_gui
+install(TARGETS vela
         RUNTIME DESTINATION bin
 )
 
-install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/../proton-vpn-gui.desktop
+install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/../vela.desktop
         DESTINATION share/applications
 )
 
-install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/../proton-vpn-gui.svg
+install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/../vela.svg
         DESTINATION share/icons/hicolor/scalable/apps
-        RENAME proton-vpn-gui.svg
+        RENAME vela.svg
 )
 
-install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/../io.github._360900.Proton-vpn-gui.metainfo.xml
+install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/../io.github._360900.Vela.metainfo.xml
         DESTINATION share/metainfo
 )
 

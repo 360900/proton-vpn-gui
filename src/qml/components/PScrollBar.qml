@@ -1,6 +1,6 @@
 import QtQuick
 import QtQuick.Controls.Basic
-import ProtonVpnGui
+import Vela
 
 // PScrollBar - the standard slim scrollbar: rounded handle that fades in
 // while scrolling or hovered, and fades out when idle (Basic style drives

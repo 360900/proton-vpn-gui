@@ -1,7 +1,7 @@
 import QtQuick
 import QtQuick.Controls.Basic
 import QtQuick.Layouts
-import ProtonVpnGui
+import Vela
 
 // All settings, one scrollable page with grouped sections.
 // VPN settings round-trip into `protonvpn config set`; changing one while
@@ -523,7 +523,7 @@ Item {
                             variant: "secondary"
                             implicitHeight: 30
                             onClicked: Qt.openUrlExternally(
-                                           "https://github.com/360900/proton-vpn-gui")
+                                           "https://github.com/360900/vela")
                         }
                     }
                 }

@@ -1,6 +1,6 @@
 pragma Singleton
 import QtQuick
-import ProtonVpnGui
+import Vela
 
 // Design tokens for the entire UI. Every color, spacing, radius, type size,
 // and duration comes from here - components never hard-code visual values.

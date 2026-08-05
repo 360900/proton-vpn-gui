@@ -48,17 +48,17 @@ int main(int argc, char* argv[])
     QQuickStyle::setStyle(QStringLiteral("Basic"));
 
     QApplication app(argc, argv);
-    QApplication::setApplicationName(QStringLiteral("Proton VPN GUI"));
-    QApplication::setApplicationDisplayName(QStringLiteral("Proton VPN GUI"));
+    QApplication::setApplicationName(QStringLiteral("Vela"));
+    QApplication::setApplicationDisplayName(QStringLiteral("Vela"));
     // Match the installed .desktop file so the launcher groups windows
     // correctly: Flatpak renames it to the app-id, native keeps its own name.
     QApplication::setDesktopFileName(isRunningAsFlatpak()
-                                         ? QStringLiteral("io.github._360900.Proton-vpn-gui")
-                                         : QStringLiteral("proton-vpn-gui"));
+                                         ? QStringLiteral("io.github._360900.Vela")
+                                         : QStringLiteral("vela"));
     QApplication::setQuitOnLastWindowClosed(false); // window closes to tray
 
     static QTranslator translator;
-    if (translator.load(QLocale::system(), QStringLiteral("proton_vpn_gui"),
+    if (translator.load(QLocale::system(), QStringLiteral("vela"),
                         QStringLiteral("_"), QStringLiteral(":/i18n")))
     {
         QApplication::installTranslator(&translator);
@@ -76,7 +76,7 @@ int main(int argc, char* argv[])
 
     FileLogger::instance().setEnabled(AppConfig::instance().logToFile());
 
-    DBG_APP(QStringLiteral("=== Proton VPN GUI starting (QML UI) ==="));
+    DBG_APP(QStringLiteral("=== Vela starting (QML UI) ==="));
     DBG_APP(QStringLiteral("App version        : ") + appVersion);
     DBG_APP(QStringLiteral("Qt version         : ") + QString::fromLatin1(qVersion()));
     DBG_APP(QStringLiteral("Package type       : ") + packageTypeName());
@@ -85,9 +85,9 @@ int main(int argc, char* argv[])
     AppConfig::instance().logLoadedConfig();
 
     // Single-instance guard: D-Bus name ownership, lock-file fallback.
-    const QString dbusServiceName = QStringLiteral("io.github._360900.Proton-vpn-gui");
+    const QString dbusServiceName = QStringLiteral("io.github._360900.Vela");
     QDBusConnection sessionBus = QDBusConnection::sessionBus();
-    QLockFile lockFile(QDir::tempPath() + QStringLiteral("/proton-vpn-gui.lock"));
+    QLockFile lockFile(QDir::tempPath() + QStringLiteral("/vela.lock"));
     if (sessionBus.isConnected())
     {
         if (sessionBus.registerService(dbusServiceName) == false)
@@ -96,8 +96,8 @@ int main(int argc, char* argv[])
                         .arg(dbusServiceName));
             QDBusMessage raise = QDBusMessage::createMethodCall(
                 dbusServiceName,
-                QStringLiteral("/io/github/360900/ProtonVpnGui"),
-                QStringLiteral("io.github._360900.Proton_vpn_gui.Control"),
+                QStringLiteral("/io/github/360900/Vela"),
+                QStringLiteral("io.github._360900.Vela.Control"),
                 QStringLiteral("Raise"));
             sessionBus.call(raise, QDBus::Block, DBUS_RAISE_TIMEOUT_MS);
             return 0;
@@ -112,7 +112,7 @@ int main(int argc, char* argv[])
                 nullptr,
                 QCoreApplication::translate("main", "Already Running"),
                 QCoreApplication::translate("main",
-                    "Proton VPN GUI is already running.\n\nCheck your system tray or taskbar."));
+                    "Vela is already running.\n\nCheck your system tray or taskbar."));
             return 1;
         }
     }
@@ -147,7 +147,7 @@ int main(int argc, char* argv[])
         const VpnStatusAdaptor* statusAdaptor = new VpnStatusAdaptor(facade->service());
         Q_UNUSED(statusAdaptor)
         dbusControl = new VpnControlAdaptor(facade->service());
-        sessionBus.registerObject(QStringLiteral("/io/github/360900/ProtonVpnGui"),
+        sessionBus.registerObject(QStringLiteral("/io/github/360900/Vela"),
                                   facade->service());
     }
 
@@ -162,7 +162,7 @@ int main(int argc, char* argv[])
                      });
     engine.addImageProvider(QStringLiteral("flag"), new FlagImageProvider());
     engine.addImageProvider(QStringLiteral("icon"), new IconImageProvider());
-    engine.loadFromModule(QStringLiteral("ProtonVpnGui"), QStringLiteral("Main"));
+    engine.loadFromModule(QStringLiteral("Vela"), QStringLiteral("Main"));
     if (engine.rootObjects().isEmpty())
     {
         DBG_APP(QStringLiteral("FATAL: QML root failed to load (see QML warnings above)."));
@@ -209,14 +209,14 @@ int main(int argc, char* argv[])
                          if (state == VpnState::Connected)
                          {
                              const QString server = facade->service()->connectedServer();
-                             tray.notify(QObject::tr("Proton VPN"),
+                             tray.notify(QObject::tr("Vela"),
                                          server.isEmpty()
                                              ? QObject::tr("Connected.")
                                              : QObject::tr("Connected to %1.").arg(server));
                          }
                          else if (state == VpnState::Disconnected)
                          {
-                             tray.notify(QObject::tr("Proton VPN"),
+                             tray.notify(QObject::tr("Vela"),
                                          QObject::tr("Disconnected."));
                          }
                      });

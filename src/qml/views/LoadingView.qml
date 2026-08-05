@@ -1,6 +1,6 @@
 import QtQuick
 import QtQuick.Layouts
-import ProtonVpnGui
+import Vela
 
 // Shown while the install / login checks run at startup.
 Item {
@@ -10,8 +10,8 @@ Item {
 
         Image {
             source: Theme.dark
-                    ? "qrc:/assets/proton-vpn-logo.svg"
-                    : "qrc:/assets/proton-vpn-logo-light.svg"
+                    ? "qrc:/assets/vela-logo.svg"
+                    : "qrc:/assets/vela-logo-light.svg"
             sourceSize: Qt.size(220, 56)
             fillMode: Image.PreserveAspectFit
             Layout.alignment: Qt.AlignHCenter

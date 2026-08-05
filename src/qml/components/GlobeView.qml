@@ -1,5 +1,5 @@
 import QtQuick
-import ProtonVpnGui
+import Vela
 
 // GlobeView - a stylized wireframe globe that plots the user's country
 // and the connected country and draws a great-circle arc between them.

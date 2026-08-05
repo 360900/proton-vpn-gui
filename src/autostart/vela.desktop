@@ -1,6 +1,6 @@
 [Desktop Entry]
 Type=Application
-Name=Proton VPN
+Name=Vela
 Exec=@EXEC@
 Hidden=false
 X-GNOME-Autostart-enabled=true

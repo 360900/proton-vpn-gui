@@ -1,6 +1,6 @@
 import QtQuick
 import QtQuick.Controls.Basic
-import ProtonVpnGui
+import Vela
 
 // Sidebar search input with a leading search glyph and clear button.
 TextField {

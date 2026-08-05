@@ -1,7 +1,7 @@
 import QtQuick
 import QtQuick.Controls.Basic
 import QtQuick.Layouts
-import ProtonVpnGui
+import Vela
 
 // The central connection status card: state heading, server details,
 // session timer, forwarded port, and the primary connect/disconnect action.

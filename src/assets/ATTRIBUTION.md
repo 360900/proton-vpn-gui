@@ -1,16 +1,22 @@
 # Icons attribution
 
-The Proton VPN app icons in this directory (proton-vpn-gui.svg, the
-proton-vpn-logo*.svg and state-*.svg variants) are GPL-3.0 symbolic icons from
-[MoshiurRahmanAdib/ProtonVPN-symbolic-icons](https://github.com/MoshiurRahmanAdib/ProtonVPN-symbolic-icons),
-originally from the
-[Papirus](https://github.com/PapirusDevelopmentTeam/papirus-icon-theme) icon
-theme.
+The Vela brand mark (`vela-icon.svg`, `vela-logo.svg`, `vela-logo-light.svg`,
+`vela-symbolic.svg`) is the project's own sail/boat logo. `vela-icon.svg` is the
+full-color app icon; the `vela-logo*.svg` files are monochrome variants of the
+symbolic sail, recolored for dark (`#dfdfdf`) and light (`#1B1340`) surfaces so
+they stay visible in the UI.
 
-Modifications since import (2026-08-05):
+The remaining icons in this directory are third-party:
 
-- proton-vpn-logo-light.svg recolored the paper's light-gray shield to
-  `#1B1340` so it stays visible on light surfaces.
-- Files were renamed to match the app's resource names.
+- The generic UI icons (gear, power, search, etc.) are
+  [Bootstrap Icons](https://icons.getbootstrap.com/) (MIT License).
+- The country flag SVGs come from
+  [lipis/flag-icons](https://github.com/lipis/flag-icons) (MIT License).
+- The tray state icons were originally derived from the
+  [MoshiurRahmanAdib/ProtonVPN-symbolic-icons](https://github.com/MoshiurRahmanAdib/ProtonVPN-symbolic-icons)
+  set (itself from the
+  [Papirus](https://github.com/PapirusDevelopmentTeam/papirus-icon-theme) icon
+  theme); their Proton shield glyphs have since been replaced with the Vela sail
+  mark.
 
 Licensed under GPL-3.0, see the repository LICENSE.

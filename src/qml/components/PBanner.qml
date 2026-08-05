@@ -1,6 +1,6 @@
 import QtQuick
 import QtQuick.Layouts
-import ProtonVpnGui
+import Vela
 
 // PBanner - a slim inline banner for app-level notices (CLI version
 // mismatch, prerelease builds). Reveals and dismisses with a gentle

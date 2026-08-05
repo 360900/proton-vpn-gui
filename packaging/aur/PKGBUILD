@@ -1,10 +1,10 @@
 # Maintainer: 360900
-pkgname=proton-vpn-gui
+pkgname=vela
 pkgver=2.0.0
 pkgrel=1
 pkgdesc='Qt 6 graphical interface for the Proton VPN Linux CLI'
 arch=('x86_64')
-url='https://github.com/360900/proton-vpn-gui'
+url='https://github.com/360900/vela'
 license=('GPL-3.0-only')
 depends=('proton-vpn-cli' 'qt6-base' 'qt6-declarative' 'qt6-svg')
 makedepends=('cmake' 'ninja' 'qt6-tools')

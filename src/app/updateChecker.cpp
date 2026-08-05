@@ -19,7 +19,7 @@ namespace
 constexpr int UPDATE_CHECK_DELAY_MS   = 3'000;
 constexpr int UPDATE_CHECK_TIMEOUT_MS = 10'000;
 constexpr const char* UPDATE_VERSION_URL =
-    "https://raw.githubusercontent.com/360900/proton-vpn-gui/main/src/version.json";
+    "https://raw.githubusercontent.com/360900/vela/main/src/version.json";
 } // namespace
 
 UpdateChecker::UpdateChecker(QObject* parent)

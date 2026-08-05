@@ -1,5 +1,5 @@
 import QtQuick
-import ProtonVpnGui
+import Vela
 
 // CrossfadeStack - a page container that switches between its children with
 // a fade-through instead of StackLayout's hard cut: the whole page layer

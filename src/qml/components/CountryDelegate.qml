@@ -1,7 +1,7 @@
 import QtQuick
 import QtQuick.Controls.Basic
 import QtQuick.Layouts
-import ProtonVpnGui
+import Vela
 
 // One country row in the sidebar: header (flag, name, star, chevron) that
 // expands to its city list. The header body toggles expansion; a Connect

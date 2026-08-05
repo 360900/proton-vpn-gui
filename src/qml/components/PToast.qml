@@ -1,6 +1,6 @@
 import QtQuick
 import QtQuick.Layouts
-import ProtonVpnGui
+import Vela
 
 // PToast - in-app toast notifications. Instantiate once at window level and
 // call show(message, success). Toasts slide in with a gentle fade/settle,
