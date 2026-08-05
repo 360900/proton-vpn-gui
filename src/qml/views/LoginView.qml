@@ -44,7 +44,7 @@ Item {
             spacing: Theme.spacingMd
 
             Image {
-                // White wordmark on dark surfaces, dark wordmark on light.
+                // White shield on dark surfaces, dark shield on light.
                 source: Theme.dark
                         ? "qrc:/assets/proton-vpn-logo.svg"
                         : "qrc:/assets/proton-vpn-logo-light.svg"

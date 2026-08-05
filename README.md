@@ -7,9 +7,8 @@ Proton VPN server. No terminal, no command-line flags, no fiddling with config
 files. The app handles signing in, picking a fast server, reconnecting when the
 link drops, and remembering your favorites so the next time is one click.
 
-> Heads up: this project is made by the community. Proton AG made Proton VPN,
-> the brand, and the CLI. We are not Proton AG. Proton and ProtonVPN are
-> trademarks of Proton AG.
+> Heads up: this is an unofficial client. It is not affiliated with or
+> endorsed by Proton AG. Proton and ProtonVPN are trademarks of Proton AG.
 
 ## Screenshots
 
@@ -215,6 +214,12 @@ What this project adds on top:
 - Light and dark theme support with live system-theme following and a
   reduced-motion option.
 - New AppStream metadata, an AUR package, and modernized CI workflows.
+
+The app icons are GPL-3.0 symbolic Proton VPN icons from
+[MoshiurRahmanAdib/ProtonVPN-symbolic-icons](https://github.com/MoshiurRahmanAdib/ProtonVPN-symbolic-icons),
+originally from the
+[Papirus](https://github.com/PapirusDevelopmentTeam/papirus-icon-theme) icon
+theme.
 
 ## License
 

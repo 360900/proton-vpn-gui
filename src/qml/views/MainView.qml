@@ -67,8 +67,8 @@ Item {
                     spacing: Theme.spacingSm
 
                     Image {
-                        // proton-vpn-logo.svg is a white wordmark (dark themes),
-                        // proton-vpn-logo-light.svg a dark wordmark (light themes).
+                        // proton-vpn-logo.svg is a white shield (dark themes),
+                        // proton-vpn-logo-light.svg a dark shield (light themes).
                         source: mainView.sidebarCollapsed
                                 ? "qrc:/assets/proton-vpn-gui.svg"
                                 : Theme.dark
